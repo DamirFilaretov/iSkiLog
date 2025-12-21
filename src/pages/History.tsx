@@ -8,10 +8,11 @@ export default function History() {
       <HistoryHeader />
       <TimeRangeTabs />
 
-      <div className="mt-4 px-4 space-y-4">
-        <HistoryItem />
-        <HistoryItem />
-        <HistoryItem />
+      <div className="mt-4 px-4 space-y-4 pb-6">
+        <HistoryItem id="1" />
+        <HistoryItem id="2" />
+        <HistoryItem id="3" />
+        <HistoryItem id="4" />
       </div>
     </div>
   )

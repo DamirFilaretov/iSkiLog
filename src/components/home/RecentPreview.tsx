@@ -17,7 +17,10 @@ export default function RecentPreview() {
         </button>
       </div>
 
-      <div className="rounded-2xl bg-white p-4 shadow-sm flex items-center justify-between">
+      <button
+        onClick={() => navigate("/set/1")}
+        className="w-full text-left rounded-2xl bg-white p-4 shadow-sm flex items-center justify-between active:scale-95 transition"
+      >
         <div>
           <p className="text-sm font-medium text-gray-900">
             Slalom Session
@@ -30,7 +33,7 @@ export default function RecentPreview() {
         <span className="text-xs text-gray-400">
           2h ago
         </span>
-      </div>
+      </button>
     </div>
   )
 }

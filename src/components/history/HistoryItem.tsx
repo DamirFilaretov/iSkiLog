@@ -1,12 +1,18 @@
-export default function HistoryItem() {
+import { useNavigate } from "react-router-dom"
+
+export default function HistoryItem({ id }: { id: string }) {
+  const navigate = useNavigate()
+
   return (
-    <div className="flex items-start gap-4 rounded-2xl bg-white p-4 shadow-sm">
-      {/* Icon */}
+    <button
+      type="button"
+      onClick={() => navigate(`/set/${id}`)}
+      className="w-full text-left flex items-start gap-4 rounded-2xl bg-white p-4 shadow-sm active:scale-95 transition"
+    >
       <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white">
         🌊
       </div>
 
-      {/* Content */}
       <div className="flex-1">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-gray-900">
@@ -25,6 +31,6 @@ export default function HistoryItem() {
           Felt smooth today, better gate timing.
         </p>
       </div>
-    </div>
+    </button>
   )
 }
