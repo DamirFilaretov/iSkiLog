@@ -225,7 +225,8 @@ export default function SetSummary() {
       <div className="fixed bottom-0 left-0 right-0 bg-gray-100 px-4 pb-4 pt-2">
         <button
           // For now we pass the set id in the URL so Add Set can become "edit mode" next.
-          onClick={() => navigate(`/add?id=${set.id}`)}
+          onClick={() => navigate(`/add?id=${set.id}`, { replace: true })}
+
           className="w-full rounded-full bg-blue-600 py-4 text-white font-semibold shadow-md"
         >
           Edit Set

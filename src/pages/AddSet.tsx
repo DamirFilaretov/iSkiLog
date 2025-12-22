@@ -14,10 +14,6 @@ import SaveSetButton from "../components/addSet/SaveSetButton"
 import type { EventKey, SkiSet } from "../types/sets"
 import { useSetsStore } from "../store/setsStore"
 
-/**
- * Returns today's LOCAL calendar date as "YYYY-MM-DD".
- * Do not use toISOString here because that is UTC and can shift the day.
- */
 function todayLocalIsoDate() {
   const now = new Date()
   const y = now.getFullYear()
@@ -26,17 +22,10 @@ function todayLocalIsoDate() {
   return `${y}-${m}-${d}`
 }
 
-/**
- * Type guard that verifies the URL param matches a supported event type.
- */
 function isEventKey(v: string | null): v is EventKey {
   return v === "slalom" || v === "tricks" || v === "jump" || v === "cuts" || v === "other"
 }
 
-/**
- * Simple id generator for Milestone 2.
- * In Milestone 3, Supabase will generate ids.
- */
 function makeId() {
   return crypto.randomUUID()
 }
@@ -45,130 +34,235 @@ export default function AddSet() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  // In-memory store API.
-  const { addSet } = useSetsStore()
+  const { addSet, updateSet, getSetById } = useSetsStore()
 
-  // Selected event type controls which event specific fields are shown.
+  const editId = searchParams.get("id") ?? ""
+  const isEditing = Boolean(editId)
+
+  const editingSet = useMemo(() => {
+    if (!isEditing) return undefined
+    return getSetById(editId)
+  }, [editId, getSetById, isEditing])
+
   const [event, setEvent] = useState<EventKey>("slalom")
 
-  // Base fields.
   const [date, setDate] = useState<string>(todayLocalIsoDate())
   const [notes, setNotes] = useState<string>("")
 
-  // Slalom fields.
   const [slalomBuoys, setSlalomBuoys] = useState<number | null>(null)
   const [slalomRopeLength, setSlalomRopeLength] = useState<string>("")
   const [slalomSpeed, setSlalomSpeed] = useState<string>("")
 
-  // Tricks fields.
   const [tricksDuration, setTricksDuration] = useState<number | null>(null)
   const [tricksType, setTricksType] = useState<"hands" | "toes">("hands")
 
-  // Today in LOCAL calendar terms.
+  const [jumpAttempts, setJumpAttempts] = useState<number | null>(null)
+  const [jumpPassed, setJumpPassed] = useState<number | null>(null)
+  const [jumpMade, setJumpMade] = useState<number | null>(null)
+
+  const [cutsPasses, setCutsPasses] = useState<number | null>(null)
+
+  const [otherName, setOtherName] = useState<string>("")
+
   const maxDate = todayLocalIsoDate()
 
+  function clearAllEventSpecificFields() {
+    setSlalomBuoys(null)
+    setSlalomRopeLength("")
+    setSlalomSpeed("")
+
+    setTricksDuration(null)
+    setTricksType("hands")
+
+    setJumpAttempts(null)
+    setJumpPassed(null)
+    setJumpMade(null)
+
+    setCutsPasses(null)
+
+    setOtherName("")
+  }
+
+  function handleEventChange(next: EventKey) {
+    // Only clear when the user manually changes the event.
+    // This prevents prefill from being wiped.
+    clearAllEventSpecificFields()
+    setEvent(next)
+  }
+
   useEffect(() => {
-    // If the user came from a Quick Add tile, the event is in the URL query.
+    // Create mode supports quick add by event param.
+    if (isEditing) return
+
     const fromUrl = searchParams.get("event")
     if (isEventKey(fromUrl)) setEvent(fromUrl)
-  }, [searchParams])
+  }, [isEditing, searchParams])
 
-  /**
-   * Because dates are "YYYY-MM-DD", string comparison works safely.
-   */
+  useEffect(() => {
+    // Prefill in edit mode.
+    if (!isEditing) return
+    if (!editingSet) return
+
+    // Base
+    setEvent(editingSet.event)
+    setDate(editingSet.date)
+    setNotes(editingSet.notes)
+
+    // Clear everything then fill the correct event fields.
+    clearAllEventSpecificFields()
+
+    if (editingSet.event === "slalom") {
+      setSlalomBuoys(editingSet.data.buoys)
+      setSlalomRopeLength(editingSet.data.ropeLength)
+      setSlalomSpeed(editingSet.data.speed)
+    }
+
+    if (editingSet.event === "tricks") {
+      setTricksDuration(editingSet.data.duration)
+      setTricksType(editingSet.data.trickType)
+    }
+
+    if (editingSet.event === "jump") {
+      setJumpAttempts(editingSet.data.attempts)
+      setJumpPassed(editingSet.data.passed)
+      setJumpMade(editingSet.data.made)
+    }
+
+    if (editingSet.event === "cuts") {
+      setCutsPasses(editingSet.data.passes)
+    }
+
+    if (editingSet.event === "other") {
+      setOtherName(editingSet.data.name)
+    }
+  }, [editingSet, isEditing])
+
   const dateIsInFuture = useMemo(() => {
     if (!date) return false
     return date > maxDate
   }, [date, maxDate])
 
-  /**
-   * Error message shown under the date field.
-   * Empty string means "no error".
-   */
   const dateError = useMemo(() => {
     if (!date) return "Date is required"
     if (dateIsInFuture) return "Date cannot be in the future"
     return ""
   }, [date, dateIsInFuture])
 
-  /**
-   * Save is allowed only when date exists and is not in the future.
-   */
   const canSave = useMemo(() => {
     return Boolean(date) && !dateIsInFuture
   }, [date, dateIsInFuture])
 
-  /**
-   * Build and save the set.
-   * This function is the single authority for validation.
-   */
+  function buildSetObject(id: string): SkiSet {
+    if (event === "slalom") {
+      return {
+        id,
+        event: "slalom",
+        date,
+        notes,
+        data: {
+          buoys: slalomBuoys,
+          ropeLength: slalomRopeLength,
+          speed: slalomSpeed
+        }
+      }
+    }
+
+    if (event === "tricks") {
+      return {
+        id,
+        event: "tricks",
+        date,
+        notes,
+        data: {
+          duration: tricksDuration,
+          trickType: tricksType
+        }
+      }
+    }
+
+    if (event === "jump") {
+      return {
+        id,
+        event: "jump",
+        date,
+        notes,
+        data: {
+          attempts: jumpAttempts,
+          passed: jumpPassed,
+          made: jumpMade
+        }
+      }
+    }
+
+    if (event === "cuts") {
+      return {
+        id,
+        event: "cuts",
+        date,
+        notes,
+        data: {
+          passes: cutsPasses
+        }
+      }
+    }
+
+    return {
+      id,
+      event: "other",
+      date,
+      notes,
+      data: {
+        name: otherName
+      }
+    }
+  }
+
   function handleSave() {
-    // Hard safety guard.
     if (!canSave) return
 
-    // Build the set object based on event type.
-    // Events not wired yet use safe default values for now.
-    const newSet: SkiSet =
-      event === "slalom"
-        ? {
-            id: makeId(),
-            event: "slalom",
-            date,
-            notes,
-            data: {
-              buoys: slalomBuoys,
-              ropeLength: slalomRopeLength,
-              speed: slalomSpeed
-            }
-          }
-        : event === "tricks"
-          ? {
-              id: makeId(),
-              event: "tricks",
-              date,
-              notes,
-              data: {
-                duration: tricksDuration,
-                trickType: tricksType
-              }
-            }
-          : event === "jump"
-            ? {
-                id: makeId(),
-                event: "jump",
-                date,
-                notes,
-                data: {
-                  attempts: null,
-                  passed: null,
-                  made: null
-                }
-              }
-            : event === "cuts"
-              ? {
-                  id: makeId(),
-                  event: "cuts",
-                  date,
-                  notes,
-                  data: {
-                    passes: null
-                  }
-                }
-              : {
-                  id: makeId(),
-                  event: "other",
-                  date,
-                  notes,
-                  data: {
-                    name: ""
-                  }
-                }
+    if (isEditing) {
+      if (!editingSet) return
 
-    // Save into local memory store.
-    addSet(newSet)
+      const updated = buildSetObject(editingSet.id)
+      updateSet(updated)
+      navigate(`/set/${updated.id}`, { replace: true })
+      return
+    }
 
-    // Navigate back to Home.
-    navigate("/")
+    const created = buildSetObject(makeId())
+    addSet(created)
+    navigate("/") // go back to Home after creating
+  }
+
+  if (isEditing && !editingSet) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <div className="px-4 pt-6 pb-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
+            >
+              ←
+            </button>
+
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">Edit Set</h1>
+              <p className="text-sm text-gray-500">Set not found</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4">
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-900">This set does not exist</p>
+            <p className="mt-1 text-sm text-gray-500">
+              If you refreshed the page, local storage resets in Milestone 2. Add a set again.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -176,9 +270,8 @@ export default function AddSet() {
       <AddSetHeader />
 
       <div className="px-4 space-y-4 pb-28">
-        <EventTypeSelect value={event} onChange={setEvent} />
+        <EventTypeSelect value={event} onChange={handleEventChange} />
 
-        {/* Event-specific inputs */}
         {event === "slalom" && (
           <SlalomFields
             buoys={slalomBuoys}
@@ -199,12 +292,21 @@ export default function AddSet() {
           />
         )}
 
-        {/* Still UI-only for now */}
-        {event === "jump" && <JumpFields />}
-        {event === "cuts" && <CutsFields />}
-        {event === "other" && <OtherFields />}
+        {event === "jump" && (
+          <JumpFields
+            attempts={jumpAttempts}
+            passed={jumpPassed}
+            made={jumpMade}
+            onAttemptsChange={setJumpAttempts}
+            onPassedChange={setJumpPassed}
+            onMadeChange={setJumpMade}
+          />
+        )}
 
-        {/* Base fields apply to all events */}
+        {event === "cuts" && <CutsFields passes={cutsPasses} onPassesChange={setCutsPasses} />}
+
+        {event === "other" && <OtherFields name={otherName} onNameChange={setOtherName} />}
+
         <BaseFields
           date={date}
           onDateChange={setDate}
