@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 
 import { useSetsStore } from "../store/setsStore"
@@ -47,29 +48,26 @@ function formatDateLabel(iso: string) {
   })
 }
 
-
 export default function SetSummary() {
   const navigate = useNavigate()
   const params = useParams()
   const id = params.id ?? ""
 
-  // Pull store helper to find a set by id.
-  const { getSetById } = useSetsStore()
+  // Store helpers.
+  const { getSetById, deleteSet } = useSetsStore()
 
-  // Lookup the set only when id changes.
-  // Read the set from the store for this id.
-  // This stays up to date automatically when the store changes.
-  const set = id ? getSetById(id) : undefined
+  // Controls delete confirmation modal visibility.
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
+  // Load the set from the store by route id.
+  // Use a clear variable name to avoid confusion with React setState.
+  const skiSet = id ? getSetById(id) : undefined
 
   /**
    * If we do not find the set, show a simple not found screen.
-   * This can happen if:
-   * user refreshes the page (Milestone 2 storage resets)
-   * user opens an old link
-   * id is wrong
+   * This can happen if the page was refreshed (Milestone 2 resets memory).
    */
-  if (!set) {
+  if (!skiSet) {
     return (
       <div className="min-h-screen bg-gray-100">
         <div className="px-4 pt-6 pb-4">
@@ -105,35 +103,56 @@ export default function SetSummary() {
    * We only display fields that exist for the specific event.
    */
   const metrics: { label: string; value: string }[] =
-    set.event === "slalom"
+    skiSet.event === "slalom"
       ? [
-          { label: "Buoys", value: set.data.buoys === null ? "—" : String(set.data.buoys) },
-          { label: "Rope Length", value: set.data.ropeLength || "—" },
-          { label: "Speed", value: set.data.speed || "—" }
+          { label: "Buoys", value: skiSet.data.buoys === null ? "—" : String(skiSet.data.buoys) },
+          { label: "Rope Length", value: skiSet.data.ropeLength || "—" },
+          { label: "Speed", value: skiSet.data.speed || "—" }
         ]
-      : set.event === "tricks"
+      : skiSet.event === "tricks"
         ? [
             {
               label: "Duration",
-              value: set.data.duration === null ? "—" : `${set.data.duration} min`
+              value: skiSet.data.duration === null ? "—" : `${skiSet.data.duration} min`
             },
-            { label: "Trick Type", value: set.data.trickType }
+            { label: "Trick Type", value: skiSet.data.trickType }
           ]
-        : set.event === "jump"
+        : skiSet.event === "jump"
           ? [
-              { label: "Attempts", value: set.data.attempts === null ? "—" : String(set.data.attempts) },
-              { label: "Passed", value: set.data.passed === null ? "—" : String(set.data.passed) },
-              { label: "Made", value: set.data.made === null ? "—" : String(set.data.made) }
+              {
+                label: "Attempts",
+                value: skiSet.data.attempts === null ? "—" : String(skiSet.data.attempts)
+              },
+              {
+                label: "Passed",
+                value: skiSet.data.passed === null ? "—" : String(skiSet.data.passed)
+              },
+              { label: "Made", value: skiSet.data.made === null ? "—" : String(skiSet.data.made) }
             ]
-          : set.event === "cuts"
-            ? [{ label: "Passes", value: set.data.passes === null ? "—" : String(set.data.passes) }]
-            : [{ label: "Name", value: set.data.name || "—" }]
+          : skiSet.event === "cuts"
+            ? [{ label: "Passes", value: skiSet.data.passes === null ? "—" : String(skiSet.data.passes) }]
+            : [{ label: "Name", value: skiSet.data.name || "—" }]
 
   // Simple detail rows, based on what we reliably know in Milestone 2.
   const details: { label: string; value: string }[] = [
-    { label: "Event Type", value: eventLabel(set.event) },
-    { label: "Date Logged", value: formatDateLabel(set.date) }
+    { label: "Event Type", value: eventLabel(skiSet.event) },
+    { label: "Date Logged", value: formatDateLabel(skiSet.date) }
   ]
+
+  /**
+   * Confirmed delete handler.
+   */
+  function handleConfirmDelete() {
+    // Delete from the store using the route id.
+    // This guarantees we pass a string and avoids type narrowing issues.
+    deleteSet(id)
+
+    // Close modal so UI state does not leak.
+    setConfirmOpen(false)
+
+    // Go to History and replace so back does not return to a deleted page.
+    navigate("/history", { replace: true })
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -157,16 +176,16 @@ export default function SetSummary() {
         {/* Hero card */}
         <div className="rounded-2xl bg-blue-600 p-5 shadow-md flex items-center gap-4">
           <div className="h-12 w-12 rounded-2xl bg-white/15 flex items-center justify-center text-white text-lg">
-            {eventIcon(set.event)}
+            {eventIcon(skiSet.event)}
           </div>
 
           <div className="flex-1">
-            <div className="text-white text-lg font-medium">{eventLabel(set.event)}</div>
+            <div className="text-white text-lg font-medium">{eventLabel(skiSet.event)}</div>
 
             <div className="mt-1 flex items-center gap-4 text-sm text-white/80">
               <div className="flex items-center gap-2">
                 <span>📅</span>
-                <span>{formatDateLabel(set.date)}</span>
+                <span>{formatDateLabel(skiSet.date)}</span>
               </div>
 
               {/* We do not store time yet in Milestone 2, so we do not fake it. */}
@@ -194,8 +213,7 @@ export default function SetSummary() {
 
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm text-gray-700 leading-relaxed">
-              {/* If notes is empty, show a friendly placeholder. */}
-              {set.notes.trim() ? set.notes : "No notes for this set."}
+              {skiSet.notes.trim() ? skiSet.notes : "No notes for this set."}
             </p>
           </div>
         </div>
@@ -221,16 +239,59 @@ export default function SetSummary() {
         </div>
       </div>
 
-      {/* Edit button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-100 px-4 pb-4 pt-2">
-        <button
-          // For now we pass the set id in the URL so Add Set can become "edit mode" next.
-          onClick={() => navigate(`/add?id=${set.id}`, { replace: true })}
+      {/* Delete confirmation modal */}
+      {confirmOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <button
+            type="button"
+            aria-label="Close delete confirmation"
+            onClick={() => setConfirmOpen(false)}
+            className="absolute inset-0 bg-black/40"
+          />
 
-          className="w-full rounded-full bg-blue-600 py-4 text-white font-semibold shadow-md"
-        >
-          Edit Set
-        </button>
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-base font-semibold text-gray-900">Delete this set?</h3>
+            <p className="mt-1 text-sm text-gray-500">This action cannot be undone.</p>
+
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-900"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-semibold text-white"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Bottom action bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-100 px-4 pb-4 pt-2">
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            // Replace so Edit does not create confusing back stacks.
+            onClick={() => navigate(`/add?id=${skiSet.id}`, { replace: true })}
+            className="w-full rounded-full bg-blue-600 py-4 text-white font-semibold shadow-md"
+          >
+            Edit
+          </button>
+
+          <button
+            onClick={() => setConfirmOpen(true)}
+            className="w-full rounded-full bg-white py-4 text-red-600 font-semibold shadow-md border border-gray-200"
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   )

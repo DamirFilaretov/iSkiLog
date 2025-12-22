@@ -12,6 +12,9 @@ type Props = {
 
 /**
  * JumpFields is controlled by AddSet so values can be saved into the store.
+ * Auto fill behavior is handled in AddSet:
+ * when user edits passed, made is auto computed
+ * when user edits made, passed is auto computed
  */
 export default function JumpFields({
   attempts,
@@ -21,6 +24,10 @@ export default function JumpFields({
   onPassedChange,
   onMadeChange
 }: Props) {
+  // When attempts is known, we cap passed and made at attempts using max.
+  // This is UI guidance. Final validation is enforced in AddSet before saving.
+  const maxWhenAttemptsKnown = attempts ?? undefined
+
   return (
     <div className="space-y-4">
       <div>
@@ -28,7 +35,7 @@ export default function JumpFields({
 
         <input
           type="number"
-          placeholder="e.g. 3"
+          placeholder="e.g. 10"
           min={0}
           step={1}
           // Convert null to empty string so the input stays controlled.
@@ -42,6 +49,8 @@ export default function JumpFields({
           }}
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
         />
+
+        <p className="mt-1 text-xs text-gray-500">Passed + Made should equal Attempts</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -50,8 +59,9 @@ export default function JumpFields({
 
           <input
             type="number"
-            placeholder="e.g. 2"
+            placeholder="e.g. 4"
             min={0}
+            max={maxWhenAttemptsKnown}
             step={1}
             value={passed ?? ""}
             onChange={e => {
@@ -63,6 +73,8 @@ export default function JumpFields({
             }}
             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
           />
+
+          <p className="mt-1 text-xs text-gray-500">Updates Made automatically</p>
         </div>
 
         <div>
@@ -70,8 +82,9 @@ export default function JumpFields({
 
           <input
             type="number"
-            placeholder="e.g. 1"
+            placeholder="e.g. 6"
             min={0}
+            max={maxWhenAttemptsKnown}
             step={1}
             value={made ?? ""}
             onChange={e => {
@@ -81,9 +94,10 @@ export default function JumpFields({
               }
               onMadeChange(Number(e.target.value))
             }}
-            // Fixed typo: rounded-xl (was rouAnded-xl)
             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
           />
+
+          <p className="mt-1 text-xs text-gray-500">Updates Passed automatically</p>
         </div>
       </div>
     </div>
