@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
+import { createSet } from "../data/setsWriteApi"
+
 
 import AddSetHeader from "../components/addSet/AddSetHeader"
 import EventTypeSelect from "../components/addSet/EventTypeSelect"
@@ -26,9 +28,6 @@ function isEventKey(v: string | null): v is EventKey {
   return v === "slalom" || v === "tricks" || v === "jump" || v === "cuts" || v === "other"
 }
 
-function makeId() {
-  return crypto.randomUUID()
-}
 
 /**
  * Helper to safely compute the other jump field.
@@ -357,9 +356,18 @@ export default function AddSet() {
       return
     }
 
-    const created = buildSetObject(makeId())
-    addSet(created)
-    navigate("/") // go back to Home after creating
+    const localDraft = buildSetObject("temp")
+
+    createSet(localDraft)
+      .then(id => {
+        addSet({ ...localDraft, id })
+        navigate("/")
+      })
+      .catch(err => {
+        console.error("Failed to save set", err)
+        alert("Failed to save set. Try again.")
+      })
+
   }
 
   if (isEditing && !editingSet) {

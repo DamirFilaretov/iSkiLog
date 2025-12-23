@@ -1,10 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
+
 import { supabase } from "../lib/supabaseClient"
+import { fetchSets } from "../data/setsApi"
+import { useSetsStore } from "../store/setsStore"
 
 /**
  * Shape of auth context.
- * We only track user for now.
  */
 type AuthContextValue = {
   user: User | null
@@ -14,12 +16,16 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 /**
- * AuthProvider listens to Supabase auth state.
- * No UI logic here.
+ * AuthProvider
+ * - Tracks Supabase auth state
+ * - Hydrates sets store after login
+ * - Does NOT handle routing or UI
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const { replaceAll, clearAll } = useSetsStore()
 
   useEffect(() => {
     // Get initial session
@@ -28,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    // Listen for auth changes
+    // Subscribe to auth changes
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
@@ -40,6 +46,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  useEffect(() => {
+    // When user logs in, load sets
+    if (!user) {
+      clearAll()
+      return
+    }
+
+    fetchSets()
+      .then(sets => {
+        replaceAll(sets)
+      })
+      .catch(err => {
+        console.error("Failed to fetch sets", err)
+      })
+  }, [user, replaceAll, clearAll])
+
   return (
     <AuthContext.Provider value={{ user, loading }}>
       {children}
@@ -48,12 +70,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Hook to read auth context.
+ * Hook to consume auth state.
  */
 export function useAuth() {
   const ctx = useContext(AuthContext)
+
   if (!ctx) {
     throw new Error("useAuth must be used inside AuthProvider")
   }
+
   return ctx
 }

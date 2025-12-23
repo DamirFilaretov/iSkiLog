@@ -12,13 +12,8 @@ import { AuthProvider, useAuth } from "../auth/AuthProvider"
 function AppContent() {
   const { user, loading } = useAuth()
 
-  if (loading) {
-    return null
-  }
-
-  if (!user) {
-    return <Auth />
-  }
+  if (loading) return null
+  if (!user) return <Auth />
 
   return (
     <BrowserRouter>
@@ -35,10 +30,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SetsProvider>
+    <SetsProvider>
+      <AuthProvider>
         <AppContent />
-      </SetsProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </SetsProvider>
   )
 }
