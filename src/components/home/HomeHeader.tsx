@@ -14,7 +14,7 @@ export default function HomeHeader() {
           Track your progression
         </p>
       </div>
-
+      
       <button
         onClick={() => navigate("/history")}
         className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
