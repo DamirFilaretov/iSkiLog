@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 type Props = {
   // Buoys is numeric by definition.
@@ -16,15 +16,15 @@ type Props = {
  * These values are stored as strings to match the existing data model.
  */
 const ROPE_LENGTHS: { id: string; label: string; color: string }[] = [
-  { id: "18m", label: "18m", color: "bg-red-600" },
-  { id: "16m", label: "16m", color: "bg-orange-500" },
-  { id: "14m", label: "14m", color: "bg-yellow-400" },
-  { id: "13m", label: "13m", color: "bg-green-600" },
-  { id: "12m", label: "12m", color: "bg-blue-600" },
-  { id: "11.25m", label: "11.25m", color: "bg-purple-600" },
-  { id: "10.75m", label: "10.75m", color: "bg-gray-500" },
-  { id: "10.25m", label: "10.25m", color: "bg-pink-500" },
-  { id: "9.75m", label: "9.75m", color: "bg-black" }
+  { id: "18m", label: "18m/15off", color: "bg-red-600" },
+  { id: "16m", label: "16m/22off", color: "bg-orange-500" },
+  { id: "14m", label: "14m/28off", color: "bg-yellow-400" },
+  { id: "13m", label: "13m/32off", color: "bg-green-600" },
+  { id: "12m", label: "12m/35off", color: "bg-blue-600" },
+  { id: "11.25m", label: "11.25m/38off", color: "bg-purple-600" },
+  { id: "10.75m", label: "10.75m/39.5off", color: "bg-gray-500" },
+  { id: "10.25m", label: "10.25m/41off", color: "bg-pink-500" },
+  { id: "9.75m", label: "9.75m/43off", color: "bg-black" }
 ]
 
 export default function SlalomFields({
@@ -38,8 +38,33 @@ export default function SlalomFields({
   // Controls rope dropdown open state only.
   const [ropeOpen, setRopeOpen] = useState(false)
 
+  // Ref used to detect clicks outside this dropdown.
+  const ropeDropdownRef = useRef<HTMLDivElement>(null)
+
   // Derive selected rope for display.
   const selectedRope = ROPE_LENGTHS.find(r => r.id === ropeLength) ?? null
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const el = ropeDropdownRef.current
+      if (!el) return
+
+      const target = event.target as Node | null
+      if (!target) return
+
+      // If user taps outside the dropdown wrapper, close it.
+      if (!el.contains(target)) setRopeOpen(false)
+    }
+
+    // Works for both desktop and mobile.
+    document.addEventListener("mousedown", handlePointerDown)
+    document.addEventListener("touchstart", handlePointerDown)
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown)
+      document.removeEventListener("touchstart", handlePointerDown)
+    }
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -72,11 +97,11 @@ export default function SlalomFields({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="relative">
+        <div ref={ropeDropdownRef} className="relative">
           <label className="block text-sm text-gray-500 mb-1">Rope Length</label>
 
           <button
-            onClick={() => setRopeOpen(!ropeOpen)}
+            onClick={() => setRopeOpen(prev => !prev)}
             className="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 flex items-center justify-between"
             type="button"
           >
@@ -86,7 +111,6 @@ export default function SlalomFields({
                   selectedRope ? selectedRope.color : "bg-gray-200"
                 }`}
               >
-                {/* Small dot to indicate the rope length color */}
                 {selectedRope ? "●" : ""}
               </div>
 
@@ -104,10 +128,7 @@ export default function SlalomFields({
                 <button
                   key={r.id}
                   onClick={() => {
-                    // Tell parent what rope length was selected.
                     onRopeLengthChange(r.id)
-
-                    // Close dropdown after selection.
                     setRopeOpen(false)
                   }}
                   className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50"

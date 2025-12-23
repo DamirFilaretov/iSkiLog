@@ -1,5 +1,5 @@
-import { useState } from "react"
-import type { EventKey } from "../../types/sets" // Shared type lives in src/types/sets.ts
+import { useEffect, useRef, useState } from "react"
+import type { EventKey } from "../../types/sets"
 
 // UI config stays here because it is presentation only, not the data model.
 const EVENTS: { id: EventKey; label: string; icon: string; color: string }[] = [
@@ -11,27 +11,47 @@ const EVENTS: { id: EventKey; label: string; icon: string; color: string }[] = [
 ]
 
 type Props = {
-  // The currently selected event type.
   value: EventKey
-
-  // Callback to inform the parent that the event type changed.
   onChange: (value: EventKey) => void
 }
 
 export default function EventTypeSelect({ value, onChange }: Props) {
-  // Controls dropdown open state only.
   const [open, setOpen] = useState(false)
 
-  // Derive the selected event for display.
-  // Fallback to the first item if something unexpected happens.
+  // Ref to detect outside clicks
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  // Derive selected event for display
   const selected = EVENTS.find(e => e.id === value) ?? EVENTS[0]
 
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const el = wrapperRef.current
+      if (!el) return
+
+      const target = event.target as Node | null
+      if (!target) return
+
+      // Close dropdown when clicking outside
+      if (!el.contains(target)) setOpen(false)
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    document.addEventListener("touchstart", handlePointerDown)
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown)
+      document.removeEventListener("touchstart", handlePointerDown)
+    }
+  }, [])
+
   return (
-    <div className="relative">
+    <div ref={wrapperRef} className="relative">
       <label className="block text-sm text-gray-500 mb-1">Event Type</label>
 
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen(prev => !prev)}
+        type="button"
         className="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 flex items-center justify-between"
       >
         <div className="flex items-center gap-3">
@@ -51,11 +71,9 @@ export default function EventTypeSelect({ value, onChange }: Props) {
           {EVENTS.map(event => (
             <button
               key={event.id}
+              type="button"
               onClick={() => {
-                // Tell the parent what was selected.
                 onChange(event.id)
-
-                // Close the dropdown after selection.
                 setOpen(false)
               }}
               className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50"
