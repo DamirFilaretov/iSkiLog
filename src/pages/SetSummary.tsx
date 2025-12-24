@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { deleteSetFromDb } from "../data/setsUpdateDeleteApi"
 
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet } from "../types/sets"
@@ -143,16 +144,19 @@ export default function SetSummary() {
    * Confirmed delete handler.
    */
   function handleConfirmDelete() {
-    // Delete from the store using the route id.
-    // This guarantees we pass a string and avoids type narrowing issues.
-    deleteSet(id)
+  deleteSetFromDb(id)
+    .then(() => {
+      deleteSet(id)
+      setConfirmOpen(false)
+      navigate("/history", { replace: true })
+    })
+    .catch(err => {
+      console.error("Failed to delete set", err)
+      alert("Failed to delete set. Try again.")
+      setConfirmOpen(false)
+    })
+}
 
-    // Close modal so UI state does not leak.
-    setConfirmOpen(false)
-
-    // Go to History and replace so back does not return to a deleted page.
-    navigate("/history", { replace: true })
-  }
 
   return (
     <div className="min-h-screen bg-gray-100">

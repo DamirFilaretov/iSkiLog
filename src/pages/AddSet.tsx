@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { createSet } from "../data/setsWriteApi"
+import { updateSetInDb } from "../data/setsUpdateDeleteApi"
+
 
 
 import AddSetHeader from "../components/addSet/AddSetHeader"
@@ -53,6 +55,10 @@ export default function AddSet() {
 
   const editId = searchParams.get("id") ?? ""
   const isEditing = Boolean(editId)
+  useEffect(() => {
+  didPrefillRef.current = false
+  }, [editId])
+
 
   const editingSet = useMemo(() => {
     if (!isEditing) return undefined
@@ -80,6 +86,8 @@ export default function AddSet() {
    * we can recompute the other field in a predictable way.
    */
   const lastJumpEditRef = useRef<"passed" | "made" | null>(null)
+  const didPrefillRef = useRef(false)
+
 
   const [cutsPasses, setCutsPasses] = useState<number | null>(null)
 
@@ -121,45 +129,46 @@ export default function AddSet() {
   }, [isEditing, searchParams])
 
   useEffect(() => {
-    // Prefill in edit mode.
-    if (!isEditing) return
-    if (!editingSet) return
+  if (!isEditing) return
+  if (!editingSet) return
 
-    // Base
-    setEvent(editingSet.event)
-    setDate(editingSet.date)
-    setNotes(editingSet.notes)
+  // This prevents overwriting user typing after the first prefill.
+  if (didPrefillRef.current) return
+  didPrefillRef.current = true
 
-    // Clear everything then fill the correct event fields.
-    clearAllEventSpecificFields()
+  setEvent(editingSet.event)
+  setDate(editingSet.date)
+  setNotes(editingSet.notes)
 
-    if (editingSet.event === "slalom") {
-      setSlalomBuoys(editingSet.data.buoys)
-      setSlalomRopeLength(editingSet.data.ropeLength)
-      setSlalomSpeed(editingSet.data.speed)
-    }
+  clearAllEventSpecificFields()
 
-    if (editingSet.event === "tricks") {
-      setTricksDuration(editingSet.data.duration)
-      setTricksType(editingSet.data.trickType)
-    }
+  if (editingSet.event === "slalom") {
+    setSlalomBuoys(editingSet.data.buoys)
+    setSlalomRopeLength(editingSet.data.ropeLength)
+    setSlalomSpeed(editingSet.data.speed)
+  }
 
-    if (editingSet.event === "jump") {
-      setJumpAttempts(editingSet.data.attempts)
-      setJumpPassed(editingSet.data.passed)
-      setJumpMade(editingSet.data.made)
-      // We do not set lastJumpEditRef here because this is prefill, not a user edit.
-      lastJumpEditRef.current = null
-    }
+  if (editingSet.event === "tricks") {
+    setTricksDuration(editingSet.data.duration)
+    setTricksType(editingSet.data.trickType)
+  }
 
-    if (editingSet.event === "cuts") {
-      setCutsPasses(editingSet.data.passes)
-    }
+  if (editingSet.event === "jump") {
+    setJumpAttempts(editingSet.data.attempts)
+    setJumpPassed(editingSet.data.passed)
+    setJumpMade(editingSet.data.made)
+    lastJumpEditRef.current = null
+  }
 
-    if (editingSet.event === "other") {
-      setOtherName(editingSet.data.name)
-    }
-  }, [editingSet, isEditing])
+  if (editingSet.event === "cuts") {
+    setCutsPasses(editingSet.data.passes)
+  }
+
+  if (editingSet.event === "other") {
+    setOtherName(editingSet.data.name)
+  }
+}, [editingSet, isEditing])
+
 
   const dateIsInFuture = useMemo(() => {
     if (!date) return false
@@ -351,9 +360,19 @@ export default function AddSet() {
       if (!editingSet) return
 
       const updated = buildSetObject(editingSet.id)
-      updateSet(updated)
-      navigate(`/set/${updated.id}`, { replace: true })
+
+      updateSetInDb(updated)
+        .then(() => {
+          updateSet(updated)
+          navigate(`/set/${updated.id}`, { replace: true })
+        })
+        .catch(err => {
+          console.error("Failed to update set", err)
+          alert("Failed to update set. Try again.")
+        })
+
       return
+
     }
 
     const localDraft = buildSetObject("temp")
