@@ -8,7 +8,6 @@ import type { SkiSet } from "../types/sets"
 
 /**
  * Returns today's LOCAL calendar date as "YYYY-MM-DD".
- * Do not use toISOString here because that is UTC and can shift the day.
  */
 function todayLocalIsoDate() {
   const now = new Date()
@@ -20,7 +19,6 @@ function todayLocalIsoDate() {
 
 /**
  * Convert ISO "YYYY-MM-DD" to a local Date without timezone shifting.
- * Useful for week and month comparisons.
  */
 function isoToLocalDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number)
@@ -29,16 +27,16 @@ function isoToLocalDate(iso: string) {
 
 /**
  * Filter sets based on selected range.
+ * For day, week, month, season: input should already be season filtered.
+ * For all: we ignore season filtering and show everything.
  */
 function filterByRange(range: RangeKey, sets: SkiSet[]) {
   const todayIso = todayLocalIsoDate()
 
-  // Day means calendar today only.
   if (range === "day") {
     return sets.filter(s => s.date === todayIso)
   }
 
-  // Week means last 7 calendar days including today.
   if (range === "week") {
     const today = isoToLocalDate(todayIso)
     const start = new Date(today)
@@ -50,7 +48,6 @@ function filterByRange(range: RangeKey, sets: SkiSet[]) {
     })
   }
 
-  // Month means same month and year as today.
   if (range === "month") {
     const t = isoToLocalDate(todayIso)
     const tMonth = t.getMonth()
@@ -62,26 +59,49 @@ function filterByRange(range: RangeKey, sets: SkiSet[]) {
     })
   }
 
-  // Season shows everything in Milestone 2.
+  // Season means everything passed in, which is already season filtered.
+  if (range === "season") {
+    return sets
+  }
+
+  // All means do not filter at all (History will pass the full list).
   return sets
 }
 
 export default function History() {
-  const { sets } = useSetsStore()
+  const { sets, getActiveSeason } = useSetsStore()
 
-  // Controlled by History so we can filter data.
   const [range, setRange] = useState<RangeKey>("day")
 
-  const filteredAndSorted = useMemo(() => {
-    const filtered = filterByRange(range, sets)
+  const activeSeason = getActiveSeason()
 
-    // Sort newest dates first.
+  const seasonOnlySets = useMemo(() => {
+    if (!activeSeason) return []
+
+    return sets.filter(s => {
+      return s.date >= activeSeason.startDate && s.date <= activeSeason.endDate
+    })
+  }, [sets, activeSeason])
+
+  const listToFilter = useMemo(() => {
+    // All ignores season and uses everything.
+    if (range === "all") return sets
+
+    // Other modes require an active season filter.
+    return seasonOnlySets
+  }, [range, sets, seasonOnlySets])
+
+  const filteredAndSorted = useMemo(() => {
+    const filtered = filterByRange(range, listToFilter)
+
     return [...filtered].sort((a, b) => {
       if (a.date > b.date) return -1
       if (a.date < b.date) return 1
       return 0
     })
-  }, [range, sets])
+  }, [range, listToFilter])
+
+  const needsSeasonButMissing = range !== "all" && !activeSeason
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -89,7 +109,14 @@ export default function History() {
       <TimeRangeTabs value={range} onChange={setRange} />
 
       <div className="mt-4 px-4 space-y-4 pb-6">
-        {filteredAndSorted.length === 0 ? (
+        {needsSeasonButMissing ? (
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-900">No active season</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Go to Settings and set your season dates.
+            </p>
+          </div>
+        ) : filteredAndSorted.length === 0 ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">No sets in this range</p>
             <p className="mt-1 text-sm text-gray-500">

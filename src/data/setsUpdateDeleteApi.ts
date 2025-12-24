@@ -3,17 +3,16 @@ import type { SkiSet } from "../types/sets"
 
 /**
  * Update a set in Supabase.
- * Assumes the set id already exists and belongs to the logged in user (RLS enforces this).
  * Strategy:
- * 1. Update base row in sets
+ * 1. Update base row in sets including season_id
  * 2. Upsert the correct subtype row
  * 3. Delete any other subtype rows to keep data consistent if event type changed
  */
-export async function updateSetInDb(set: SkiSet): Promise<void> {
-  const { data: userResult, error: userError } = await supabase.auth.getUser()
-  if (userError) throw userError
-  const authUser = userResult.user
-  if (!authUser) throw new Error("Not authenticated")
+export async function updateSetInDb(args: {
+  set: SkiSet
+  seasonId: string | null
+}): Promise<void> {
+  const { set, seasonId } = args
 
   // 1. Update base row
   const { error: baseError } = await supabase
@@ -22,7 +21,7 @@ export async function updateSetInDb(set: SkiSet): Promise<void> {
       event_type: set.event,
       date: set.date,
       notes: set.notes,
-      user_id: authUser.id
+      season_id: seasonId
     })
     .eq("id", set.id)
 
@@ -74,8 +73,7 @@ export async function updateSetInDb(set: SkiSet): Promise<void> {
     if (error) throw error
   }
 
-  // 3. Cleanup other subtype rows (only keep one subtype row)
-  // These deletes are safe even if rows do not exist.
+  // 3. Cleanup other subtype rows
   if (set.event !== "slalom") {
     const { error } = await supabase.from("slalom_sets").delete().eq("set_id", set.id)
     if (error) throw error

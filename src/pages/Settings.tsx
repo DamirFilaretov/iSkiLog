@@ -33,7 +33,8 @@ export default function Settings() {
         <SettingsCard
           title="Profile Settings"
           subtitle="Manage your personal information"
-          onClick={() => {}}
+          onClick={() => navigate("/profile")}
+
         />
 
         <SettingsCard

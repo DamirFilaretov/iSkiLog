@@ -6,9 +6,15 @@ import AddSet from "../pages/AddSet"
 import SetSummary from "../pages/SetSummary"
 import Auth from "../pages/Auth"
 import Settings from "../pages/Settings"
+import ProfileSettings from "../pages/ProfileSettings"
+
 
 import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
+import SeasonSettings from "../pages/SeasonSettings"
+
+
+
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -25,6 +31,9 @@ function AppContent() {
         <Route path="/set/:id" element={<SetSummary />} />
         <Route path="*" element={<Navigate to="/" />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/season-settings" element={<SeasonSettings />} />
+        <Route path="/profile" element={<ProfileSettings />} />
       </Routes>
     </BrowserRouter>
   )

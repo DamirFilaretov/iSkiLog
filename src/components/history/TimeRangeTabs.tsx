@@ -1,23 +1,21 @@
-type RangeKey = "day" | "week" | "month" | "season"
+type RangeKey = "day" | "week" | "month" | "season" | "all"
 
 type Props = {
-  // Controlled value so the parent page owns the selection.
   value: RangeKey
-
-  // Notify the parent when the user selects a tab.
   onChange: (value: RangeKey) => void
 }
 
 /**
  * Time range selector for History.
- * This is controlled by the History page so we can actually filter data.
+ * Controlled by the History page so we can filter data.
  */
 export default function TimeRangeTabs({ value, onChange }: Props) {
   const tabs: { key: RangeKey; label: string }[] = [
     { key: "day", label: "Day" },
     { key: "week", label: "Week" },
     { key: "month", label: "Month" },
-    { key: "season", label: "Season" }
+    { key: "season", label: "Season" },
+    { key: "all", label: "All" }
   ]
 
   return (
@@ -29,7 +27,6 @@ export default function TimeRangeTabs({ value, onChange }: Props) {
           return (
             <button
               key={tab.key}
-              // Parent controls selection so we call onChange.
               onClick={() => onChange(tab.key)}
               className={[
                 "flex-1 rounded-full py-2 text-sm transition",

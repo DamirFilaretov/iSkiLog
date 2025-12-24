@@ -6,7 +6,12 @@ import type { SkiSet } from "../types/sets"
  * Writes to base table and exactly one subtype table.
  * Returns the created set id from the database.
  */
-export async function createSet(set: SkiSet): Promise<string> {
+export async function createSet(args: {
+  set: SkiSet
+  seasonId: string | null
+}): Promise<string> {
+  const { set, seasonId } = args
+
   // Get the authenticated user so we can satisfy RLS policy (user_id must match auth.uid()).
   const { data: userResult, error: userError } = await supabase.auth.getUser()
 
@@ -25,6 +30,7 @@ export async function createSet(set: SkiSet): Promise<string> {
     .from("sets")
     .insert({
       user_id: authUser.id,
+      season_id: seasonId, // Season assignment happens here
       event_type: set.event,
       date: set.date,
       notes: set.notes

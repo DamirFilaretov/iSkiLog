@@ -3,7 +3,9 @@ import type { User } from "@supabase/supabase-js"
 
 import { supabase } from "../lib/supabaseClient"
 import { fetchSets } from "../data/setsApi"
+import { fetchSeasons, createSeason, setActiveSeason } from "../data/seasonsApi"
 import { useSetsStore } from "../store/setsStore"
+import type { Season } from "../types/sets"
 
 /**
  * Shape of auth context.
@@ -16,25 +18,55 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 /**
+ * Converts Date to YYYY-MM-DD in local time.
+ */
+function toIsoDate(d: Date) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Picks the best active season id from a list.
+ * Priority:
+ * 1. Explicit isActive
+ * 2. Season that contains today
+ * 3. Newest by startDate
+ */
+function pickActiveSeasonId(seasons: Season[]) {
+  const explicit = seasons.find(s => s.isActive)
+  if (explicit) return explicit.id
+
+  const today = toIsoDate(new Date())
+  const containsToday = seasons.find(s => today >= s.startDate && today <= s.endDate)
+  if (containsToday) return containsToday.id
+
+  return seasons[0]?.id ?? null
+}
+
+/**
  * AuthProvider
- * - Tracks Supabase auth state
- * - Hydrates sets store after login
- * - Does NOT handle routing or UI
+ * Tracks Supabase auth state
+ * Hydrates seasons and sets after login
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const { replaceAll, clearAll } = useSetsStore()
+  const {
+    replaceAll,
+    clearAll,
+    setSeasons,
+    setActiveSeasonId
+  } = useSetsStore()
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null)
       setLoading(false)
     })
 
-    // Subscribe to auth changes
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
@@ -47,20 +79,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    // When user logs in, load sets
-    if (!user) {
-      clearAll()
-      return
+    async function hydrate() {
+      if (!user) {
+        clearAll()
+        return
+      }
+
+      try {
+        // 1. Load seasons first
+        let seasons = await fetchSeasons()
+
+        // 2. If first time user has no seasons, create a default one
+        if (seasons.length === 0) {
+          const year = new Date().getFullYear()
+
+          const defaultSeason = await createSeason({
+            name: `${year} Water Ski Season`,
+            startDate: `${year}-04-01`,
+            endDate: `${year}-10-31`,
+            isActive: true
+          })
+
+          seasons = [defaultSeason]
+        }
+
+        setSeasons(seasons)
+
+        // 3. Choose active season and enforce it in database if needed
+        const activeId = pickActiveSeasonId(seasons)
+        setActiveSeasonId(activeId)
+
+        const activeSeason = seasons.find(s => s.id === activeId)
+        if (activeId && activeSeason && !activeSeason.isActive) {
+          await setActiveSeason(activeId)
+
+          // Update local seasons to reflect the active switch
+          const updated = seasons.map(s => {
+            return { ...s, isActive: s.id === activeId }
+          })
+          setSeasons(updated)
+        }
+
+        // 4. Load sets
+        const sets = await fetchSets()
+        replaceAll(sets)
+      } catch (err) {
+        console.error("Failed to hydrate data", err)
+      }
     }
 
-    fetchSets()
-      .then(sets => {
-        replaceAll(sets)
-      })
-      .catch(err => {
-        console.error("Failed to fetch sets", err)
-      })
-  }, [user, replaceAll, clearAll])
+    hydrate()
+  }, [user, replaceAll, clearAll, setSeasons, setActiveSeasonId])
 
   return (
     <AuthContext.Provider value={{ user, loading }}>

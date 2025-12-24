@@ -81,3 +81,11 @@ export type SkiSet =
   | (SetBase & { event: "jump"; data: JumpData })
   | (SetBase & { event: "cuts"; data: CutsData })
   | (SetBase & { event: "other"; data: OtherData })
+
+export type Season = {
+  id: string
+  name: string
+  startDate: string
+  endDate: string
+  isActive: boolean
+}

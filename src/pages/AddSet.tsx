@@ -51,7 +51,8 @@ export default function AddSet() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const { addSet, updateSet, getSetById } = useSetsStore()
+  const { addSet, updateSet, getSetById, getSeasonIdForDate } = useSetsStore()
+
 
   const editId = searchParams.get("id") ?? ""
   const isEditing = Boolean(editId)
@@ -361,7 +362,9 @@ export default function AddSet() {
 
       const updated = buildSetObject(editingSet.id)
 
-      updateSetInDb(updated)
+      const seasonId = getSeasonIdForDate(updated.date)
+
+      updateSetInDb({ set: updated, seasonId })
         .then(() => {
           updateSet(updated)
           navigate(`/set/${updated.id}`, { replace: true })
@@ -377,11 +380,15 @@ export default function AddSet() {
 
     const localDraft = buildSetObject("temp")
 
-    createSet(localDraft)
+    // Compute season id from the set date using the seasons in store
+    const seasonId = getSeasonIdForDate(localDraft.date)
+
+    createSet({ set: localDraft, seasonId })
       .then(id => {
         addSet({ ...localDraft, id })
         navigate("/")
       })
+
       .catch(err => {
         console.error("Failed to save set", err)
         alert("Failed to save set. Try again.")
