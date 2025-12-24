@@ -5,6 +5,7 @@ import History from "../pages/History"
 import AddSet from "../pages/AddSet"
 import SetSummary from "../pages/SetSummary"
 import Auth from "../pages/Auth"
+import Settings from "../pages/Settings"
 
 import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
@@ -23,6 +24,7 @@ function AppContent() {
         <Route path="/add" element={<AddSet />} />
         <Route path="/set/:id" element={<SetSummary />} />
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </BrowserRouter>
   )
