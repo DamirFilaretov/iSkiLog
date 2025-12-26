@@ -5,6 +5,7 @@ import type { Season, SkiSet } from "../types/sets"
  * Global sets store.
  * Milestone 3 adds hydration from Supabase.
  * This update adds Seasons and Active Season selection.
+ * Option B adds a setsHydrated flag to prevent totals flicker on refresh.
  */
 
 type SetsState = {
@@ -15,6 +16,9 @@ type SetsState = {
 
   // Active season used for Home totals and filtering
   activeSeasonId: string | null
+
+  // True only after the first successful sets hydration finishes
+  setsHydrated: boolean
 }
 
 type SetsAction =
@@ -26,11 +30,13 @@ type SetsAction =
   | { type: "SET_SEASONS"; payload: Season[] }
   | { type: "SET_ACTIVE_SEASON_ID"; payload: string | null }
   | { type: "UPSERT_SEASON"; payload: Season }
+  | { type: "SET_SETS_HYDRATED"; payload: boolean }
 
 const initialState: SetsState = {
   sets: [],
   seasons: [],
-  activeSeasonId: null
+  activeSeasonId: null,
+  setsHydrated: false
 }
 
 function setsReducer(state: SetsState, action: SetsAction): SetsState {
@@ -53,10 +59,11 @@ function setsReducer(state: SetsState, action: SetsAction): SetsState {
 
     case "CLEAR_ALL": {
       // Clears sets and seasons. Useful on logout.
-      return { sets: [], seasons: [], activeSeasonId: null }
+      return { sets: [], seasons: [], activeSeasonId: null, setsHydrated: false }
     }
 
     case "SET_ALL": {
+      // Replaces all sets at once (hydration from Supabase).
       return { ...state, sets: action.payload }
     }
 
@@ -81,6 +88,11 @@ function setsReducer(state: SetsState, action: SetsAction): SetsState {
       return { ...state, seasons: updated }
     }
 
+    case "SET_SETS_HYDRATED": {
+      // Used to prevent UI from showing "0" before sets are loaded from Supabase.
+      return { ...state, setsHydrated: action.payload }
+    }
+
     default: {
       return state
     }
@@ -91,6 +103,10 @@ type SetsStore = {
   sets: SkiSet[]
   seasons: Season[]
   activeSeasonId: string | null
+
+  // Hydration flag
+  setsHydrated: boolean
+  setSetsHydrated: (value: boolean) => void
 
   addSet: (set: SkiSet) => void
   updateSet: (set: SkiSet) => void
@@ -125,6 +141,12 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
       sets: state.sets,
       seasons: state.seasons,
       activeSeasonId: state.activeSeasonId,
+
+      setsHydrated: state.setsHydrated,
+
+      setSetsHydrated: (value: boolean) => {
+        dispatch({ type: "SET_SETS_HYDRATED", payload: value })
+      },
 
       addSet: (set: SkiSet) => {
         dispatch({ type: "ADD_SET", payload: set })
@@ -200,7 +222,7 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
         return state.seasons.find(s => s.id === activeId)
       }
     }
-  }, [state.sets, state.seasons, state.activeSeasonId])
+  }, [state.sets, state.seasons, state.activeSeasonId, state.setsHydrated])
 
   return <SetsContext.Provider value={store}>{children}</SetsContext.Provider>
 }

@@ -1,14 +1,10 @@
 import { useSetsStore } from "../../store/setsStore"
 
-/**
- * Home season summary card.
- * Shows total sets for the active season
- * without exposing season name.
- */
 export default function SeasonSummaryCard() {
-  const { getTotalSetsForActiveSeason } = useSetsStore()
+  const { setsHydrated, activeSeasonId, getTotalSetsForActiveSeason } = useSetsStore()
 
-  const totalSets = getTotalSetsForActiveSeason()
+  const ready = setsHydrated && !!activeSeasonId
+  const totalText = ready ? String(getTotalSetsForActiveSeason()) : "Loading…"
 
   return (
     <div className="mt-6 px-4">
@@ -18,7 +14,7 @@ export default function SeasonSummaryCard() {
         </p>
 
         <p className="mt-2 text-4xl font-bold text-white">
-          {totalSets}
+          {totalText}
         </p>
       </div>
     </div>

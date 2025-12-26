@@ -31,7 +31,6 @@ function AppContent() {
         <Route path="/set/:id" element={<SetSummary />} />
         <Route path="*" element={<Navigate to="/" />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="/settings" element={<Settings />} />
         <Route path="/season-settings" element={<SeasonSettings />} />
         <Route path="/profile" element={<ProfileSettings />} />
       </Routes>

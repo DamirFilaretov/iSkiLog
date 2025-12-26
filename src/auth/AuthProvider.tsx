@@ -58,7 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     replaceAll,
     clearAll,
     setSeasons,
-    setActiveSeasonId
+    setActiveSeasonId,
+    setSetsHydrated
   } = useSetsStore()
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function hydrate() {
       if (!user) {
         clearAll()
+        setSetsHydrated(false)
         return
       }
 
@@ -121,15 +123,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // 4. Load sets
+        setSetsHydrated(false)
         const sets = await fetchSets()
         replaceAll(sets)
       } catch (err) {
         console.error("Failed to hydrate data", err)
+      } finally {
+        // Always end the "Loading…" placeholder in UI.
+        setSetsHydrated(true)
       }
     }
 
     hydrate()
-  }, [user, replaceAll, clearAll, setSeasons, setActiveSeasonId])
+
+    // Only re-run hydration when the logged in user changes.
+    // Store functions change identity when store state updates, so we intentionally exclude them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   return (
     <AuthContext.Provider value={{ user, loading }}>
