@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { deleteSetFromDb } from "../data/setsUpdateDeleteApi"
 
@@ -38,8 +38,6 @@ function isoToLocalDate(iso: string) {
 
 function formatDateLabel(iso: string) {
   const d = isoToLocalDate(iso)
-
-  // If something is wrong with the input, show raw value instead of crashing.
   if (Number.isNaN(d.getTime())) return iso
 
   return d.toLocaleDateString(undefined, {
@@ -54,19 +52,30 @@ export default function SetSummary() {
   const params = useParams()
   const id = params.id ?? ""
 
-  // Store helpers.
   const { getSetById, deleteSet } = useSetsStore()
 
-  // Controls delete confirmation modal visibility.
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  // Load the set from the store by route id.
-  // Use a clear variable name to avoid confusion with React setState.
-  const skiSet = id ? getSetById(id) : undefined
+  // Prevent rapid delete spam and prevent multiple navigations racing each other.
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const skiSet = useMemo(() => {
+    return id ? getSetById(id) : undefined
+  }, [id, getSetById])
+
+  /**
+   * Back button behavior
+   * After many deletes, the browser history can contain routes to deleted sets.
+   * A deterministic navigation is more stable than navigate(-1).
+   */
+  function goBackSafe() {
+    navigate(-1)
+
+  }
 
   /**
    * If we do not find the set, show a simple not found screen.
-   * This can happen if the page was refreshed (Milestone 2 resets memory).
+   * This can happen if the set was deleted, or if the store is not hydrated yet.
    */
   if (!skiSet) {
     return (
@@ -74,7 +83,7 @@ export default function SetSummary() {
         <div className="px-4 pt-6 pb-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate(-1)}
+              onClick={goBackSafe}
               className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
             >
               ←
@@ -91,7 +100,7 @@ export default function SetSummary() {
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">This set does not exist</p>
             <p className="mt-1 text-sm text-gray-500">
-              If you refreshed the page, local storage resets in Milestone 2. Add a set again.
+              It may have been deleted. Return to History and pick another set.
             </p>
           </div>
         </div>
@@ -99,10 +108,6 @@ export default function SetSummary() {
     )
   }
 
-  /**
-   * Build metrics based on event type.
-   * We only display fields that exist for the specific event.
-   */
   const metrics: { label: string; value: string }[] =
     skiSet.event === "slalom"
       ? [
@@ -134,7 +139,6 @@ export default function SetSummary() {
             ? [{ label: "Passes", value: skiSet.data.passes === null ? "—" : String(skiSet.data.passes) }]
             : [{ label: "Name", value: skiSet.data.name || "—" }]
 
-  // Simple detail rows, based on what we reliably know in Milestone 2.
   const details: { label: string; value: string }[] = [
     { label: "Event Type", value: eventLabel(skiSet.event) },
     { label: "Date Logged", value: formatDateLabel(skiSet.date) }
@@ -142,19 +146,26 @@ export default function SetSummary() {
 
   /**
    * Confirmed delete handler.
+   * Guarded so it cannot run twice in parallel.
    */
-  function handleConfirmDelete() {
-  deleteSetFromDb(id)
-    .then(() => {
-      deleteSet(id)
-      setConfirmOpen(false)
-      navigate("/history", { replace: true })
-    })
-    .catch(err => {
-      console.error("Failed to delete set", err)
-      alert("Failed to delete set. Try again.")
-      setConfirmOpen(false)
-    })
+  async function handleConfirmDelete() {
+  if (isDeleting) return
+
+  setIsDeleting(true)
+
+  try {
+    await deleteSetFromDb(id)
+    deleteSet(id)
+    setConfirmOpen(false)
+
+    // Go back to whatever screen opened this set (History or Home)
+    navigate(-1)
+  } catch (err) {
+    console.error("Failed to delete set", err)
+    alert("Failed to delete set. Try again.")
+    setConfirmOpen(false)
+    setIsDeleting(false)
+  }
 }
 
 
@@ -177,7 +188,6 @@ export default function SetSummary() {
       </div>
 
       <div className="px-4 space-y-5 pb-28">
-        {/* Hero card */}
         <div className="rounded-2xl bg-blue-600 p-5 shadow-md flex items-center gap-4">
           <div className="h-12 w-12 rounded-2xl bg-white/15 flex items-center justify-center text-white text-lg">
             {eventIcon(skiSet.event)}
@@ -191,13 +201,10 @@ export default function SetSummary() {
                 <span>📅</span>
                 <span>{formatDateLabel(skiSet.date)}</span>
               </div>
-
-              {/* We do not store time yet in Milestone 2, so we do not fake it. */}
             </div>
           </div>
         </div>
 
-        {/* Metrics */}
         <div>
           <h2 className="text-sm font-medium text-gray-900 mb-2">Performance Metrics</h2>
 
@@ -211,7 +218,6 @@ export default function SetSummary() {
           </div>
         </div>
 
-        {/* Notes */}
         <div>
           <h2 className="text-sm font-medium text-gray-900 mb-2">Notes & Reflections</h2>
 
@@ -222,7 +228,6 @@ export default function SetSummary() {
           </div>
         </div>
 
-        {/* Details */}
         <div>
           <h2 className="text-sm font-medium text-gray-900 mb-2">Session Details</h2>
 
@@ -243,13 +248,15 @@ export default function SetSummary() {
         </div>
       </div>
 
-      {/* Delete confirmation modal */}
       {confirmOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
           <button
             type="button"
             aria-label="Close delete confirmation"
-            onClick={() => setConfirmOpen(false)}
+            onClick={() => {
+              if (isDeleting) return
+              setConfirmOpen(false)
+            }}
             className="absolute inset-0 bg-black/40"
           />
 
@@ -260,38 +267,40 @@ export default function SetSummary() {
             <div className="mt-4 flex gap-3">
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={() => setConfirmOpen(false)}
-                className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-900"
+                className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-900 disabled:opacity-60"
               >
                 Cancel
               </button>
 
               <button
                 type="button"
+                disabled={isDeleting}
                 onClick={handleConfirmDelete}
-                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-semibold text-white"
+                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
               >
-                Delete
+                {isDeleting ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* Bottom action bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-100 px-4 pb-4 pt-2">
         <div className="grid grid-cols-2 gap-3">
           <button
-            // Replace so Edit does not create confusing back stacks.
+            disabled={isDeleting}
             onClick={() => navigate(`/add?id=${skiSet.id}`, { replace: true })}
-            className="w-full rounded-full bg-blue-600 py-4 text-white font-semibold shadow-md"
+            className="w-full rounded-full bg-blue-600 py-4 text-white font-semibold shadow-md disabled:opacity-60"
           >
             Edit
           </button>
 
           <button
+            disabled={isDeleting}
             onClick={() => setConfirmOpen(true)}
-            className="w-full rounded-full bg-white py-4 text-red-600 font-semibold shadow-md border border-gray-200"
+            className="w-full rounded-full bg-white py-4 text-red-600 font-semibold shadow-md border border-gray-200 disabled:opacity-60"
           >
             Delete
           </button>
