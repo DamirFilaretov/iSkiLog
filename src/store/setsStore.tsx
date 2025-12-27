@@ -26,19 +26,29 @@ const initialState: SetsState = {
   setsHydrated: false
 }
 
+function stampTouchedAt(set: SkiSet): SkiSet {
+  // If touchedAt is already present (from DB), keep it.
+  // Otherwise stamp now so Recent is correct immediately.
+  if (set.touchedAt) return set
+  return { ...set, touchedAt: new Date().toISOString() }
+}
+
 function setsReducer(state: SetsState, action: SetsAction): SetsState {
   switch (action.type) {
     case "ADD_SET": {
+      const stamped = stampTouchedAt(action.payload)
+
       // New sets should always appear as most recent.
-      return { ...state, sets: [action.payload, ...state.sets] }
+      return { ...state, sets: [stamped, ...state.sets] }
     }
 
     case "UPDATE_SET": {
-      // Updated sets should also become "most recent".
-      // This makes RecentPreview show the last set the user touched
-      // (created or edited), not just the last created.
-      const withoutOld = state.sets.filter(s => s.id !== action.payload.id)
-      return { ...state, sets: [action.payload, ...withoutOld] }
+      const stamped = stampTouchedAt(action.payload)
+
+      // Updated sets should become most recent.
+      // This makes RecentPreview show the last set the user touched.
+      const withoutOld = state.sets.filter(s => s.id !== stamped.id)
+      return { ...state, sets: [stamped, ...withoutOld] }
     }
 
     case "DELETE_SET": {
@@ -51,8 +61,8 @@ function setsReducer(state: SetsState, action: SetsAction): SetsState {
     }
 
     case "SET_ALL": {
-      // Keep the order from fetchSets. If fetchSets already returns newest first,
-      // RecentPreview will be correct after refresh too.
+      // Keep the order from fetchSets.
+      // fetchSets is responsible for ordering by updated_at when available.
       return { ...state, sets: action.payload }
     }
 
@@ -111,7 +121,6 @@ type SetsStore = {
   getTotalSets: () => number
   getTotalSetsForActiveSeason: () => number
 
-  // Still used when creating or editing a set to decide which seasonId to assign.
   getSeasonIdForDate: (date: string) => string | null
   getActiveSeason: () => Season | undefined
 }
@@ -171,7 +180,7 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
 
       getRecentSet: () => {
         // With UPDATE_SET moving items to the front, this is now
-        // "last created OR last updated".
+        // last created or last updated.
         return state.sets[0]
       },
 

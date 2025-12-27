@@ -4,13 +4,14 @@ import type { SkiSet } from "../types/sets"
 /**
  * Fetch sets ordered by last touched.
  * Primary: updated_at desc (so edits move to the top after refresh)
- * Fallback: date desc (for older schemas that do not have updated_at)
+ * Fallback: date desc (for schemas that do not have updated_at)
  */
 export async function fetchSets(): Promise<SkiSet[]> {
   // Try ordering by updated_at first.
-  let setsQuery = supabase.from("sets").select("*").order("updated_at", { ascending: false })
-
-  let { data: sets, error } = await setsQuery
+  let { data: sets, error } = await supabase
+    .from("sets")
+    .select("*")
+    .order("updated_at", { ascending: false })
 
   // If the column does not exist, Supabase will return an error.
   // In that case, fall back to date ordering so the app still works.
@@ -32,6 +33,12 @@ export async function fetchSets(): Promise<SkiSet[]> {
   for (const s of sets) {
     const seasonId = (s.season_id as string | null) ?? null
 
+    // Prefer updated_at, fall back to created_at if it exists, otherwise undefined.
+    const touchedAt =
+      (s.updated_at as string | undefined) ??
+      (s.created_at as string | undefined) ??
+      undefined
+
     if (s.event_type === "slalom") {
       const { data } = await supabase
         .from("slalom_sets")
@@ -45,6 +52,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         date: s.date,
         seasonId,
         notes: s.notes ?? "",
+        touchedAt,
         data: {
           buoys: data?.buoys ?? null,
           ropeLength: data?.rope_length ?? "",
@@ -66,6 +74,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         date: s.date,
         seasonId,
         notes: s.notes ?? "",
+        touchedAt,
         data: {
           duration: data?.duration_minutes ?? null,
           trickType: data?.trick_type ?? "hands"
@@ -86,6 +95,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         date: s.date,
         seasonId,
         notes: s.notes ?? "",
+        touchedAt,
         data: {
           attempts: data?.attempts ?? null,
           passed: data?.passed ?? null,
@@ -107,6 +117,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         date: s.date,
         seasonId,
         notes: s.notes ?? "",
+        touchedAt,
         data: {
           passes: data?.passes_num ?? null
         }
@@ -126,6 +137,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         date: s.date,
         seasonId,
         notes: s.notes ?? "",
+        touchedAt,
         data: {
           name: data?.name ?? ""
         }
