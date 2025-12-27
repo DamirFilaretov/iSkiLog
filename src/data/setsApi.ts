@@ -1,11 +1,28 @@
 import { supabase } from "../lib/supabaseClient"
 import type { SkiSet } from "../types/sets"
 
+/**
+ * Fetch sets ordered by last touched.
+ * Primary: updated_at desc (so edits move to the top after refresh)
+ * Fallback: date desc (for older schemas that do not have updated_at)
+ */
 export async function fetchSets(): Promise<SkiSet[]> {
-  const { data: sets, error } = await supabase
-    .from("sets")
-    .select("*")
-    .order("date", { ascending: false })
+  // Try ordering by updated_at first.
+  let setsQuery = supabase.from("sets").select("*").order("updated_at", { ascending: false })
+
+  let { data: sets, error } = await setsQuery
+
+  // If the column does not exist, Supabase will return an error.
+  // In that case, fall back to date ordering so the app still works.
+  if (error) {
+    const fallback = await supabase
+      .from("sets")
+      .select("*")
+      .order("date", { ascending: false })
+
+    sets = fallback.data
+    error = fallback.error
+  }
 
   if (error) throw error
   if (!sets) return []

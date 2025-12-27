@@ -29,14 +29,16 @@ const initialState: SetsState = {
 function setsReducer(state: SetsState, action: SetsAction): SetsState {
   switch (action.type) {
     case "ADD_SET": {
+      // New sets should always appear as most recent.
       return { ...state, sets: [action.payload, ...state.sets] }
     }
 
     case "UPDATE_SET": {
-      const updated = state.sets.map(s =>
-        s.id === action.payload.id ? action.payload : s
-      )
-      return { ...state, sets: updated }
+      // Updated sets should also become "most recent".
+      // This makes RecentPreview show the last set the user touched
+      // (created or edited), not just the last created.
+      const withoutOld = state.sets.filter(s => s.id !== action.payload.id)
+      return { ...state, sets: [action.payload, ...withoutOld] }
     }
 
     case "DELETE_SET": {
@@ -49,6 +51,8 @@ function setsReducer(state: SetsState, action: SetsAction): SetsState {
     }
 
     case "SET_ALL": {
+      // Keep the order from fetchSets. If fetchSets already returns newest first,
+      // RecentPreview will be correct after refresh too.
       return { ...state, sets: action.payload }
     }
 
@@ -166,6 +170,8 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
       },
 
       getRecentSet: () => {
+        // With UPDATE_SET moving items to the front, this is now
+        // "last created OR last updated".
         return state.sets[0]
       },
 

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useRef, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 
 import { supabase } from "../lib/supabaseClient"
@@ -7,22 +7,13 @@ import { fetchSeasons, createSeason, setActiveSeason } from "../data/seasonsApi"
 import { useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
 
-/**
- * Shape of auth context.
- */
 type AuthContextValue = {
   user: User | null
-
-  // True while we are bootstrapping Supabase session and do not yet know
-  // whether the user is signed in or not.
   loading: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-/**
- * Converts Date to YYYY-MM-DD in local time.
- */
 function toIsoDate(d: Date) {
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, "0")
@@ -30,13 +21,6 @@ function toIsoDate(d: Date) {
   return `${year}-${month}-${day}`
 }
 
-/**
- * Picks the best active season id from a list.
- * Priority:
- * 1. Explicit isActive
- * 2. Season that contains today
- * 3. Newest by startDate
- */
 function pickActiveSeasonId(seasons: Season[]) {
   const explicit = seasons.find(s => s.isActive)
   if (explicit) return explicit.id
@@ -48,83 +32,85 @@ function pickActiveSeasonId(seasons: Season[]) {
   return seasons[0]?.id ?? null
 }
 
-/**
- * AuthProvider
- * Tracks Supabase auth state
- * Hydrates seasons and sets after login
- */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-
-  // loading means "auth is not ready yet"
   const [loading, setLoading] = useState(true)
 
-  const { replaceAll, clearAll, setSeasons, setActiveSeasonId, setSetsHydrated } =
-    useSetsStore()
+  const {
+    replaceAll,
+    clearAll,
+    setSeasons,
+    setActiveSeasonId,
+    setSetsHydrated
+  } = useSetsStore()
+
+  const lastUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    let isMounted = true
+    let mounted = true
 
-    async function bootstrapAuth() {
-      try {
-        const { data, error } = await supabase.auth.getSession()
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return
 
-        // If Supabase returns an error, we still want to end loading
-        // so the UI can show Auth screen instead of staying blank.
-        if (error) {
-          console.error("getSession failed", error)
-        }
-
-        if (!isMounted) return
-        setUser(data.session?.user ?? null)
-      } catch (err) {
-        console.error("getSession threw", err)
-
-        if (!isMounted) return
-        setUser(null)
-      } finally {
-        // Always end the bootstrap loading state.
-        if (!isMounted) return
-        setLoading(false)
+      if (error) {
+        console.error("getSession failed", error)
       }
-    }
 
-    bootstrapAuth()
+      const nextUser = data.session?.user ?? null
+      setUser(nextUser)
+
+      const nextId = nextUser?.id ?? null
+
+      if (nextId && nextId !== lastUserIdRef.current) {
+        setSetsHydrated(false)
+      }
+
+      lastUserIdRef.current = nextId
+      setLoading(false)
+    })
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Fires on sign in, sign out, token refresh, etc.
-      // If bootstrap is still running, this also guarantees we exit loading.
-      if (!isMounted) return
+      if (!mounted) return
 
-      setUser(session?.user ?? null)
+      const nextUser = session?.user ?? null
+      setUser(nextUser)
 
-      // Safety: ensure we never stay in loading forever.
+      const nextId = nextUser?.id ?? null
+
+      if (nextId !== lastUserIdRef.current) {
+        if (nextId) {
+          setSetsHydrated(false)
+        } else {
+          setSetsHydrated(false)
+        }
+        lastUserIdRef.current = nextId
+      }
+
       setLoading(false)
     })
 
     return () => {
-      isMounted = false
+      mounted = false
       subscription.subscription.unsubscribe()
     }
+    // Intentionally empty deps.
+    // Store functions change identity when state updates, we do not want to rerun this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     async function hydrate() {
       if (!user) {
         clearAll()
-
-        // Prevent any dependent UI logic from being stuck waiting forever.
-        // It is safe because when logged out, we never render Home anyway.
-        setSetsHydrated(true)
-
+        setSetsHydrated(false)
         return
       }
 
       try {
-        // 1. Load seasons first
+        setSetsHydrated(false)
+
         let seasons = await fetchSeasons()
 
-        // 2. If first time user has no seasons, create a default one
         if (seasons.length === 0) {
           const year = new Date().getFullYear()
 
@@ -140,7 +126,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSeasons(seasons)
 
-        // 3. Choose active season and enforce it in database if needed
         const activeId = pickActiveSeasonId(seasons)
         setActiveSeasonId(activeId)
 
@@ -148,29 +133,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (activeId && activeSeason && !activeSeason.isActive) {
           await setActiveSeason(activeId)
 
-          // Update local seasons to reflect the active switch
           const updated = seasons.map(s => {
             return { ...s, isActive: s.id === activeId }
           })
           setSeasons(updated)
         }
 
-        // 4. Load sets
-        setSetsHydrated(false)
         const sets = await fetchSets()
         replaceAll(sets)
       } catch (err) {
         console.error("Failed to hydrate data", err)
       } finally {
-        // Always end the "Loading…" placeholder in UI.
         setSetsHydrated(true)
       }
     }
 
     hydrate()
 
-    // Only re-run hydration when the logged in user changes.
-    // Store functions change identity when store state updates, so we intentionally exclude them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
@@ -181,9 +160,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-/**
- * Hook to consume auth state.
- */
 export function useAuth() {
   const ctx = useContext(AuthContext)
 

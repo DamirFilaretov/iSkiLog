@@ -1,10 +1,10 @@
-// src/types/sets.ts
-
 export type EventKey = "slalom" | "tricks" | "jump" | "cuts" | "other"
 
 export type SetBase = {
   id: string
   event: EventKey
+
+  // Logical date of the training session (user input)
   date: string
 
   // Stored season membership from the database.
@@ -12,6 +12,11 @@ export type SetBase = {
   seasonId: string | null
 
   notes: string
+
+  // Timestamp of last user interaction with this set.
+  // Used for "Recent" ordering (last created OR last updated).
+  // Comes from DB updated_at or is set locally on create/update.
+  touchedAt?: string
 }
 
 export type SlalomData = {
