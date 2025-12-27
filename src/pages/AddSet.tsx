@@ -3,8 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { createSet } from "../data/setsWriteApi"
 import { updateSetInDb } from "../data/setsUpdateDeleteApi"
 
-
-
 import AddSetHeader from "../components/addSet/AddSetHeader"
 import EventTypeSelect from "../components/addSet/EventTypeSelect"
 import BaseFields from "../components/addSet/BaseFields"
@@ -30,7 +28,6 @@ function isEventKey(v: string | null): v is EventKey {
   return v === "slalom" || v === "tricks" || v === "jump" || v === "cuts" || v === "other"
 }
 
-
 /**
  * Helper to safely compute the other jump field.
  * If inputs are missing or invalid, return null so UI can stay blank.
@@ -53,13 +50,14 @@ export default function AddSet() {
 
   const { addSet, updateSet, getSetById, getSeasonIdForDate } = useSetsStore()
 
-
   const editId = searchParams.get("id") ?? ""
   const isEditing = Boolean(editId)
-  useEffect(() => {
-  didPrefillRef.current = false
-  }, [editId])
 
+  const didPrefillRef = useRef(false)
+
+  useEffect(() => {
+    didPrefillRef.current = false
+  }, [editId])
 
   const editingSet = useMemo(() => {
     if (!isEditing) return undefined
@@ -82,13 +80,7 @@ export default function AddSet() {
   const [jumpPassed, setJumpPassed] = useState<number | null>(null)
   const [jumpMade, setJumpMade] = useState<number | null>(null)
 
-  /**
-   * We track what the user edited last so when attempts changes
-   * we can recompute the other field in a predictable way.
-   */
   const lastJumpEditRef = useRef<"passed" | "made" | null>(null)
-  const didPrefillRef = useRef(false)
-
 
   const [cutsPasses, setCutsPasses] = useState<number | null>(null)
 
@@ -115,14 +107,11 @@ export default function AddSet() {
   }
 
   function handleEventChange(next: EventKey) {
-    // Only clear when the user manually changes the event.
-    // This prevents prefill from being wiped.
     clearAllEventSpecificFields()
     setEvent(next)
   }
 
   useEffect(() => {
-    // Create mode supports quick add by event param.
     if (isEditing) return
 
     const fromUrl = searchParams.get("event")
@@ -130,46 +119,44 @@ export default function AddSet() {
   }, [isEditing, searchParams])
 
   useEffect(() => {
-  if (!isEditing) return
-  if (!editingSet) return
+    if (!isEditing) return
+    if (!editingSet) return
 
-  // This prevents overwriting user typing after the first prefill.
-  if (didPrefillRef.current) return
-  didPrefillRef.current = true
+    if (didPrefillRef.current) return
+    didPrefillRef.current = true
 
-  setEvent(editingSet.event)
-  setDate(editingSet.date)
-  setNotes(editingSet.notes)
+    setEvent(editingSet.event)
+    setDate(editingSet.date)
+    setNotes(editingSet.notes)
 
-  clearAllEventSpecificFields()
+    clearAllEventSpecificFields()
 
-  if (editingSet.event === "slalom") {
-    setSlalomBuoys(editingSet.data.buoys)
-    setSlalomRopeLength(editingSet.data.ropeLength)
-    setSlalomSpeed(editingSet.data.speed)
-  }
+    if (editingSet.event === "slalom") {
+      setSlalomBuoys(editingSet.data.buoys)
+      setSlalomRopeLength(editingSet.data.ropeLength)
+      setSlalomSpeed(editingSet.data.speed)
+    }
 
-  if (editingSet.event === "tricks") {
-    setTricksDuration(editingSet.data.duration)
-    setTricksType(editingSet.data.trickType)
-  }
+    if (editingSet.event === "tricks") {
+      setTricksDuration(editingSet.data.duration)
+      setTricksType(editingSet.data.trickType)
+    }
 
-  if (editingSet.event === "jump") {
-    setJumpAttempts(editingSet.data.attempts)
-    setJumpPassed(editingSet.data.passed)
-    setJumpMade(editingSet.data.made)
-    lastJumpEditRef.current = null
-  }
+    if (editingSet.event === "jump") {
+      setJumpAttempts(editingSet.data.attempts)
+      setJumpPassed(editingSet.data.passed)
+      setJumpMade(editingSet.data.made)
+      lastJumpEditRef.current = null
+    }
 
-  if (editingSet.event === "cuts") {
-    setCutsPasses(editingSet.data.passes)
-  }
+    if (editingSet.event === "cuts") {
+      setCutsPasses(editingSet.data.passes)
+    }
 
-  if (editingSet.event === "other") {
-    setOtherName(editingSet.data.name)
-  }
-}, [editingSet, isEditing])
-
+    if (editingSet.event === "other") {
+      setOtherName(editingSet.data.name)
+    }
+  }, [editingSet, isEditing])
 
   const dateIsInFuture = useMemo(() => {
     if (!date) return false
@@ -182,11 +169,6 @@ export default function AddSet() {
     return ""
   }, [date, dateIsInFuture])
 
-  /**
-   * Slalom validation.
-   * Buoys must be between 0 and 6.
-   * Null is allowed so the field can be left empty.
-   */
   const slalomBuoysError = useMemo(() => {
     if (event !== "slalom") return ""
     if (slalomBuoys === null) return ""
@@ -195,19 +177,12 @@ export default function AddSet() {
     return ""
   }, [event, slalomBuoys])
 
-  /**
-   * Jump validation.
-   * Attempts must be 0 or greater.
-   * Passed and made must be between 0 and attempts.
-   */
   const jumpError = useMemo(() => {
     if (event !== "jump") return ""
 
     if (jumpAttempts !== null && jumpAttempts < 0) return "Attempts cannot be negative"
 
     if (jumpAttempts === null) {
-      // If attempts is empty, we do not show an error yet.
-      // We just avoid enforcing passed and made rules.
       return ""
     }
 
@@ -224,10 +199,6 @@ export default function AddSet() {
     return ""
   }, [event, jumpAttempts, jumpMade, jumpPassed])
 
-  /**
-   * Save gating.
-   * We block save if any active event has validation errors.
-   */
   const canSave = useMemo(() => {
     if (!date) return false
     if (dateIsInFuture) return false
@@ -238,24 +209,15 @@ export default function AddSet() {
     return true
   }, [date, dateIsInFuture, event, slalomBuoysError, jumpError])
 
-  /**
-   * Jump setters with auto fill behavior.
-   * Rule:
-   * If user edits passed, auto fill made.
-   * If user edits made, auto fill passed.
-   * If user edits attempts, recompute the opposite field based on last edit.
-   */
   function handleJumpAttemptsChange(next: number | null) {
     setJumpAttempts(next)
 
     if (next === null) {
-      // If attempts is cleared, clear the dependent fields too.
       setJumpPassed(null)
       setJumpMade(null)
       return
     }
 
-    // If we know what the user edited last, recompute the other field.
     if (lastJumpEditRef.current === "passed") {
       const nextMade = computeOtherFromAttempts(next, jumpPassed)
       setJumpMade(nextMade)
@@ -267,8 +229,6 @@ export default function AddSet() {
       setJumpPassed(nextPassed)
       return
     }
-
-    // If there is no last edit, we do nothing and let the user fill fields.
   }
 
   function handleJumpPassedChange(next: number | null) {
@@ -276,8 +236,6 @@ export default function AddSet() {
     setJumpPassed(next)
 
     const nextMade = computeOtherFromAttempts(jumpAttempts, next)
-    // Only auto fill made when attempts is present.
-    // If attempts is missing, keep made as is so the UI is not surprising.
     if (jumpAttempts !== null) setJumpMade(nextMade)
   }
 
@@ -289,12 +247,25 @@ export default function AddSet() {
     if (jumpAttempts !== null) setJumpPassed(nextPassed)
   }
 
+  /**
+   * Builds a SkiSet object including seasonId.
+   * SeasonId is computed from the date.
+   * In edit mode, if the date no longer matches any season, we keep the old seasonId.
+   */
   function buildSetObject(id: string): SkiSet {
+    const computedSeasonId = getSeasonIdForDate(date)
+
+    // In edit mode, if the user picked a date outside all seasons,
+    // keep the existing seasonId so the set does not "fall out" of totals/history.
+    const seasonIdToUse =
+      computedSeasonId ?? (isEditing ? editingSet?.seasonId ?? null : null)
+
     if (event === "slalom") {
       return {
         id,
         event: "slalom",
         date,
+        seasonId: seasonIdToUse,
         notes,
         data: {
           buoys: slalomBuoys,
@@ -309,6 +280,7 @@ export default function AddSet() {
         id,
         event: "tricks",
         date,
+        seasonId: seasonIdToUse,
         notes,
         data: {
           duration: tricksDuration,
@@ -322,6 +294,7 @@ export default function AddSet() {
         id,
         event: "jump",
         date,
+        seasonId: seasonIdToUse,
         notes,
         data: {
           attempts: jumpAttempts,
@@ -336,6 +309,7 @@ export default function AddSet() {
         id,
         event: "cuts",
         date,
+        seasonId: seasonIdToUse,
         notes,
         data: {
           passes: cutsPasses
@@ -347,6 +321,7 @@ export default function AddSet() {
       id,
       event: "other",
       date,
+      seasonId: seasonIdToUse,
       notes,
       data: {
         name: otherName
@@ -362,9 +337,7 @@ export default function AddSet() {
 
       const updated = buildSetObject(editingSet.id)
 
-      const seasonId = getSeasonIdForDate(updated.date)
-
-      updateSetInDb({ set: updated, seasonId })
+      updateSetInDb({ set: updated })
         .then(() => {
           updateSet(updated)
           navigate(`/set/${updated.id}`, { replace: true })
@@ -375,25 +348,19 @@ export default function AddSet() {
         })
 
       return
-
     }
 
     const localDraft = buildSetObject("temp")
 
-    // Compute season id from the set date using the seasons in store
-    const seasonId = getSeasonIdForDate(localDraft.date)
-
-    createSet({ set: localDraft, seasonId })
+    createSet({ set: localDraft })
       .then(id => {
         addSet({ ...localDraft, id })
         navigate("/")
       })
-
       .catch(err => {
         console.error("Failed to save set", err)
         alert("Failed to save set. Try again.")
       })
-
   }
 
   if (isEditing && !editingSet) {
@@ -442,9 +409,6 @@ export default function AddSet() {
             onBuoysChange={setSlalomBuoys}
             onRopeLengthChange={setSlalomRopeLength}
             onSpeedChange={setSlalomSpeed}
-            // Temporary validation support:
-            // We will surface this error in SlalomFields after you send that file.
-            // For now, save is blocked when this error is present.
           />
         )}
 
@@ -465,9 +429,6 @@ export default function AddSet() {
             onAttemptsChange={handleJumpAttemptsChange}
             onPassedChange={handleJumpPassedChange}
             onMadeChange={handleJumpMadeChange}
-            // Same note as slalom:
-            // Save is blocked when jumpError is present.
-            // We will show jumpError inline in JumpFields after you send that file.
           />
         )}
 
@@ -484,7 +445,6 @@ export default function AddSet() {
           onNotesChange={setNotes}
         />
 
-        {/* Inline error display so you see validation feedback even before we update the field components */}
         {(slalomBuoysError || jumpError) && (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-red-600">
