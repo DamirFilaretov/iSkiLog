@@ -1,23 +1,10 @@
 import { createContext, useContext, useMemo, useReducer } from "react"
 import type { Season, SkiSet } from "../types/sets"
 
-/**
- * Global sets store.
- * Milestone 3 adds hydration from Supabase.
- * This update adds Seasons and Active Season selection.
- * Option B adds a setsHydrated flag to prevent totals flicker on refresh.
- */
-
 type SetsState = {
   sets: SkiSet[]
-
-  // Seasons loaded from Supabase
   seasons: Season[]
-
-  // Active season used for Home totals and filtering
   activeSeasonId: string | null
-
-  // True only after the first successful sets hydration finishes
   setsHydrated: boolean
 }
 
@@ -58,12 +45,10 @@ function setsReducer(state: SetsState, action: SetsAction): SetsState {
     }
 
     case "CLEAR_ALL": {
-      // Clears sets and seasons. Useful on logout.
       return { sets: [], seasons: [], activeSeasonId: null, setsHydrated: false }
     }
 
     case "SET_ALL": {
-      // Replaces all sets at once (hydration from Supabase).
       return { ...state, sets: action.payload }
     }
 
@@ -89,7 +74,6 @@ function setsReducer(state: SetsState, action: SetsAction): SetsState {
     }
 
     case "SET_SETS_HYDRATED": {
-      // Used to prevent UI from showing "0" before sets are loaded from Supabase.
       return { ...state, setsHydrated: action.payload }
     }
 
@@ -104,7 +88,6 @@ type SetsStore = {
   seasons: Season[]
   activeSeasonId: string | null
 
-  // Hydration flag
   setsHydrated: boolean
   setSetsHydrated: (value: boolean) => void
 
@@ -118,15 +101,13 @@ type SetsStore = {
   upsertSeason: (season: Season) => void
   setActiveSeasonId: (seasonId: string | null) => void
 
-  // Helpers
   getSetById: (id: string) => SkiSet | undefined
   getRecentSet: () => SkiSet | undefined
 
-  // Totals and filtering
   getTotalSets: () => number
   getTotalSetsForActiveSeason: () => number
 
-  // Core season logic
+  // Still used when creating or editing a set to decide which seasonId to assign.
   getSeasonIdForDate: (date: string) => string | null
   getActiveSeason: () => Season | undefined
 }
@@ -161,7 +142,6 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
       },
 
       clearAll: () => {
-        // Clears store on logout so next user cannot see cached data
         dispatch({ type: "CLEAR_ALL" })
       },
 
@@ -197,18 +177,12 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
         const activeId = state.activeSeasonId
         if (!activeId) return 0
 
-        // For now we count by date range, since SkiSet does not store seasonId yet.
-        // Once sets include seasonId in the local model, we can filter by seasonId directly.
-        const activeSeason = state.seasons.find(s => s.id === activeId)
-        if (!activeSeason) return 0
-
         return state.sets.filter(setItem => {
-          return setItem.date >= activeSeason.startDate && setItem.date <= activeSeason.endDate
+          return setItem.seasonId === activeId
         }).length
       },
 
       getSeasonIdForDate: (date: string) => {
-        // Finds the season whose date range contains the given date
         const match = state.seasons.find(season => {
           return date >= season.startDate && date <= season.endDate
         })

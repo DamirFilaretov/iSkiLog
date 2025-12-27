@@ -1,25 +1,20 @@
 import { supabase } from "../lib/supabaseClient"
 import type { SkiSet } from "../types/sets"
 
-/**
- * Fetch all sets for the logged in user and map them
- * into the frontend SkiSet shape.
- */
 export async function fetchSets(): Promise<SkiSet[]> {
   const { data: sets, error } = await supabase
     .from("sets")
     .select("*")
     .order("date", { ascending: false })
 
-  if (error) {
-    throw error
-  }
-
+  if (error) throw error
   if (!sets) return []
 
   const results: SkiSet[] = []
 
   for (const s of sets) {
+    const seasonId = (s.season_id as string | null) ?? null
+
     if (s.event_type === "slalom") {
       const { data } = await supabase
         .from("slalom_sets")
@@ -31,6 +26,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         id: s.id,
         event: "slalom",
         date: s.date,
+        seasonId,
         notes: s.notes ?? "",
         data: {
           buoys: data?.buoys ?? null,
@@ -51,6 +47,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         id: s.id,
         event: "tricks",
         date: s.date,
+        seasonId,
         notes: s.notes ?? "",
         data: {
           duration: data?.duration_minutes ?? null,
@@ -70,6 +67,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         id: s.id,
         event: "jump",
         date: s.date,
+        seasonId,
         notes: s.notes ?? "",
         data: {
           attempts: data?.attempts ?? null,
@@ -90,6 +88,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         id: s.id,
         event: "cuts",
         date: s.date,
+        seasonId,
         notes: s.notes ?? "",
         data: {
           passes: data?.passes_num ?? null
@@ -108,6 +107,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         id: s.id,
         event: "other",
         date: s.date,
+        seasonId,
         notes: s.notes ?? "",
         data: {
           name: data?.name ?? ""

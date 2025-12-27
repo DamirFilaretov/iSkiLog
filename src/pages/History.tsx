@@ -6,9 +6,6 @@ import HistoryItem from "../components/history/HistoryItem"
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet } from "../types/sets"
 
-/**
- * Returns today's LOCAL calendar date as "YYYY-MM-DD".
- */
 function todayLocalIsoDate() {
   const now = new Date()
   const y = now.getFullYear()
@@ -17,9 +14,6 @@ function todayLocalIsoDate() {
   return `${y}-${m}-${d}`
 }
 
-/**
- * Convert ISO "YYYY-MM-DD" to a local Date without timezone shifting.
- */
 function isoToLocalDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number)
   return new Date(y, (m ?? 1) - 1, d ?? 1)
@@ -59,12 +53,10 @@ function filterByRange(range: RangeKey, sets: SkiSet[]) {
     })
   }
 
-  // Season means everything passed in, which is already season filtered.
   if (range === "season") {
     return sets
   }
 
-  // All means do not filter at all (History will pass the full list).
   return sets
 }
 
@@ -78,16 +70,14 @@ export default function History() {
   const seasonOnlySets = useMemo(() => {
     if (!activeSeason) return []
 
+    // Season membership is now stored on the set itself.
     return sets.filter(s => {
-      return s.date >= activeSeason.startDate && s.date <= activeSeason.endDate
+      return s.seasonId === activeSeason.id
     })
   }, [sets, activeSeason])
 
   const listToFilter = useMemo(() => {
-    // All ignores season and uses everything.
     if (range === "all") return sets
-
-    // Other modes require an active season filter.
     return seasonOnlySets
   }, [range, sets, seasonOnlySets])
 

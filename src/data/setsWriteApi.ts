@@ -1,36 +1,20 @@
 import { supabase } from "../lib/supabaseClient"
 import type { SkiSet } from "../types/sets"
 
-/**
- * Insert a SkiSet into Supabase.
- * Writes to base table and exactly one subtype table.
- * Returns the created set id from the database.
- */
-export async function createSet(args: {
-  set: SkiSet
-  seasonId: string | null
-}): Promise<string> {
-  const { set, seasonId } = args
+export async function createSet(args: { set: SkiSet }): Promise<string> {
+  const { set } = args
 
-  // Get the authenticated user so we can satisfy RLS policy (user_id must match auth.uid()).
   const { data: userResult, error: userError } = await supabase.auth.getUser()
-
-  if (userError) {
-    throw userError
-  }
+  if (userError) throw userError
 
   const authUser = userResult.user
+  if (!authUser) throw new Error("Not authenticated")
 
-  if (!authUser) {
-    throw new Error("Not authenticated")
-  }
-
-  // Insert base row into sets.
   const { data: base, error: baseError } = await supabase
     .from("sets")
     .insert({
       user_id: authUser.id,
-      season_id: seasonId, // Season assignment happens here
+      season_id: set.seasonId,
       event_type: set.event,
       date: set.date,
       notes: set.notes
@@ -38,13 +22,10 @@ export async function createSet(args: {
     .select("id")
     .single()
 
-  if (baseError || !base) {
-    throw baseError
-  }
+  if (baseError || !base) throw baseError
 
   const setId = base.id as string
 
-  // Insert exactly one subtype row depending on event.
   if (set.event === "slalom") {
     const { error } = await supabase.from("slalom_sets").insert({
       set_id: setId,
@@ -52,7 +33,6 @@ export async function createSet(args: {
       rope_length: set.data.ropeLength ?? "",
       speed: set.data.speed ? Number(set.data.speed) : null
     })
-
     if (error) throw error
   }
 
@@ -62,7 +42,6 @@ export async function createSet(args: {
       duration_minutes: set.data.duration,
       trick_type: set.data.trickType
     })
-
     if (error) throw error
   }
 
@@ -73,7 +52,6 @@ export async function createSet(args: {
       passed: set.data.passed ?? 0,
       made: set.data.made ?? 0
     })
-
     if (error) throw error
   }
 
@@ -82,7 +60,6 @@ export async function createSet(args: {
       set_id: setId,
       passes_num: set.data.passes ?? 0
     })
-
     if (error) throw error
   }
 
@@ -91,7 +68,6 @@ export async function createSet(args: {
       set_id: setId,
       name: set.data.name ?? ""
     })
-
     if (error) throw error
   }
 

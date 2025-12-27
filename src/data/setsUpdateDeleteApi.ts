@@ -1,33 +1,21 @@
 import { supabase } from "../lib/supabaseClient"
 import type { SkiSet } from "../types/sets"
 
-/**
- * Update a set in Supabase.
- * Strategy:
- * 1. Update base row in sets including season_id
- * 2. Upsert the correct subtype row
- * 3. Delete any other subtype rows to keep data consistent if event type changed
- */
-export async function updateSetInDb(args: {
-  set: SkiSet
-  seasonId: string | null
-}): Promise<void> {
-  const { set, seasonId } = args
+export async function updateSetInDb(args: { set: SkiSet }): Promise<void> {
+  const { set } = args
 
-  // 1. Update base row
   const { error: baseError } = await supabase
     .from("sets")
     .update({
       event_type: set.event,
       date: set.date,
       notes: set.notes,
-      season_id: seasonId
+      season_id: set.seasonId
     })
     .eq("id", set.id)
 
   if (baseError) throw baseError
 
-  // 2. Upsert correct subtype row
   if (set.event === "slalom") {
     const { error } = await supabase.from("slalom_sets").upsert({
       set_id: set.id,
@@ -73,7 +61,6 @@ export async function updateSetInDb(args: {
     if (error) throw error
   }
 
-  // 3. Cleanup other subtype rows
   if (set.event !== "slalom") {
     const { error } = await supabase.from("slalom_sets").delete().eq("set_id", set.id)
     if (error) throw error
@@ -100,10 +87,6 @@ export async function updateSetInDb(args: {
   }
 }
 
-/**
- * Delete a set in Supabase.
- * Cascades delete to subtype tables via FK on delete cascade.
- */
 export async function deleteSetFromDb(id: string): Promise<void> {
   const { error } = await supabase.from("sets").delete().eq("id", id)
   if (error) throw error
