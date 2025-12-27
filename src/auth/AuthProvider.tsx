@@ -12,6 +12,9 @@ import type { Season } from "../types/sets"
  */
 type AuthContextValue = {
   user: User | null
+
+  // True while we are bootstrapping Supabase session and do not yet know
+  // whether the user is signed in or not.
   loading: boolean
 }
 
@@ -52,29 +55,55 @@ function pickActiveSeasonId(seasons: Season[]) {
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+
+  // loading means "auth is not ready yet"
   const [loading, setLoading] = useState(true)
 
-  const {
-    replaceAll,
-    clearAll,
-    setSeasons,
-    setActiveSeasonId,
-    setSetsHydrated
-  } = useSetsStore()
+  const { replaceAll, clearAll, setSeasons, setActiveSeasonId, setSetsHydrated } =
+    useSetsStore()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null)
+    let isMounted = true
+
+    async function bootstrapAuth() {
+      try {
+        const { data, error } = await supabase.auth.getSession()
+
+        // If Supabase returns an error, we still want to end loading
+        // so the UI can show Auth screen instead of staying blank.
+        if (error) {
+          console.error("getSession failed", error)
+        }
+
+        if (!isMounted) return
+        setUser(data.session?.user ?? null)
+      } catch (err) {
+        console.error("getSession threw", err)
+
+        if (!isMounted) return
+        setUser(null)
+      } finally {
+        // Always end the bootstrap loading state.
+        if (!isMounted) return
+        setLoading(false)
+      }
+    }
+
+    bootstrapAuth()
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Fires on sign in, sign out, token refresh, etc.
+      // If bootstrap is still running, this also guarantees we exit loading.
+      if (!isMounted) return
+
+      setUser(session?.user ?? null)
+
+      // Safety: ensure we never stay in loading forever.
       setLoading(false)
     })
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null)
-      }
-    )
-
     return () => {
+      isMounted = false
       subscription.subscription.unsubscribe()
     }
   }, [])
@@ -83,7 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function hydrate() {
       if (!user) {
         clearAll()
-        setSetsHydrated(false)
+
+        // Prevent any dependent UI logic from being stuck waiting forever.
+        // It is safe because when logged out, we never render Home anyway.
+        setSetsHydrated(true)
+
         return
       }
 

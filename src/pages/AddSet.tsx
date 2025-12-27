@@ -1,3 +1,4 @@
+// src/pages/AddSet.tsx
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { createSet } from "../data/setsWriteApi"
@@ -32,10 +33,7 @@ function isEventKey(v: string | null): v is EventKey {
  * Helper to safely compute the other jump field.
  * If inputs are missing or invalid, return null so UI can stay blank.
  */
-function computeOtherFromAttempts(
-  attempts: number | null,
-  value: number | null
-): number | null {
+function computeOtherFromAttempts(attempts: number | null, value: number | null): number | null {
   if (attempts === null || value === null) return null
   if (!Number.isFinite(attempts) || !Number.isFinite(value)) return null
   if (attempts < 0 || value < 0) return null
@@ -80,6 +78,10 @@ export default function AddSet() {
   const [jumpPassed, setJumpPassed] = useState<number | null>(null)
   const [jumpMade, setJumpMade] = useState<number | null>(null)
 
+  /**
+   * We track what the user edited last so when attempts changes
+   * we can recompute the other field in a predictable way.
+   */
   const lastJumpEditRef = useRef<"passed" | "made" | null>(null)
 
   const [cutsPasses, setCutsPasses] = useState<number | null>(null)
@@ -87,6 +89,9 @@ export default function AddSet() {
   const [otherName, setOtherName] = useState<string>("")
 
   const maxDate = todayLocalIsoDate()
+
+  // Button only submitting state (prevents double tap and disables back button)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   function clearAllEventSpecificFields() {
     setSlalomBuoys(null)
@@ -107,11 +112,14 @@ export default function AddSet() {
   }
 
   function handleEventChange(next: EventKey) {
+    // Only clear when the user manually changes the event.
+    // This prevents prefill from being wiped.
     clearAllEventSpecificFields()
     setEvent(next)
   }
 
   useEffect(() => {
+    // Create mode supports quick add by event param.
     if (isEditing) return
 
     const fromUrl = searchParams.get("event")
@@ -122,6 +130,7 @@ export default function AddSet() {
     if (!isEditing) return
     if (!editingSet) return
 
+    // This prevents overwriting user typing after the first prefill.
     if (didPrefillRef.current) return
     didPrefillRef.current = true
 
@@ -169,6 +178,11 @@ export default function AddSet() {
     return ""
   }, [date, dateIsInFuture])
 
+  /**
+   * Slalom validation.
+   * Buoys must be between 0 and 6.
+   * Null is allowed so the field can be left empty.
+   */
   const slalomBuoysError = useMemo(() => {
     if (event !== "slalom") return ""
     if (slalomBuoys === null) return ""
@@ -177,12 +191,19 @@ export default function AddSet() {
     return ""
   }, [event, slalomBuoys])
 
+  /**
+   * Jump validation.
+   * Attempts must be 0 or greater.
+   * Passed and made must be between 0 and attempts.
+   */
   const jumpError = useMemo(() => {
     if (event !== "jump") return ""
 
     if (jumpAttempts !== null && jumpAttempts < 0) return "Attempts cannot be negative"
 
     if (jumpAttempts === null) {
+      // If attempts is empty, we do not show an error yet.
+      // We just avoid enforcing passed and made rules.
       return ""
     }
 
@@ -199,6 +220,10 @@ export default function AddSet() {
     return ""
   }, [event, jumpAttempts, jumpMade, jumpPassed])
 
+  /**
+   * Save gating.
+   * We block save if any active event has validation errors.
+   */
   const canSave = useMemo(() => {
     if (!date) return false
     if (dateIsInFuture) return false
@@ -209,15 +234,24 @@ export default function AddSet() {
     return true
   }, [date, dateIsInFuture, event, slalomBuoysError, jumpError])
 
+  /**
+   * Jump setters with auto fill behavior.
+   * Rule:
+   * If user edits passed, auto fill made.
+   * If user edits made, auto fill passed.
+   * If user edits attempts, recompute the opposite field based on last edit.
+   */
   function handleJumpAttemptsChange(next: number | null) {
     setJumpAttempts(next)
 
     if (next === null) {
+      // If attempts is cleared, clear the dependent fields too.
       setJumpPassed(null)
       setJumpMade(null)
       return
     }
 
+    // If we know what the user edited last, recompute the other field.
     if (lastJumpEditRef.current === "passed") {
       const nextMade = computeOtherFromAttempts(next, jumpPassed)
       setJumpMade(nextMade)
@@ -236,6 +270,7 @@ export default function AddSet() {
     setJumpPassed(next)
 
     const nextMade = computeOtherFromAttempts(jumpAttempts, next)
+    // Only auto fill made when attempts is present.
     if (jumpAttempts !== null) setJumpMade(nextMade)
   }
 
@@ -249,14 +284,12 @@ export default function AddSet() {
 
   /**
    * Builds a SkiSet object including seasonId.
-   * SeasonId is computed from the date.
-   * In edit mode, if the date no longer matches any season, we keep the old seasonId.
+   * SeasonId is computed from the current date field.
+   * In edit mode, if the date is outside all seasons, we keep the old seasonId.
    */
   function buildSetObject(id: string): SkiSet {
     const computedSeasonId = getSeasonIdForDate(date)
 
-    // In edit mode, if the user picked a date outside all seasons,
-    // keep the existing seasonId so the set does not "fall out" of totals/history.
     const seasonIdToUse =
       computedSeasonId ?? (isEditing ? editingSet?.seasonId ?? null : null)
 
@@ -331,13 +364,19 @@ export default function AddSet() {
 
   function handleSave() {
     if (!canSave) return
+    if (isSubmitting) return
+
+    setIsSubmitting(true)
 
     if (isEditing) {
-      if (!editingSet) return
+      if (!editingSet) {
+        setIsSubmitting(false)
+        return
+      }
 
       const updated = buildSetObject(editingSet.id)
 
-      updateSetInDb({ set: updated })
+      updateSetInDb({ set: updated, previousEvent: editingSet.event })
         .then(() => {
           updateSet(updated)
           navigate(`/set/${updated.id}`, { replace: true })
@@ -345,6 +384,7 @@ export default function AddSet() {
         .catch(err => {
           console.error("Failed to update set", err)
           alert("Failed to update set. Try again.")
+          setIsSubmitting(false)
         })
 
       return
@@ -360,6 +400,7 @@ export default function AddSet() {
       .catch(err => {
         console.error("Failed to save set", err)
         alert("Failed to save set. Try again.")
+        setIsSubmitting(false)
       })
   }
 
@@ -394,9 +435,13 @@ export default function AddSet() {
     )
   }
 
+  const buttonLabel = isEditing
+    ? (isSubmitting ? "Updating…" : "Update Set")
+    : (isSubmitting ? "Saving…" : "Save Set")
+
   return (
     <div className="min-h-screen bg-gray-100">
-      <AddSetHeader />
+      <AddSetHeader disabled={isSubmitting} />
 
       <div className="px-4 space-y-4 pb-28">
         <EventTypeSelect value={event} onChange={handleEventChange} />
@@ -447,14 +492,16 @@ export default function AddSet() {
 
         {(slalomBuoysError || jumpError) && (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-sm font-medium text-red-600">
-              {slalomBuoysError || jumpError}
-            </p>
+            <p className="text-sm font-medium text-red-600">{slalomBuoysError || jumpError}</p>
           </div>
         )}
       </div>
 
-      <SaveSetButton onSave={handleSave} disabled={!canSave} />
+      <SaveSetButton
+        onSave={handleSave}
+        disabled={!canSave || isSubmitting}
+        label={buttonLabel}
+      />
     </div>
   )
 }

@@ -7,19 +7,32 @@ import SetSummary from "../pages/SetSummary"
 import Auth from "../pages/Auth"
 import Settings from "../pages/Settings"
 import ProfileSettings from "../pages/ProfileSettings"
-
+import SeasonSettings from "../pages/SeasonSettings"
 
 import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
-import SeasonSettings from "../pages/SeasonSettings"
 
-
-
+function AppLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
+      <div className="text-center">
+        <p className="text-base font-medium text-gray-900">
+          Loading
+        </p>
+        <p className="mt-1 text-sm text-gray-500">
+          Checking your session
+        </p>
+      </div>
+    </div>
+  )
+}
 
 function AppContent() {
   const { user, loading } = useAuth()
 
-  if (loading) return null
+  // Instead of a blank screen, show a calm loading screen.
+  if (loading) return <AppLoading />
+
   if (!user) return <Auth />
 
   return (
@@ -29,10 +42,10 @@ function AppContent() {
         <Route path="/history" element={<History />} />
         <Route path="/add" element={<AddSet />} />
         <Route path="/set/:id" element={<SetSummary />} />
-        <Route path="*" element={<Navigate to="/" />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/season-settings" element={<SeasonSettings />} />
         <Route path="/profile" element={<ProfileSettings />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   )
