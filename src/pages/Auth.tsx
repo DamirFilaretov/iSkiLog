@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient"
 
 /**
  * Auth page UI updated to match the provided design.
- * Includes email, password with show/hide, remember me, forgot password,
+ * Includes email, password with show and hide, remember me, forgot password,
  * primary login button, social icon buttons (UI only), and sign up link.
  */
 export default function Auth() {
@@ -12,96 +12,162 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
 
+  // Single loading flag for all auth actions.
+  // This prevents double taps and keeps UI predictable.
   const [loading, setLoading] = useState(false)
+
+  // Inline feedback
   const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
 
   const canSubmit = useMemo(() => {
     return email.trim().length > 0 && password.length >= 6
   }, [email, password])
 
+  /**
+   * Convert any unknown error into a user friendly message.
+   */
+  function getErrorMessage(err: unknown) {
+    if (!err) return "Something went wrong. Please try again."
+
+    if (typeof err === "string") return err
+
+    if (typeof err === "object" && err !== null) {
+      const maybeMessage = (err as { message?: unknown }).message
+      if (typeof maybeMessage === "string" && maybeMessage.trim().length > 0) {
+        return maybeMessage
+      }
+    }
+
+    return "Something went wrong. Please try again."
+  }
+
+  /**
+   * Clears any existing feedback when user tries again.
+   */
+  function clearFeedback() {
+    setError(null)
+    setMessage(null)
+  }
+
   async function handleLogin() {
     if (!canSubmit) return
 
     setLoading(true)
-    setError(null)
+    clearFeedback()
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
 
-    if (error) {
-      setError(error.message)
+      if (signInError) {
+        setError(signInError.message)
+        return
+      }
+
+      // No success message needed because the app will navigate away automatically
+      // once auth state updates.
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   async function handleSignUp() {
     if (!canSubmit) return
 
     setLoading(true)
-    setError(null)
+    clearFeedback()
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password
-    })
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password
+      })
 
-    if (error) {
-      setError(error.message)
+      if (signUpError) {
+        setError(signUpError.message)
+        return
+      }
+
+      // Some Supabase projects require email confirmation.
+      // This message works in both cases: instant sign in or confirm email flow.
+      setMessage("Account created. If asked, confirm your email, then log in.")
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   async function handleForgotPassword() {
     const trimmed = email.trim()
+
+    clearFeedback()
+
     if (!trimmed) {
       setError("Enter your email first, then tap Forgot password.")
       return
     }
 
     setLoading(true)
-    setError(null)
 
-    // Sends a password reset email. For production, configure redirect URL in Supabase.
-    const { error } = await supabase.auth.resetPasswordForEmail(trimmed)
+    try {
+      // Sends a password reset email. For production, configure redirect URL in Supabase.
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed)
 
-    if (error) {
-      setError(error.message)
+      if (resetError) {
+        setError(resetError.message)
+        return
+      }
+
+      setMessage("Password reset email sent. Check your inbox.")
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
       setLoading(false)
-      return
     }
-
-    setLoading(false)
-    alert("Password reset email sent. Check your inbox.")
   }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start px-6 py-10">
       {/* Brand title */}
-      <h1 className="text-3xl font-semibold text-blue-600 mt-2">iSkiLog</h1>
+      <h1 className="text-3xl font-semibold text-blue-600 mt-2">
+        iSkiLog
+      </h1>
 
       {/* Card */}
       <div className="w-full max-w-sm mt-8 rounded-[32px] bg-white shadow-xl px-8 pt-10 pb-8">
         {/* Welcome */}
         <div className="text-center">
-          <p className="text-lg font-medium text-slate-900">Welcome to</p>
-          <p className="text-lg font-medium text-slate-900">iSkiLog login now!</p>
+          <p className="text-lg font-medium text-slate-900">
+            Welcome to
+          </p>
+          <p className="text-lg font-medium text-slate-900">
+            iSkiLog login now!
+          </p>
         </div>
 
         {/* Form */}
         <div className="mt-8 space-y-5">
           {/* Email */}
           <div>
-            <label className="text-xs text-slate-500">Email</label>
+            <label className="text-xs text-slate-500">
+              Email
+            </label>
             <input
               type="email"
               inputMode="email"
               autoComplete="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => {
+                setEmail(e.target.value)
+                if (error) setError(null)
+                if (message) setMessage(null)
+              }}
               placeholder="you@example.com"
               className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-200"
             />
@@ -109,13 +175,19 @@ export default function Auth() {
 
           {/* Password */}
           <div>
-            <label className="text-xs text-slate-500">Password</label>
+            <label className="text-xs text-slate-500">
+              Password
+            </label>
             <div className="relative mt-2">
               <input
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => {
+                  setPassword(e.target.value)
+                  if (error) setError(null)
+                  if (message) setMessage(null)
+                }}
                 placeholder="••••••••"
                 className="w-full rounded-2xl bg-slate-100 px-4 py-3 pr-12 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-200"
               />
@@ -199,6 +271,7 @@ export default function Auth() {
                 checked={rememberMe}
                 onChange={e => setRememberMe(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-300"
+                disabled={loading}
               />
               Remember me
             </label>
@@ -206,15 +279,25 @@ export default function Auth() {
             <button
               type="button"
               onClick={handleForgotPassword}
-              className="text-xs text-blue-600 hover:text-blue-700"
+              className="text-xs text-blue-600 hover:text-blue-700 disabled:opacity-60"
               disabled={loading}
             >
-              Forget password?
+              Forgot password?
             </button>
           </div>
 
-          {/* Error */}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {/* Inline feedback */}
+          {error && (
+            <p className="text-sm text-red-600">
+              {error}
+            </p>
+          )}
+
+          {message && (
+            <p className="text-sm text-green-700">
+              {message}
+            </p>
+          )}
 
           {/* Login button */}
           <button
@@ -230,7 +313,9 @@ export default function Auth() {
           <div className="pt-4">
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200" />
-              <p className="text-xs text-slate-400">Or Sign in with</p>
+              <p className="text-xs text-slate-400">
+                Or Sign in with
+              </p>
               <div className="h-px flex-1 bg-slate-200" />
             </div>
 
@@ -243,7 +328,9 @@ export default function Auth() {
                 disabled
                 title="Social login not wired yet"
               >
-                <span className="text-blue-600 text-xl font-semibold">f</span>
+                <span className="text-blue-600 text-xl font-semibold">
+                  f
+                </span>
               </button>
 
               <button
@@ -253,7 +340,9 @@ export default function Auth() {
                 disabled
                 title="Social login not wired yet"
               >
-                <span className="text-lg">G</span>
+                <span className="text-lg">
+                  G
+                </span>
               </button>
 
               <button
@@ -263,7 +352,9 @@ export default function Auth() {
                 disabled
                 title="Social login not wired yet"
               >
-                <span className="text-slate-900 text-lg"></span>
+                <span className="text-slate-900 text-lg">
+                  
+                </span>
               </button>
             </div>
           </div>
@@ -274,7 +365,7 @@ export default function Auth() {
             <button
               type="button"
               onClick={handleSignUp}
-              className="text-blue-600 hover:text-blue-700"
+              className="text-blue-600 hover:text-blue-700 disabled:opacity-60"
               disabled={loading}
             >
               Sign up

@@ -59,6 +59,9 @@ export default function SetSummary() {
   // Prevent rapid delete spam and prevent multiple navigations racing each other.
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Inline delete error shown inside the confirmation modal.
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
   const skiSet = useMemo(() => {
     return id ? getSetById(id) : undefined
   }, [id, getSetById])
@@ -70,7 +73,6 @@ export default function SetSummary() {
    */
   function goBackSafe() {
     navigate(-1)
-
   }
 
   /**
@@ -136,7 +138,12 @@ export default function SetSummary() {
               { label: "Made", value: skiSet.data.made === null ? "—" : String(skiSet.data.made) }
             ]
           : skiSet.event === "cuts"
-            ? [{ label: "Passes", value: skiSet.data.passes === null ? "—" : String(skiSet.data.passes) }]
+            ? [
+                {
+                  label: "Passes",
+                  value: skiSet.data.passes === null ? "—" : String(skiSet.data.passes)
+                }
+              ]
             : [{ label: "Name", value: skiSet.data.name || "—" }]
 
   const details: { label: string; value: string }[] = [
@@ -147,35 +154,36 @@ export default function SetSummary() {
   /**
    * Confirmed delete handler.
    * Guarded so it cannot run twice in parallel.
+   * If delete fails, show inline error and keep the modal open.
    */
   async function handleConfirmDelete() {
-  if (isDeleting) return
+    if (isDeleting) return
 
-  setIsDeleting(true)
+    setIsDeleting(true)
+    setDeleteError(null)
 
-  try {
-    await deleteSetFromDb(id)
-    deleteSet(id)
-    setConfirmOpen(false)
+    try {
+      await deleteSetFromDb(id)
+      deleteSet(id)
 
-    // Go back to whatever screen opened this set (History or Home)
-    navigate(-1)
-  } catch (err) {
-    console.error("Failed to delete set", err)
-    alert("Failed to delete set. Try again.")
-    setConfirmOpen(false)
-    setIsDeleting(false)
+      // Close modal and navigate only after DB confirms delete.
+      setConfirmOpen(false)
+      navigate(-1)
+    } catch (err) {
+      console.error("Failed to delete set", err)
+      setDeleteError("Failed to delete set. Please try again.")
+      setIsDeleting(false)
+    }
   }
-}
-
 
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={goBackSafe}
             className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
+            disabled={isDeleting}
           >
             ←
           </button>
@@ -256,6 +264,7 @@ export default function SetSummary() {
             onClick={() => {
               if (isDeleting) return
               setConfirmOpen(false)
+              setDeleteError(null)
             }}
             className="absolute inset-0 bg-black/40"
           />
@@ -264,11 +273,20 @@ export default function SetSummary() {
             <h3 className="text-base font-semibold text-gray-900">Delete this set?</h3>
             <p className="mt-1 text-sm text-gray-500">This action cannot be undone.</p>
 
+            {deleteError && (
+              <p className="mt-3 text-sm text-red-600">
+                {deleteError}
+              </p>
+            )}
+
             <div className="mt-4 flex gap-3">
               <button
                 type="button"
                 disabled={isDeleting}
-                onClick={() => setConfirmOpen(false)}
+                onClick={() => {
+                  setConfirmOpen(false)
+                  setDeleteError(null)
+                }}
                 className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-900 disabled:opacity-60"
               >
                 Cancel
@@ -299,7 +317,10 @@ export default function SetSummary() {
 
           <button
             disabled={isDeleting}
-            onClick={() => setConfirmOpen(true)}
+            onClick={() => {
+              setConfirmOpen(true)
+              setDeleteError(null)
+            }}
             className="w-full rounded-full bg-white py-4 text-red-600 font-semibold shadow-md border border-gray-200 disabled:opacity-60"
           >
             Delete

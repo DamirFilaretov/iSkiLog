@@ -61,7 +61,7 @@ function filterByRange(range: RangeKey, sets: SkiSet[]) {
 }
 
 export default function History() {
-  const { sets, getActiveSeason } = useSetsStore()
+  const { sets, getActiveSeason, setsHydrated } = useSetsStore()
 
   const [range, setRange] = useState<RangeKey>("day")
 
@@ -93,13 +93,22 @@ export default function History() {
 
   const needsSeasonButMissing = range !== "all" && !activeSeason
 
+  const showLoading = !setsHydrated
+
   return (
     <div className="min-h-screen bg-gray-100">
       <HistoryHeader />
       <TimeRangeTabs value={range} onChange={setRange} />
 
       <div className="mt-4 px-4 space-y-4 pb-6">
-        {needsSeasonButMissing ? (
+        {showLoading ? (
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-900">Loading history</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Fetching your sets
+            </p>
+          </div>
+        ) : needsSeasonButMissing ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">No active season</p>
             <p className="mt-1 text-sm text-gray-500">
