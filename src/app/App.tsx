@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom"
 
 import Home from "../pages/Home"
 import History from "../pages/History"
@@ -8,6 +8,9 @@ import Auth from "../pages/Auth"
 import Settings from "../pages/Settings"
 import ProfileSettings from "../pages/ProfileSettings"
 import SeasonSettings from "../pages/SeasonSettings"
+import Insights from "../pages/Insights"
+
+import BottomTabBar from "../components/nav/BottomTabBar"
 
 import { SetsProvider, useSetsStore } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
@@ -15,7 +18,6 @@ import { AuthProvider, useAuth } from "../auth/AuthProvider"
 function AppLoading() {
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header skeleton */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-start justify-between">
           <div>
@@ -35,14 +37,12 @@ function AppLoading() {
       </div>
 
       <div className="px-4 space-y-5 pb-6">
-        {/* Season summary card skeleton */}
         <div className="rounded-2xl bg-blue-600 p-5 shadow-md">
           <div className="h-3 w-40 rounded bg-white/30 animate-pulse" />
           <div className="mt-3 h-9 w-48 rounded bg-white/30 animate-pulse" />
           <div className="mt-2 h-3 w-28 rounded bg-white/20 animate-pulse" />
         </div>
 
-        {/* Quick Add skeleton */}
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div className="h-4 w-24 rounded bg-gray-200 animate-pulse" />
@@ -58,7 +58,6 @@ function AppLoading() {
           </div>
         </div>
 
-        {/* Recent skeleton */}
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div className="h-4 w-20 rounded bg-gray-200 animate-pulse" />
@@ -75,6 +74,27 @@ function AppLoading() {
   )
 }
 
+/**
+ * Layout used only for the three main tabs.
+ * Adds bottom padding so content never sits under the tab bar.
+ */
+function TabLayout() {
+  const location = useLocation()
+
+  // Show the bar only on these paths
+  const showTabs =
+    location.pathname === "/" ||
+    location.pathname.startsWith("/insights") ||
+    location.pathname.startsWith("/settings")
+
+  return (
+    <div className="min-h-screen bg-gray-100 pb-28">
+      <Outlet />
+      {showTabs ? <BottomTabBar /> : null}
+    </div>
+  )
+}
+
 function AppContent() {
   const { user, loading: authLoading } = useAuth()
   const { setsHydrated } = useSetsStore()
@@ -86,13 +106,18 @@ function AppContent() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route element={<TabLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+
         <Route path="/history" element={<History />} />
         <Route path="/add" element={<AddSet />} />
         <Route path="/set/:id" element={<SetSummary />} />
-        <Route path="/settings" element={<Settings />} />
         <Route path="/season-settings" element={<SeasonSettings />} />
         <Route path="/profile" element={<ProfileSettings />} />
+
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

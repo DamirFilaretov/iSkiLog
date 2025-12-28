@@ -21,16 +21,9 @@ export default function HomeHeader() {
         <button
           onClick={() => navigate("/history")}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm"
+          aria-label="View history"
         >
           <span className="text-sm text-gray-700">🕒</span>
-        </button>
-
-        {/* Settings button */}
-        <button
-          onClick={() => navigate("/settings")}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm"
-        >
-          <span className="text-sm text-gray-700">⚙️</span>
         </button>
       </div>
     </div>
