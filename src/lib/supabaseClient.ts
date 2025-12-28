@@ -6,7 +6,6 @@ import { createClient } from "@supabase/supabase-js"
  */
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
-console.log("env", supabaseUrl, supabaseAnonKey?.slice(0, 10))
 
 /**
  * Fail fast in development if env vars are missing.
@@ -20,5 +19,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 /**
  * Single shared Supabase client for the whole app.
+ * detectSessionInUrl must be true so OAuth redirects get captured.
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+})

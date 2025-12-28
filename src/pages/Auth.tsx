@@ -1,22 +1,13 @@
 import { useMemo, useState } from "react"
 import { supabase } from "../lib/supabaseClient"
 
-/**
- * Auth page UI updated to match the provided design.
- * Includes email, password with show and hide, remember me, forgot password,
- * primary login button, social icon buttons (UI only), and sign up link.
- */
 export default function Auth() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
 
-  // Single loading flag for all auth actions.
-  // This prevents double taps and keeps UI predictable.
   const [loading, setLoading] = useState(false)
-
-  // Inline feedback
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -24,253 +15,157 @@ export default function Auth() {
     return email.trim().length > 0 && password.length >= 6
   }, [email, password])
 
-  /**
-   * Convert any unknown error into a user friendly message.
-   */
-  function getErrorMessage(err: unknown) {
-    if (!err) return "Something went wrong. Please try again."
-
-    if (typeof err === "string") return err
-
-    if (typeof err === "object" && err !== null) {
-      const maybeMessage = (err as { message?: unknown }).message
-      if (typeof maybeMessage === "string" && maybeMessage.trim().length > 0) {
-        return maybeMessage
-      }
-    }
-
-    return "Something went wrong. Please try again."
-  }
-
-  /**
-   * Clears any existing feedback when user tries again.
-   */
   function clearFeedback() {
     setError(null)
     setMessage(null)
   }
 
+  function requireValidInputs() {
+    if (!email.trim()) {
+      setError("Enter your email.")
+      return false
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.")
+      return false
+    }
+    return true
+  }
+
   async function handleLogin() {
-    if (!canSubmit) return
+    clearFeedback()
+    if (!requireValidInputs()) return
 
     setLoading(true)
-    clearFeedback()
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
 
-      if (signInError) {
-        setError(signInError.message)
+      if (error) {
+        setError(error.message)
         return
       }
-
-      // No success message needed because the app will navigate away automatically
-      // once auth state updates.
-    } catch (err) {
-      setError(getErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
 
   async function handleSignUp() {
-    if (!canSubmit) return
+    clearFeedback()
+    if (!requireValidInputs()) return
 
     setLoading(true)
-    clearFeedback()
 
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password
       })
 
-      if (signUpError) {
-        setError(signUpError.message)
+      if (error) {
+        setError(error.message)
         return
       }
 
-      // Some Supabase projects require email confirmation.
-      // This message works in both cases: instant sign in or confirm email flow.
       setMessage("Account created. If asked, confirm your email, then log in.")
-    } catch (err) {
-      setError(getErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
 
   async function handleForgotPassword() {
-    const trimmed = email.trim()
-
     clearFeedback()
 
-    if (!trimmed) {
-      setError("Enter your email first, then tap Forgot password.")
+    if (!email.trim()) {
+      setError("Enter your email first.")
       return
     }
 
     setLoading(true)
 
     try {
-      // Sends a password reset email. For production, configure redirect URL in Supabase.
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed)
-
-      if (resetError) {
-        setError(resetError.message)
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim())
+      if (error) {
+        setError(error.message)
         return
       }
-
-      setMessage("Password reset email sent. Check your inbox.")
-    } catch (err) {
-      setError(getErrorMessage(err))
+      setMessage("Password reset email sent.")
     } finally {
       setLoading(false)
     }
   }
 
+  async function handleGoogle() {
+    clearFeedback()
+    setLoading(true)
+
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/`
+        }
+      })
+    } catch {
+      setError("Google sign in failed.")
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start px-6 py-10">
-      {/* Brand title */}
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center px-6 py-10">
       <h1 className="text-3xl font-semibold text-blue-600 mt-2">
         iSkiLog
       </h1>
 
-      {/* Card */}
       <div className="w-full max-w-sm mt-8 rounded-[32px] bg-white shadow-xl px-8 pt-10 pb-8">
-        {/* Welcome */}
         <div className="text-center">
-          <p className="text-lg font-medium text-slate-900">
-            Welcome to
-          </p>
-          <p className="text-lg font-medium text-slate-900">
-            iSkiLog login now!
-          </p>
+          <p className="text-lg font-medium text-slate-900">Welcome to</p>
+          <p className="text-lg font-medium text-slate-900">iSkiLog</p>
         </div>
 
-        {/* Form */}
         <div className="mt-8 space-y-5">
-          {/* Email */}
           <div>
-            <label className="text-xs text-slate-500">
-              Email
-            </label>
+            <label className="text-xs text-slate-500">Email</label>
             <input
               type="email"
-              inputMode="email"
-              autoComplete="email"
               value={email}
-              onChange={e => {
-                setEmail(e.target.value)
-                if (error) setError(null)
-                if (message) setMessage(null)
-              }}
-              placeholder="you@example.com"
-              className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-200"
+              onChange={e => setEmail(e.target.value)}
+              className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm"
+              disabled={loading}
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label className="text-xs text-slate-500">
-              Password
-            </label>
+            <label className="text-xs text-slate-500">Password</label>
             <div className="relative mt-2">
               <input
                 type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
                 value={password}
-                onChange={e => {
-                  setPassword(e.target.value)
-                  if (error) setError(null)
-                  if (message) setMessage(null)
-                }}
-                placeholder="••••••••"
-                className="w-full rounded-2xl bg-slate-100 px-4 py-3 pr-12 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-200"
+                onChange={e => setPassword(e.target.value)}
+                className="w-full rounded-2xl bg-slate-100 px-4 py-3 pr-12 text-sm"
+                disabled={loading}
               />
-
-              {/* Eye toggle */}
               <button
                 type="button"
                 onClick={() => setShowPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                disabled={loading}
               >
-                {showPassword ? (
-                  // Eye off icon (inline SVG)
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M3 3L21 21"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M10.5 10.7C10.2 11.1 10 11.5 10 12C10 13.1 10.9 14 12 14C12.5 14 12.9 13.8 13.3 13.5"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M6.6 6.6C4.6 8 3.2 9.9 2.5 11C2.2 11.5 2.2 12.5 2.5 13C3.8 15.1 7 19 12 19C13.8 19 15.3 18.5 16.6 17.8"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M9.9 4.3C10.6 4.1 11.3 4 12 4C17 4 20.2 7.9 21.5 10C21.8 10.5 21.8 11.5 21.5 12C20.9 13 19.8 14.6 18.2 15.9"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                ) : (
-                  // Eye icon (inline SVG)
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M2.5 12C3.8 9.9 7 6 12 6C17 6 20.2 9.9 21.5 12C21.8 12.5 21.8 11.5 21.5 12C20.2 14.1 17 18 12 18C7 18 3.8 14.1 2.5 12Z"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M12 15C13.7 15 15 13.7 15 12C15 10.3 13.7 9 12 9C10.3 9 9 10.3 9 12C9 13.7 10.3 15 12 15Z"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
+                {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
           </div>
 
-          {/* Remember / Forgot row */}
-          <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center gap-2 text-xs text-slate-500 select-none">
+          <div className="flex justify-between text-xs text-slate-500">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={e => setRememberMe(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300"
                 disabled={loading}
               />
               Remember me
@@ -279,94 +174,70 @@ export default function Auth() {
             <button
               type="button"
               onClick={handleForgotPassword}
-              className="text-xs text-blue-600 hover:text-blue-700 disabled:opacity-60"
+              className="text-blue-600"
               disabled={loading}
             >
               Forgot password?
             </button>
           </div>
 
-          {/* Inline feedback */}
-          {error && (
-            <p className="text-sm text-red-600">
-              {error}
-            </p>
-          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {message && <p className="text-sm text-green-700">{message}</p>}
 
-          {message && (
-            <p className="text-sm text-green-700">
-              {message}
-            </p>
-          )}
-
-          {/* Login button */}
           <button
-            type="button"
             onClick={handleLogin}
             disabled={loading || !canSubmit}
-            className="w-full rounded-full bg-blue-600 py-3 text-sm font-medium text-white shadow-lg shadow-blue-200 disabled:opacity-60"
+            className="w-full rounded-full bg-blue-600 py-3 text-white disabled:opacity-60"
           >
-            {loading ? "Loading..." : "Login"}
+            Login
           </button>
 
-          {/* Divider */}
           <div className="pt-4">
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200" />
-              <p className="text-xs text-slate-400">
-                Or Sign in with
-              </p>
+              <p className="text-xs text-slate-400">Or sign in with</p>
               <div className="h-px flex-1 bg-slate-200" />
             </div>
 
-            {/* Social buttons (UI only) */}
-            <div className="mt-5 flex items-center justify-center gap-4">
-              <button
-                type="button"
-                className="h-12 w-12 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center"
-                aria-label="Sign in with Facebook"
-                disabled
-                title="Social login not wired yet"
-              >
-                <span className="text-blue-600 text-xl font-semibold">
-                  f
-                </span>
-              </button>
+            <div className="mt-5 flex justify-center gap-4">
+            {/* Google – active */}
+            <button
+              onClick={handleGoogle}
+              disabled={loading}
+              className="h-12 w-12 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-60"
+              aria-label="Sign in with Google"
+            >
+              <img
+                src="https://www.svgrepo.com/show/475656/google-color.svg"
+                alt="Google"
+                className="h-5 w-5"
+              />
+            </button>
 
-              <button
-                type="button"
-                className="h-12 w-12 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center"
-                aria-label="Sign in with Google"
-                disabled
-                title="Social login not wired yet"
+            {/* Apple – placeholder */}
+            <button
+              disabled
+              className="h-12 w-12 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center opacity-50 cursor-not-allowed"
+              aria-label="Apple sign in coming soon"
+              title="Apple sign in coming soon"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6 fill-slate-900"
+                aria-hidden="true"
               >
-                <span className="text-lg">
-                  G
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className="h-12 w-12 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center"
-                aria-label="Sign in with Apple"
-                disabled
-                title="Social login not wired yet"
-              >
-                <span className="text-slate-900 text-lg">
-                  
-                </span>
-              </button>
-            </div>
+                <path d="M16.365 1.43c0 1.14-.433 2.213-1.27 3.145-.932 1.02-2.184 1.61-3.43 1.51-.17-1.19.378-2.43 1.27-3.37.933-.96 2.36-1.64 3.43-1.28zm4.48 17.16c-.44 1.01-.65 1.46-1.22 2.35-.8 1.26-1.93 2.83-3.35 2.84-1.26.01-1.59-.82-3.3-.82-1.72 0-2.09.8-3.32.83-1.42.01-2.51-1.42-3.31-2.68-2.24-3.45-2.48-7.49-1.09-9.62.98-1.52 2.52-2.41 4.01-2.41 1.57 0 2.56.86 3.86.86 1.26 0 2.03-.87 3.84-.87 1.33 0 2.75.73 3.73 1.99-3.29 1.8-2.76 6.51 1.15 7.53z" />
+              </svg>
+            </button>
+          </div>
           </div>
 
-          {/* Footer */}
           <div className="pt-6 text-center text-xs text-slate-500">
-            Don&apos;t have an account?{" "}
+            Don’t have an account?{" "}
             <button
-              type="button"
               onClick={handleSignUp}
-              className="text-blue-600 hover:text-blue-700 disabled:opacity-60"
-              disabled={loading}
+              disabled={loading || !canSubmit}
+              className="text-blue-600"
             >
               Sign up
             </button>
