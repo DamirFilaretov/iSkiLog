@@ -120,11 +120,13 @@ export function getWeeklyChartBars(
   sets: SkiSet[]
 ): WeeklyChartBars {
   const stats = getWeeklyStats(sets)
+
   const max = Math.max(...stats.dailyCounts.map(d => d.count), 1)
 
   return {
     bars: stats.dailyCounts.map(d => ({
       day: d.label,
+      count: d.count,
       heightPercent: (d.count / max) * 100
     })),
     totalText: `Total this week: ${stats.totalThisWeek} sets`,
@@ -136,6 +138,7 @@ export function getWeeklyChartBars(
           )}% from last week`
   }
 }
+
 
 /* -----------------------------
    Monthly stats

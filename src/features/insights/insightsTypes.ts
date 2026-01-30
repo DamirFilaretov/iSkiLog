@@ -17,6 +17,7 @@ export type WeeklyStats = {
 export type WeeklyChartBars = {
   bars: {
     day: string
+    count: number
     heightPercent: number
   }[]
   totalText: string
