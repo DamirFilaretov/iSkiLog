@@ -13,7 +13,6 @@ export default function ProfileSettings() {
   const navigate = useNavigate()
   const goBack = useSafeBack("/")
 
-  // Items match the screenshot order and wording
   const items: Item[] = [
     {
       title: "Personal Information",
@@ -31,7 +30,6 @@ export default function ProfileSettings() {
       icon: "📅",
       iconBgClass: "bg-purple-500",
       onClick: () => navigate("/season-settings")
-
     },
     {
       title: "Default Location",
@@ -57,23 +55,22 @@ export default function ProfileSettings() {
 
   return (
     <div className="min-h-screen bg-gray-100 px-4 pt-4">
-      {/* Header */}
       <div className="mb-6">
         <button
-          // Back returns to Settings
-          onClick={() => navigate(-1)}
+          onClick={goBack}
           className="mb-2 rounded-full bg-white px-3 py-1 shadow"
         >
           ←
         </button>
 
         <h1 className="text-xl font-semibold">Profile Settings</h1>
-        <p className="text-sm text-gray-500">Manage your profile and season setup</p>
+        <p className="text-sm text-gray-500">
+          Manage your profile and season setup
+        </p>
       </div>
 
-      {/* Cards */}
       <div className="space-y-4">
-        {items.map((item) => (
+        {items.map(item => (
           <ProfileCard
             key={item.title}
             title={item.title}
@@ -96,15 +93,22 @@ type ProfileCardProps = {
   onClick: () => void
 }
 
-function ProfileCard({ title, subtitle, icon, iconBgClass, onClick }: ProfileCardProps) {
+function ProfileCard({
+  title,
+  subtitle,
+  icon,
+  iconBgClass,
+  onClick
+}: ProfileCardProps) {
   return (
     <button
       onClick={onClick}
       className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-4 shadow"
     >
-      {/* Left side icon and text */}
       <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconBgClass}`}>
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconBgClass}`}
+        >
           <span className="text-white">{icon}</span>
         </div>
 
@@ -114,7 +118,6 @@ function ProfileCard({ title, subtitle, icon, iconBgClass, onClick }: ProfileCar
         </div>
       </div>
 
-      {/* Chevron */}
       <span className="text-gray-400">›</span>
     </button>
   )
