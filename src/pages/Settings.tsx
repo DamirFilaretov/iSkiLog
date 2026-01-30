@@ -18,18 +18,9 @@ export default function Settings() {
     <div className="min-h-screen bg-slate-50 px-4 pt-6 pb-10">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/", { replace: true })}
-            className="h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
-          >
-            ←
-          </button>
-
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
-            <p className="text-sm text-slate-500">Manage your preferences</p>
-          </div>
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
+          <p className="text-sm text-slate-500">Manage your preferences</p>
         </div>
       </div>
 
