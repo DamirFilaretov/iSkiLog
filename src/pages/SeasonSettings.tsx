@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-
+import { useSafeBack } from "../lib/useSafeBack"
 import { useSetsStore } from "../store/setsStore"
 import { updateSeasonDates } from "../data/seasonsApi"
 
@@ -17,7 +17,7 @@ function formatIsoDateForDisplay(iso: string) {
 
 export default function SeasonSettings() {
   const navigate = useNavigate()
-
+  const goBack = useSafeBack("/")
   const { activeSeasonId, getActiveSeason, upsertSeason } = useSetsStore()
 
   const activeSeason = getActiveSeason()
@@ -92,7 +92,7 @@ export default function SeasonSettings() {
         <div className="px-4 pt-6 pb-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate(-1)}
+              onClick={goBack}
               className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
             >
               ←

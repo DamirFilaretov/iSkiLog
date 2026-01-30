@@ -1,8 +1,11 @@
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabaseClient"
+import { useSafeBack } from "../lib/useSafeBack"
+
 
 export default function Settings() {
   const navigate = useNavigate()
+  const goBack = useSafeBack("/")
 
   async function handleLogout() {
     // Sign out from Supabase
@@ -18,7 +21,7 @@ export default function Settings() {
       {/* Header */}
       <div className="mb-6">
         <button
-          onClick={() => navigate(-1)}
+          onClick={goBack}
           className="mb-2 rounded-full bg-white px-3 py-1 shadow"
         >
           ←

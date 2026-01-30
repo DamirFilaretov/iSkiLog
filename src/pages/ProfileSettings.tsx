@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom"
+import { useSafeBack } from "../lib/useSafeBack"
 
 type Item = {
   title: string
@@ -10,6 +11,7 @@ type Item = {
 
 export default function ProfileSettings() {
   const navigate = useNavigate()
+  const goBack = useSafeBack("/")
 
   // Items match the screenshot order and wording
   const items: Item[] = [
