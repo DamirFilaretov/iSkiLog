@@ -16,7 +16,8 @@ import {
   getEventBreakdown,
   getMostPracticedEvent,
   getWeeklyChartBars,
-  getMonthlyProgress
+  getMonthlyProgress,
+  getCurrentStreak
 } from "../features/insights/insightsSelectors"
 
 export default function Insights() {
@@ -70,8 +71,8 @@ export default function Insights() {
   )
 
   const trainingDaysThisMonth = useMemo(
-    () => getMonthlyTrainingDays(seasonSets),
-    [seasonSets]
+    () => getMonthlyTrainingDays(sets),
+    [sets]
   )
 
   const mostPracticed = useMemo(
@@ -85,7 +86,12 @@ export default function Insights() {
   )
 
   const monthlyProgress = useMemo(
-    () => getMonthlyProgress(seasonSets),
+    () => getMonthlyProgress(sets),
+    [sets]
+  )
+
+  const currentStreak = useMemo(
+    () => getCurrentStreak(seasonSets),
     [seasonSets]
   )
 
@@ -111,7 +117,7 @@ export default function Insights() {
           trainingDaysThisMonth={String(trainingDaysThisMonth)}
           mostPracticedLabel={mostPracticed.event}
           mostPracticedSubtext={`${mostPracticed.count} sets`}
-          currentStreak="—"
+          currentStreak={String(currentStreak)}
         />
 
         <EventBreakdown items={eventBreakdown} />
