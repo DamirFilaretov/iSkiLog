@@ -15,11 +15,9 @@ export default function EventTile({ event, label, gradient, icon }: EventTilePro
   return (
     <button
       onClick={() => navigate(`/add?event=${event}`)}
-      className="rounded-2xl bg-white p-3.5 shadow-sm flex flex-col items-center justify-center gap-2 hover:shadow-md transition-shadow"
+      className="rounded-2xl bg-white p-5 shadow-sm flex flex-col items-center justify-center gap-3"
     >
-      <div
-        className={`h-12 w-12 rounded-2xl flex items-center justify-center text-white ${gradient}`}
-      >
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white ${gradient}`}>
         <span className="text-lg">{icon}</span>
       </div>
 

@@ -5,12 +5,10 @@ export default function HomeHeader() {
 
   return (
     <div>
-      <div className="h-4" />
-
       <div className="flex items-center justify-between mb-4">
         {/* App title */}
         <div>
-          <h1 className="text-slate-900 mb-0.5">
+          <h1 className="text-xl font-semibold text-slate-900 mb-0.5">
             iSkiLog
           </h1>
           <p className="text-sm text-slate-500">

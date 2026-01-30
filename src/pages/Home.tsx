@@ -6,7 +6,7 @@ import { useSetsStore } from "../store/setsStore"
 
 function HomeLoading() {
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-5 pt-6 flex flex-col overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 pt-6 flex flex-col overflow-hidden">
       <HomeHeader />
 
       <div className="mt-4 space-y-4 pb-6">
@@ -38,7 +38,7 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-5 pt-6 flex flex-col overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 pt-6 flex flex-col overflow-hidden">
       <HomeHeader />
       <SeasonSummaryCard />
       <QuickAdd />

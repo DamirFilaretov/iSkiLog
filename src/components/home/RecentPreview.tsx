@@ -25,7 +25,7 @@ export default function RecentPreview() {
   const recent = getRecentSet()
 
   return (
-    <div className="mt-auto mb-16">
+    <div className="mt-6 mb-8">
       <div className="flex items-center justify-between mb-2.5">
         <h2 className="text-slate-900 text-lg">Recent</h2>
 

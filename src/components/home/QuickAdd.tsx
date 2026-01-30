@@ -3,7 +3,7 @@ import EventTile from "./EventTile"
 export default function QuickAdd() {
   return (
     <div className="mb-2.5">
-      <h2 className="text-slate-900 text-lg">
+      <h2 className="text-slate-900 text-lg mb-2.5">
         Quick Add
       </h2>
 

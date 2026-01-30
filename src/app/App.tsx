@@ -89,7 +89,7 @@ function TabLayout() {
     location.pathname.startsWith("/settings")
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-28">
+    <div className="min-h-screen bg-slate-50">
       <Outlet />
       {showTabs ? <BottomTabBar /> : null}
     </div>
