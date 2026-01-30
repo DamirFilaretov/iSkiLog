@@ -17,18 +17,18 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 px-4 pt-4">
+    <div className="min-h-screen bg-slate-50 px-4 pt-6 pb-10">
       {/* Header */}
       <div className="mb-6">
         <button
           onClick={goBack}
-          className="mb-2 rounded-full bg-white px-3 py-1 shadow"
+          className="mb-3 h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
         >
           ←
         </button>
 
-        <h1 className="text-xl font-semibold">Settings</h1>
-        <p className="text-sm text-gray-500">Manage your preferences</p>
+        <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
+        <p className="text-sm text-slate-500">Manage your preferences</p>
       </div>
 
       {/* Settings Cards */}
@@ -66,7 +66,7 @@ export default function Settings() {
       </div>
 
       {/* Version */}
-      <p className="mt-8 text-center text-xs text-gray-400">
+      <p className="mt-8 text-center text-xs text-slate-400">
         iSkiLog Version 1.0.0
       </p>
 
@@ -74,7 +74,7 @@ export default function Settings() {
       <div className="mt-8">
         <button
           onClick={handleLogout}
-          className="w-full rounded-full border border-red-500 py-3 text-red-500"
+          className="w-full rounded-full border border-red-500 bg-white py-3 text-red-500 shadow-lg shadow-rose-100/80"
         >
           Log Out
         </button>
@@ -93,14 +93,14 @@ function SettingsCard({ title, subtitle, onClick }: CardProps) {
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-4 shadow"
+      className="flex w-full items-center justify-between rounded-2xl bg-white px-5 py-4 shadow-lg shadow-slate-200/60 transition hover:shadow-xl"
     >
       <div className="text-left">
-        <p className="font-medium">{title}</p>
-        <p className="text-sm text-gray-500">{subtitle}</p>
+        <p className="font-medium text-slate-900">{title}</p>
+        <p className="text-sm text-slate-500">{subtitle}</p>
       </div>
 
-      <span className="text-gray-400">›</span>
+      <span className="text-slate-400">›</span>
     </button>
   )
 }

@@ -25,9 +25,9 @@ export default function RecentPreview() {
   const recent = getRecentSet()
 
   return (
-    <div className="mt-6 px-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-medium text-gray-900">Recent</h2>
+    <div className="mt-auto mb-16">
+      <div className="flex items-center justify-between mb-2.5">
+        <h2 className="text-slate-900 text-lg">Recent</h2>
 
         <button onClick={() => navigate("/history")} className="text-sm text-blue-600">
           View All
@@ -36,28 +36,28 @@ export default function RecentPreview() {
 
       {/* If there are no sets yet, show an empty state instead of a fake card */}
       {!recent ? (
-        <div className="w-full rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-sm font-medium text-gray-900">No sets yet</p>
-          <p className="mt-1 text-sm text-gray-500">Add your first set to see it here.</p>
+        <div className="bg-white rounded-2xl p-3.5 shadow-sm">
+          <p className="text-sm font-medium text-slate-900">No sets yet</p>
+          <p className="mt-1 text-xs text-slate-500">Add your first set to see it here.</p>
         </div>
       ) : (
         <button
           // Navigate to the real summary page for this specific set.
           onClick={() => navigate(`/set/${recent.id}`)}
-          className="w-full text-left rounded-2xl bg-white p-4 shadow-sm flex items-center justify-between active:scale-95 transition"
+          className="w-full text-left bg-white rounded-2xl p-3.5 shadow-sm"
         >
           <div>
             {/* Basic label based on event type */}
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-slate-900">
               {getEventLabel(recent.event)} set
             </p>
 
             {/* For now we keep the subtitle simple and reliable */}
-            <p className="mt-1 text-sm text-gray-500">{recent.date}</p>
+            <p className="text-xs text-slate-500">{recent.date}</p>
           </div>
 
           {/* Placeholder for now since we are not computing relative time yet */}
-          <span className="text-xs text-gray-400">Latest</span>
+          <span className="text-xs text-slate-400">Latest</span>
         </button>
       )}
     </div>

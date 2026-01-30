@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { useSetsStore } from "../store/setsStore"
@@ -23,47 +23,51 @@ import {
 export default function Insights() {
   const navigate = useNavigate()
 
-  const { sets, setsHydrated, getActiveSeason } = useSetsStore()
-  const activeSeason = getActiveSeason()
+  const { sets, setsHydrated, seasons, activeSeasonId } = useSetsStore()
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
 
-  if (!setsHydrated) {
-    return (
-      <div className="px-4 pt-6">
-        <p className="text-sm text-gray-500">
-          Loading insights
-        </p>
-      </div>
-    )
+  const getSeasonLabel = (startDate: string) => {
+    const year = startDate.slice(0, 4)
+    return `${year} Season`
   }
 
-  if (!activeSeason) {
-    return (
-      <div className="px-4 pt-6">
-        <InsightsHeader />
+  const sortedSeasons = useMemo(() => {
+    return [...seasons].sort((a, b) => b.startDate.localeCompare(a.startDate))
+  }, [seasons])
 
-        <p className="mt-4 text-sm text-gray-500">
-          No active season found
-        </p>
+  useEffect(() => {
+    if (sortedSeasons.length === 0) {
+      setSelectedSeasonId(null)
+      return
+    }
 
-        <button
-          onClick={() => navigate("/season-settings")}
-          className="mt-4 rounded-full bg-blue-600 px-4 py-2 text-sm text-white"
-        >
-          Set up season
-        </button>
-      </div>
-    )
-  }
+    const hasSelected = selectedSeasonId
+      ? sortedSeasons.some(season => season.id === selectedSeasonId)
+      : false
 
-  const seasonSets = useMemo(
-    () => sets.filter(s => s.seasonId === activeSeason.id),
-    [sets, activeSeason.id]
-  )
+    if (!hasSelected) {
+      setSelectedSeasonId(activeSeasonId ?? sortedSeasons[0].id)
+    }
+  }, [sortedSeasons, selectedSeasonId, activeSeasonId])
 
-  const weeklyStats = useMemo(
-    () => getWeeklyStats(seasonSets),
-    [seasonSets]
-  )
+  const selectedSeason = useMemo(() => {
+    if (!selectedSeasonId) return undefined
+    return seasons.find(season => season.id === selectedSeasonId)
+  }, [seasons, selectedSeasonId])
+
+  const dropdownSeasons = useMemo(() => {
+    return sortedSeasons.map(season => ({
+      id: season.id,
+      label: getSeasonLabel(season.startDate)
+    }))
+  }, [sortedSeasons])
+
+  const seasonSets = useMemo(() => {
+    if (!selectedSeasonId) return []
+    return sets.filter(s => s.seasonId === selectedSeasonId)
+  }, [sets, selectedSeasonId])
+
+  const weeklyStats = useMemo(() => getWeeklyStats(seasonSets), [seasonSets])
 
   const weeklyBars = useMemo(
     () => getWeeklyChartBars(seasonSets),
@@ -95,13 +99,50 @@ export default function Insights() {
     [seasonSets]
   )
 
+  if (!setsHydrated) {
+    return (
+      <div className="px-4 pt-6">
+        <p className="text-sm text-gray-500">
+          Loading insights
+        </p>
+      </div>
+    )
+  }
+
+  if (!selectedSeason) {
+    return (
+      <div className="px-4 pt-6">
+        <InsightsHeader
+          seasons={dropdownSeasons}
+          selectedSeasonId={selectedSeasonId}
+          onSeasonChange={setSelectedSeasonId}
+        />
+
+        <p className="mt-4 text-sm text-gray-500">
+          No active season found
+        </p>
+
+        <button
+          onClick={() => navigate("/season-settings")}
+          className="mt-4 rounded-full bg-blue-600 px-4 py-2 text-sm text-white"
+        >
+          View season details
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 pb-28">
-      <InsightsHeader />
+      <InsightsHeader
+        seasons={dropdownSeasons}
+        selectedSeasonId={selectedSeasonId}
+        onSeasonChange={setSelectedSeasonId}
+      />
 
       <div className="space-y-4">
         <SeasonOverviewCard
-          seasonName={activeSeason.name}
+          seasonName={getSeasonLabel(selectedSeason.startDate)}
           totalSets={seasonSets.length}
         />
 

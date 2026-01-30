@@ -7,6 +7,7 @@ import SetSummary from "../pages/SetSummary"
 import Auth from "../pages/Auth"
 import Settings from "../pages/Settings"
 import ProfileSettings from "../pages/ProfileSettings"
+import PersonalInfo from "../pages/PersonalInfo"
 import SeasonSettings from "../pages/SeasonSettings"
 import Insights from "../pages/Insights"
 
@@ -117,6 +118,7 @@ function AppContent() {
         <Route path="/set/:id" element={<SetSummary />} />
         <Route path="/season-settings" element={<SeasonSettings />} />
         <Route path="/profile" element={<ProfileSettings />} />
+        <Route path="/personal-info" element={<PersonalInfo />} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

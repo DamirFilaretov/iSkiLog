@@ -3,7 +3,7 @@ import type { User } from "@supabase/supabase-js"
 
 import { supabase } from "../lib/supabaseClient"
 import { fetchSets } from "../data/setsApi"
-import { fetchSeasons, createSeason, setActiveSeason } from "../data/seasonsApi"
+import { fetchSeasons, createSeason, setActiveSeason, updateSeasonDates } from "../data/seasonsApi"
 import { useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
 
@@ -14,22 +14,16 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-function toIsoDate(d: Date) {
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
+function yearFromIsoDate(iso: string) {
+  const year = Number(iso.slice(0, 4))
+  return Number.isNaN(year) ? null : year
 }
 
-function pickActiveSeasonId(seasons: Season[]) {
-  const explicit = seasons.find(s => s.isActive)
-  if (explicit) return explicit.id
-
-  const today = toIsoDate(new Date())
-  const containsToday = seasons.find(s => today >= s.startDate && today <= s.endDate)
-  if (containsToday) return containsToday.id
-
-  return seasons[0]?.id ?? null
+function buildYearSeasonDates(year: number) {
+  return {
+    startDate: `${year}-01-01`,
+    endDate: `${year}-12-31`
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -110,34 +104,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSetsHydrated(false)
 
         let seasons = await fetchSeasons()
+        const currentYear = new Date().getFullYear()
 
-        if (seasons.length === 0) {
-          const year = new Date().getFullYear()
+        const normalized: Season[] = []
 
-          const defaultSeason = await createSeason({
-            name: `${year} Water Ski Season`,
-            startDate: `${year}-04-01`,
-            endDate: `${year}-10-31`,
+        for (const season of seasons) {
+          const seasonYear = yearFromIsoDate(season.startDate)
+          if (!seasonYear) {
+            normalized.push(season)
+            continue
+          }
+
+          const { startDate, endDate } = buildYearSeasonDates(seasonYear)
+
+          if (season.startDate !== startDate || season.endDate !== endDate) {
+            await updateSeasonDates({
+              seasonId: season.id,
+              startDate,
+              endDate
+            })
+            normalized.push({ ...season, startDate, endDate })
+          } else {
+            normalized.push(season)
+          }
+        }
+
+        const currentSeason =
+          normalized.find(s => yearFromIsoDate(s.startDate) === currentYear) ??
+          (await createSeason({
+            name: `${currentYear} Season`,
+            ...buildYearSeasonDates(currentYear),
             isActive: true
-          })
+          }))
 
-          seasons = [defaultSeason]
+        if (!normalized.some(s => s.id === currentSeason.id)) {
+          normalized.unshift(currentSeason)
         }
 
-        setSeasons(seasons)
+        await setActiveSeason(currentSeason.id)
 
-        const activeId = pickActiveSeasonId(seasons)
-        setActiveSeasonId(activeId)
+        const finalSeasons = normalized.map(s => {
+          return { ...s, isActive: s.id === currentSeason.id }
+        })
 
-        const activeSeason = seasons.find(s => s.id === activeId)
-        if (activeId && activeSeason && !activeSeason.isActive) {
-          await setActiveSeason(activeId)
-
-          const updated = seasons.map(s => {
-            return { ...s, isActive: s.id === activeId }
-          })
-          setSeasons(updated)
-        }
+        setSeasons(finalSeasons)
+        setActiveSeasonId(currentSeason.id)
 
         const sets = await fetchSets()
         replaceAll(sets)

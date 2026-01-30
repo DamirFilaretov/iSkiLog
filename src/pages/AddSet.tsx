@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { createSet } from "../data/setsWriteApi"
 import { updateSetInDb } from "../data/setsUpdateDeleteApi"
+import { createSeason, setActiveSeason } from "../data/seasonsApi"
 
 import AddSetHeader from "../components/addSet/AddSetHeader"
 import EventTypeSelect from "../components/addSet/EventTypeSelect"
@@ -31,7 +32,14 @@ function isEventKey(v: string | null): v is EventKey {
 export default function AddSet() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { addSet, updateSet, getSetById, getSeasonIdForDate } = useSetsStore()
+  const {
+    addSet,
+    updateSet,
+    getSetById,
+    getSeasonForYear,
+    upsertSeason,
+    setActiveSeasonId
+  } = useSetsStore()
 
   const editId = searchParams.get("id") ?? ""
   const isEditing = Boolean(editId)
@@ -105,10 +113,7 @@ export default function AddSet() {
 
   const canSave = !dateIsInFuture && !isSubmitting
 
-  function buildSetObject(id: string): SkiSet {
-    const computedSeasonId = getSeasonIdForDate(date)
-    const seasonId = computedSeasonId ?? editingSet?.seasonId ?? null
-
+  function buildSetObject(id: string, seasonId: string | null): SkiSet {
     if (event === "slalom") {
       return {
         id,
@@ -178,6 +183,34 @@ export default function AddSet() {
     }
   }
 
+  async function ensureSeasonIdForDate(targetDate: string): Promise<string | null> {
+    const year = Number(targetDate.slice(0, 4))
+    if (Number.isNaN(year)) return null
+
+    const existing = getSeasonForYear(year)
+    if (existing) return existing.id
+
+    const startDate = `${year}-01-01`
+    const endDate = `${year}-12-31`
+    const currentYear = new Date().getFullYear()
+
+    const created = await createSeason({
+      name: `${year} Season`,
+      startDate,
+      endDate,
+      isActive: year === currentYear
+    })
+
+    upsertSeason(created)
+
+    if (year === currentYear) {
+      setActiveSeasonId(created.id)
+      await setActiveSeason(created.id)
+    }
+
+    return created.id
+  }
+
   async function handleSave() {
     if (!canSave) return
 
@@ -185,15 +218,18 @@ export default function AddSet() {
     setError(null)
 
     try {
+      const computedSeasonId = await ensureSeasonIdForDate(date)
+      const seasonId = computedSeasonId ?? editingSet?.seasonId ?? null
+
       if (isEditing && editingSet) {
-        const updated = buildSetObject(editingSet.id)
+        const updated = buildSetObject(editingSet.id, seasonId)
         await updateSetInDb({ set: updated, previousEvent: editingSet.event })
         updateSet(updated)
         navigate(`/set/${updated.id}`, { replace: true })
         return
       }
 
-      const draft = buildSetObject("temp")
+      const draft = buildSetObject("temp", seasonId)
       const id = await createSet({ set: draft })
       addSet({ ...draft, id })
       navigate("/")

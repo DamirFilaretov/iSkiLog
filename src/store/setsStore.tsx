@@ -122,6 +122,7 @@ type SetsStore = {
   getTotalSetsForActiveSeason: () => number
 
   getSeasonIdForDate: (date: string) => string | null
+  getSeasonForYear: (year: number) => Season | undefined
   getActiveSeason: () => Season | undefined
 }
 
@@ -198,11 +199,18 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
       },
 
       getSeasonIdForDate: (date: string) => {
+        const year = date.slice(0, 4)
         const match = state.seasons.find(season => {
-          return date >= season.startDate && date <= season.endDate
+          return season.startDate.startsWith(`${year}-`)
         })
 
         return match ? match.id : null
+      },
+
+      getSeasonForYear: (year: number) => {
+        return state.seasons.find(season => {
+          return season.startDate.startsWith(`${year}-`)
+        })
       },
 
       getActiveSeason: () => {
