@@ -4,26 +4,25 @@ export default function HomeHeader() {
   const navigate = useNavigate()
 
   return (
-    <div className="flex items-center justify-between px-4 pt-6">
-      {/* App title */}
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">
-          iSkiLog
-        </h1>
-        <p className="text-sm text-gray-500">
-          Track your progression
-        </p>
-      </div>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        {/* App title */}
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900 mb-0.5">
+            iSkiLog
+          </h1>
+          <p className="text-sm text-slate-500">
+            Track your progression
+          </p>
+        </div>
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-2">
         {/* History button */}
         <button
           onClick={() => navigate("/history")}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm"
-          aria-label="View history"
+          className="w-11 h-11 rounded-full bg-white shadow-sm flex items-center justify-center hover:shadow-md transition-shadow"
+          aria-label="History"
         >
-          <span className="text-sm text-gray-700">🕒</span>
+          <span className="text-sm text-slate-700">🕒</span>
         </button>
       </div>
     </div>

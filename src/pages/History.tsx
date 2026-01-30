@@ -112,7 +112,7 @@ export default function History() {
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">No active season</p>
             <p className="mt-1 text-sm text-gray-500">
-              Go to Settings and set your season dates.
+              Go to Settings to view season details.
             </p>
           </div>
         ) : filteredAndSorted.length === 0 ? (

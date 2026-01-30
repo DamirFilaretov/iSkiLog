@@ -19,14 +19,11 @@ export default function ProfileSettings() {
       subtitle: "Name, email, and profile photo",
       icon: "👤",
       iconBgClass: "bg-blue-500",
-      onClick: () => {
-        // Placeholder for now
-        // Later you will navigate to a Personal Information page
-      }
+      onClick: () => navigate("/personal-info")
     },
     {
       title: "Season Settings",
-      subtitle: "Set your season start and end dates",
+      subtitle: "Calendar-year season details",
       icon: "📅",
       iconBgClass: "bg-purple-500",
       onClick: () => navigate("/season-settings")
@@ -54,17 +51,17 @@ export default function ProfileSettings() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-100 px-4 pt-4">
+    <div className="min-h-screen bg-slate-50 px-4 pt-6 pb-10">
       <div className="mb-6">
         <button
           onClick={goBack}
-          className="mb-2 rounded-full bg-white px-3 py-1 shadow"
+          className="mb-3 h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
         >
           ←
         </button>
 
-        <h1 className="text-xl font-semibold">Profile Settings</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-xl font-semibold text-slate-900">Profile Settings</h1>
+        <p className="text-sm text-slate-500">
           Manage your profile and season setup
         </p>
       </div>
@@ -103,22 +100,22 @@ function ProfileCard({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-4 shadow"
+      className="flex w-full items-center justify-between rounded-2xl bg-white px-5 py-4 shadow-lg shadow-slate-200/60 transition hover:shadow-xl"
     >
       <div className="flex items-center gap-4">
         <div
-          className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconBgClass}`}
+          className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconBgClass}`}
         >
           <span className="text-white">{icon}</span>
         </div>
 
         <div className="text-left">
-          <p className="font-medium text-gray-900">{title}</p>
-          <p className="text-sm text-gray-500">{subtitle}</p>
+          <p className="font-medium text-slate-900">{title}</p>
+          <p className="text-sm text-slate-500">{subtitle}</p>
         </div>
       </div>
 
-      <span className="text-gray-400">›</span>
+      <span className="text-slate-400">›</span>
     </button>
   )
 }

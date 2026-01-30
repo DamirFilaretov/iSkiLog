@@ -7,16 +7,18 @@ export default function SeasonSummaryCard() {
   const totalText = ready ? String(getTotalSetsForActiveSeason()) : "Loading…"
 
   return (
-    <div className="mt-6 px-4">
-      <div className="rounded-2xl bg-blue-600 p-6 shadow-md">
-        <p className="text-sm text-white/80">
-          Total sets this season
-        </p>
+    <div className="bg-gradient-to-br from-blue-600 to-blue-500 rounded-3xl p-5 mb-4 shadow-lg shadow-blue-500/20">
+      <p className="text-blue-100 text-sm">
+        Total sets this season
+      </p>
 
-        <p className="mt-2 text-4xl font-bold text-white">
-          {totalText}
-        </p>
-      </div>
+      <p className="mt-2 text-white text-4xl font-semibold tracking-tight">
+        {totalText}
+      </p>
+
+      <p className="text-blue-100 text-xs">
+        Total training sets
+      </p>
     </div>
   )
 }

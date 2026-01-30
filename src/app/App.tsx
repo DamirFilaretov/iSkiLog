@@ -7,6 +7,7 @@ import SetSummary from "../pages/SetSummary"
 import Auth from "../pages/Auth"
 import Settings from "../pages/Settings"
 import ProfileSettings from "../pages/ProfileSettings"
+import PersonalInfo from "../pages/PersonalInfo"
 import SeasonSettings from "../pages/SeasonSettings"
 import Insights from "../pages/Insights"
 
@@ -88,7 +89,7 @@ function TabLayout() {
     location.pathname.startsWith("/settings")
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-28">
+    <div className="min-h-screen bg-slate-50">
       <Outlet />
       {showTabs ? <BottomTabBar /> : null}
     </div>
@@ -117,6 +118,7 @@ function AppContent() {
         <Route path="/set/:id" element={<SetSummary />} />
         <Route path="/season-settings" element={<SeasonSettings />} />
         <Route path="/profile" element={<ProfileSettings />} />
+        <Route path="/personal-info" element={<PersonalInfo />} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

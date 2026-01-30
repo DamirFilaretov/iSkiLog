@@ -1,8 +1,16 @@
-import { useNavigate } from "react-router-dom"
+import { ChevronDown } from "lucide-react"
 
-export default function InsightsHeader() {
-  const navigate = useNavigate()
+type Props = {
+  seasons: { id: string; label: string }[]
+  selectedSeasonId: string | null
+  onSeasonChange: (seasonId: string) => void
+}
 
+export default function InsightsHeader({
+  seasons,
+  selectedSeasonId,
+  onSeasonChange
+}: Props) {
   return (
     <div className="px-4 pt-6 pb-4">
       <div className="flex items-center justify-between">
@@ -15,13 +23,22 @@ export default function InsightsHeader() {
           </p>
         </div>
 
-        <button
-          onClick={() => navigate("/history")}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm"
-          aria-label="View history"
-        >
-          <span className="text-sm text-gray-700">🕒</span>
-        </button>
+        {seasons.length > 0 ? (
+          <div className="relative">
+            <select
+              value={selectedSeasonId ?? ""}
+              onChange={e => onSeasonChange(e.target.value)}
+              className="appearance-none bg-white text-slate-900 font-medium text-sm pl-4 pr-10 py-2.5 rounded-full shadow-sm border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:shadow-md transition-shadow"
+            >
+              {seasons.map(season => (
+                <option key={season.id} value={season.id}>
+                  {season.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+          </div>
+        ) : null}
       </div>
     </div>
   )
