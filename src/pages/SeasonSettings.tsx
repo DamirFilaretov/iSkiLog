@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom"
-import { useSafeBack } from "../lib/useSafeBack"
 import { useSetsStore } from "../store/setsStore"
 
 function formatIsoDateForDisplay(iso: string) {
@@ -15,7 +14,6 @@ function formatIsoDateForDisplay(iso: string) {
 
 export default function SeasonSettings() {
   const navigate = useNavigate()
-  const goBack = useSafeBack("/")
   const { getActiveSeason } = useSetsStore()
 
   const activeSeason = getActiveSeason()
@@ -26,7 +24,7 @@ export default function SeasonSettings() {
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={goBack}
+            onClick={() => navigate("/profile", { replace: true })}
             className="h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
           >
             ←
@@ -56,7 +54,7 @@ export default function SeasonSettings() {
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/profile", { replace: true })}
             className="h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
           >
             ←

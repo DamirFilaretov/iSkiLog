@@ -1,11 +1,9 @@
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabaseClient"
-import { useSafeBack } from "../lib/useSafeBack"
 
 
 export default function Settings() {
   const navigate = useNavigate()
-  const goBack = useSafeBack("/")
 
   async function handleLogout() {
     // Sign out from Supabase
@@ -20,15 +18,19 @@ export default function Settings() {
     <div className="min-h-screen bg-slate-50 px-4 pt-6 pb-10">
       {/* Header */}
       <div className="mb-6">
-        <button
-          onClick={goBack}
-          className="mb-3 h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
-        >
-          ←
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/", { replace: true })}
+            className="h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
+          >
+            ←
+          </button>
 
-        <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
-        <p className="text-sm text-slate-500">Manage your preferences</p>
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
+            <p className="text-sm text-slate-500">Manage your preferences</p>
+          </div>
+        </div>
       </div>
 
       {/* Settings Cards */}

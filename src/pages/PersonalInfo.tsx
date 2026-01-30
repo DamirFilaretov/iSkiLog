@@ -1,4 +1,4 @@
-import { useSafeBack } from "../lib/useSafeBack"
+import { useNavigate } from "react-router-dom"
 
 type InfoRow = {
   label: string
@@ -7,7 +7,7 @@ type InfoRow = {
 }
 
 export default function PersonalInfo() {
-  const goBack = useSafeBack("/profile")
+  const navigate = useNavigate()
 
   const rows: InfoRow[] = [
     { label: "Full name", value: "Alex Morgan" },
@@ -27,7 +27,7 @@ export default function PersonalInfo() {
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={goBack}
+            onClick={() => navigate("/profile", { replace: true })}
             className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
           >
             ←

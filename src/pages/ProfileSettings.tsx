@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom"
-import { useSafeBack } from "../lib/useSafeBack"
 
 type Item = {
   title: string
@@ -11,7 +10,6 @@ type Item = {
 
 export default function ProfileSettings() {
   const navigate = useNavigate()
-  const goBack = useSafeBack("/")
 
   const items: Item[] = [
     {
@@ -54,7 +52,7 @@ export default function ProfileSettings() {
     <div className="min-h-screen bg-slate-50 px-4 pt-6 pb-10">
       <div className="mb-6">
         <button
-          onClick={goBack}
+          onClick={() => navigate("/settings", { replace: true })}
           className="mb-3 h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
         >
           ←
