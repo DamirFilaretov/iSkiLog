@@ -20,11 +20,51 @@ import {
   getCurrentStreak
 } from "../features/insights/insightsSelectors"
 
+type ExportRange = "season" | "month" | "week" | "custom"
+type ExportFormat = "csv" | "excel"
+type ResolvedRange =
+  | { ok: true; start: string; end: string; label: string }
+  | { ok: false; error: string }
+
+type ExportCsvResult =
+  | { ok: true; csv: string; filename: string }
+  | { ok: false; error: string }
+
+function toLocalIsoDate(date: Date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+function startOfWeekMonday(date: Date) {
+  const day = date.getDay() || 7
+  const start = new Date(date)
+  start.setDate(date.getDate() - day + 1)
+  return start
+}
+
+function uniqueTrainingDaysCount(sets: { date: string }[]) {
+  return new Set(sets.map(s => s.date.slice(0, 10))).size
+}
+
+function csvEscape(value: string) {
+  const needsQuotes = /[",\n]/.test(value)
+  const escaped = value.replace(/"/g, "\"\"")
+  return needsQuotes ? `"${escaped}"` : escaped
+}
+
 export default function Insights() {
   const navigate = useNavigate()
 
   const { sets, setsHydrated, seasons, activeSeasonId } = useSetsStore()
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportRange, setExportRange] = useState<ExportRange>("season")
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("csv")
+  const [customStart, setCustomStart] = useState("")
+  const [customEnd, setCustomEnd] = useState("")
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const getSeasonLabel = (startDate: string) => {
     const year = startDate.slice(0, 4)
@@ -54,6 +94,11 @@ export default function Insights() {
     if (!selectedSeasonId) return undefined
     return seasons.find(season => season.id === selectedSeasonId)
   }, [seasons, selectedSeasonId])
+
+  const activeSeason = useMemo(() => {
+    if (!activeSeasonId) return undefined
+    return seasons.find(season => season.id === activeSeasonId)
+  }, [seasons, activeSeasonId])
 
   const dropdownSeasons = useMemo(() => {
     return sortedSeasons.map(season => ({
@@ -98,6 +143,132 @@ export default function Insights() {
     () => getCurrentStreak(seasonSets),
     [seasonSets]
   )
+
+  function resolveExportRange(): ResolvedRange {
+    if (!activeSeason) {
+      return {
+        ok: false,
+        error: "No active season found."
+      }
+    }
+
+    const today = new Date()
+    const seasonStart = activeSeason.startDate
+    const seasonEnd = activeSeason.endDate
+
+    if (exportRange === "season") {
+      return {
+        ok: true,
+        start: seasonStart,
+        end: seasonEnd,
+        label: getSeasonLabel(activeSeason.startDate)
+      }
+    }
+
+    if (exportRange === "week") {
+      const start = toLocalIsoDate(startOfWeekMonday(today))
+      const end = toLocalIsoDate(today)
+      return { ok: true, start, end, label: "Current Week" }
+    }
+
+    if (exportRange === "month") {
+      const start = toLocalIsoDate(new Date(today.getFullYear(), today.getMonth(), 1))
+      const end = toLocalIsoDate(today)
+      return { ok: true, start, end, label: "Current Month" }
+    }
+
+    if (!customStart || !customEnd) {
+      return { ok: false, error: "Choose both start and end dates." }
+    }
+
+    if (customStart > customEnd) {
+      return { ok: false, error: "Start date must be before end date." }
+    }
+
+    return { ok: true, start: customStart, end: customEnd, label: "Custom Range" }
+  }
+
+  function buildExportCsv(): ExportCsvResult {
+    const range = resolveExportRange()
+    if (!range.ok) return { ok: false, error: range.error }
+
+    const baseSets = activeSeasonId
+      ? sets.filter(s => s.seasonId === activeSeasonId)
+      : []
+
+    const filtered = baseSets.filter(s => {
+      return s.date >= range.start && s.date <= range.end
+    })
+
+    const totalSets = filtered.length
+    const trainingDays = uniqueTrainingDaysCount(filtered)
+    const breakdown = getEventBreakdown(filtered)
+    const mostPracticed = getMostPracticedEvent(filtered)
+    const breakdownWithPercent = breakdown.map(item => {
+      const percent =
+        totalSets === 0 ? 0 : (item.count / totalSets) * 100
+      return { ...item, percent }
+    })
+
+    const formatLabel = exportFormat === "excel" ? "Excel (CSV)" : "CSV"
+    const lines: string[] = []
+
+    lines.push("iSkiLog Export")
+    lines.push(`Range,${csvEscape(range.label)}`)
+    lines.push(`Start Date,${range.start}`)
+    lines.push(`End Date,${range.end}`)
+    lines.push(`Format,${formatLabel}`)
+    lines.push(`Total Sets,${totalSets}`)
+    lines.push(`Total Training Days,${trainingDays}`)
+    lines.push(
+      `Most Practiced,${csvEscape(
+        `${mostPracticed.event} (${mostPracticed.count} sets)`
+      )}`
+    )
+
+    lines.push("")
+    lines.push("Breakdown Summary")
+    breakdownWithPercent.forEach(item => {
+      lines.push(
+        `${csvEscape(item.event)} Sets,${item.count}`
+      )
+    })
+
+    lines.push("")
+    lines.push("Breakdown")
+    lines.push("Event,Count,Percentage")
+
+    breakdownWithPercent.forEach(item => {
+      lines.push(
+        `${csvEscape(item.event)},${item.count},${item.percent.toFixed(1)}%`
+      )
+    })
+
+    const csv = lines.join("\n")
+    const filename = `iSkiLog_${range.start}_to_${range.end}.csv`
+
+    return { ok: true, csv, filename }
+  }
+
+  function handleExport() {
+    const result = buildExportCsv()
+    if (!result.ok) {
+      setExportError(result.error ?? "Unable to export.")
+      return
+    }
+
+    const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = result.filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    setExportOpen(false)
+    setExportError(null)
+  }
 
   if (!setsHydrated) {
     return (
@@ -171,6 +342,130 @@ export default function Insights() {
 
         <MonthlyProgressList items={monthlyProgress} />
       </div>
+
+      <div className="px-4 pt-6 pb-10">
+        <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-slate-900">Export season details</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Download summary stats for the active season
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setExportOpen(true)
+                setExportError(null)
+              }}
+              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {exportOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+          <button
+            type="button"
+            aria-label="Close export dialog"
+            onClick={() => setExportOpen(false)}
+            className="absolute inset-0 bg-black/40"
+          />
+
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-900">Export Season Details</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Choose a timeline and file format.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="text-xs text-slate-500">Timeline</label>
+                <select
+                  value={exportRange}
+                  onChange={e => {
+                    setExportRange(e.target.value as ExportRange)
+                    setExportError(null)
+                  }}
+                  className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm"
+                >
+                  <option value="season">Season</option>
+                  <option value="month">Current Month</option>
+                  <option value="week">Current Week</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+
+              {exportRange === "custom" ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-500">Start date</label>
+                    <input
+                      type="date"
+                      value={customStart}
+                      onChange={e => {
+                        setCustomStart(e.target.value)
+                        setExportError(null)
+                      }}
+                      className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500">End date</label>
+                    <input
+                      type="date"
+                      value={customEnd}
+                      onChange={e => {
+                        setCustomEnd(e.target.value)
+                        setExportError(null)
+                      }}
+                      className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div>
+                <label className="text-xs text-slate-500">Format</label>
+                <select
+                  value={exportFormat}
+                  onChange={e => setExportFormat(e.target.value as ExportFormat)}
+                  className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm"
+                >
+                  <option value="csv">CSV</option>
+                  <option value="excel">Excel (CSV)</option>
+                </select>
+              </div>
+            </div>
+
+            {exportError ? (
+              <p className="mt-4 text-sm text-red-600">{exportError}</p>
+            ) : null}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setExportOpen(false)
+                  setExportError(null)
+                }}
+                className="flex-1 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-medium text-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                className="flex-1 rounded-2xl bg-blue-600 py-3 text-sm font-medium text-white"
+              >
+                Export
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
