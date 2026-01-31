@@ -1,5 +1,7 @@
-import { createContext, useContext, useMemo, useReducer } from "react"
+import { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react"
 import type { Season, SkiSet } from "../types/sets"
+
+const CACHE_VERSION = 1
 
 type SetsState = {
   sets: SkiSet[]
@@ -24,6 +26,46 @@ const initialState: SetsState = {
   seasons: [],
   activeSeasonId: null,
   setsHydrated: false
+}
+
+type SetsCache = {
+  version: number
+  userId: string
+  cachedAt: string
+  sets: SkiSet[]
+  seasons: Season[]
+  activeSeasonId: string | null
+}
+
+function cacheKey(userId: string) {
+  return `iskilog:cache:user:${userId}`
+}
+
+export function readSetsCache(userId: string): SetsCache | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = window.localStorage.getItem(cacheKey(userId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as SetsCache
+    if (parsed.version !== CACHE_VERSION) return null
+    if (parsed.userId !== userId) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeSetsCache(userId: string, state: SetsState) {
+  if (typeof window === "undefined") return
+  const payload: SetsCache = {
+    version: CACHE_VERSION,
+    userId,
+    cachedAt: new Date().toISOString(),
+    sets: state.sets,
+    seasons: state.seasons,
+    activeSeasonId: state.activeSeasonId
+  }
+  window.localStorage.setItem(cacheKey(userId), JSON.stringify(payload))
 }
 
 function stampTouchedAt(set: SkiSet): SkiSet {
@@ -114,6 +156,7 @@ type SetsStore = {
   setSeasons: (seasons: Season[]) => void
   upsertSeason: (season: Season) => void
   setActiveSeasonId: (seasonId: string | null) => void
+  setCacheUserId: (userId: string | null) => void
 
   getSetById: (id: string) => SkiSet | undefined
   getRecentSet: () => SkiSet | undefined
@@ -130,6 +173,12 @@ const SetsContext = createContext<SetsStore | undefined>(undefined)
 
 export function SetsProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(setsReducer, initialState)
+  const [cacheUserId, setCacheUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!cacheUserId) return
+    writeSetsCache(cacheUserId, state)
+  }, [cacheUserId, state.sets, state.seasons, state.activeSeasonId])
 
   const store = useMemo<SetsStore>(() => {
     return {
@@ -173,6 +222,10 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
 
       setActiveSeasonId: (seasonId: string | null) => {
         dispatch({ type: "SET_ACTIVE_SEASON_ID", payload: seasonId })
+      },
+
+      setCacheUserId: (userId: string | null) => {
+        setCacheUserId(userId)
       },
 
       getSetById: (id: string) => {
