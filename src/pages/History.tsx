@@ -1,10 +1,15 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 
 import HistoryHeader from "../components/history/HistoryHeader"
 import TimeRangeTabs, { type RangeKey } from "../components/history/TimeRangeTabs"
 import HistoryItem from "../components/history/HistoryItem"
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet } from "../types/sets"
+
+function isRangeKey(value: string | null): value is RangeKey {
+  return value === "day" || value === "week" || value === "month" || value === "season" || value === "all"
+}
 
 function todayLocalIsoDate() {
   const now = new Date()
@@ -61,9 +66,29 @@ function filterByRange(range: RangeKey, sets: SkiSet[]) {
 }
 
 export default function History() {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { sets, getActiveSeason, setsHydrated } = useSetsStore()
 
-  const [range, setRange] = useState<RangeKey>("day")
+  const initialRange = isRangeKey(searchParams.get("range"))
+    ? (searchParams.get("range") as RangeKey)
+    : "day"
+
+  const [range, setRange] = useState<RangeKey>(initialRange)
+
+  useEffect(() => {
+    const param = searchParams.get("range")
+    if (isRangeKey(param) && param !== range) {
+      setRange(param)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    if (searchParams.get("range") === range) return
+    const next = new URLSearchParams(searchParams)
+    next.set("range", range)
+    setSearchParams(next, { replace: true })
+  }, [range, searchParams, setSearchParams])
 
   const activeSeason = getActiveSeason()
 
@@ -92,6 +117,7 @@ export default function History() {
   }, [range, listToFilter])
 
   const needsSeasonButMissing = range !== "all" && !activeSeason
+  const seasonHasNoSets = range !== "all" && activeSeason && seasonOnlySets.length === 0
 
   const showLoading = !setsHydrated
 
@@ -114,6 +140,19 @@ export default function History() {
             <p className="mt-1 text-sm text-gray-500">
               Go to Settings to view season details.
             </p>
+          </div>
+        ) : seasonHasNoSets ? (
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-900">No sets in this season</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Your logged sets will appear here by date.
+            </p>
+            <button
+              onClick={() => navigate("/add")}
+              className="mt-4 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-600"
+            >
+              Log a set
+            </button>
           </div>
         ) : filteredAndSorted.length === 0 ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">

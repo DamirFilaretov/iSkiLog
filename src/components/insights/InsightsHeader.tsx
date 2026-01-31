@@ -11,6 +11,8 @@ export default function InsightsHeader({
   selectedSeasonId,
   onSeasonChange
 }: Props) {
+  const disableDropdown = seasons.length <= 1
+
   return (
     <div className="px-4 pt-6 pb-4">
       <div className="flex items-center justify-between">
@@ -28,7 +30,13 @@ export default function InsightsHeader({
             <select
               value={selectedSeasonId ?? ""}
               onChange={e => onSeasonChange(e.target.value)}
-              className="appearance-none bg-white text-slate-900 font-medium text-sm pl-4 pr-10 py-2.5 rounded-full shadow-sm border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:shadow-md transition-shadow"
+              disabled={disableDropdown}
+              className={[
+                "appearance-none bg-white text-slate-900 font-medium text-sm pl-4 pr-10 py-2.5 rounded-full shadow-sm border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow",
+                disableDropdown
+                  ? "cursor-default opacity-70"
+                  : "cursor-pointer hover:shadow-md"
+              ].join(" ")}
             >
               {seasons.map(season => (
                 <option key={season.id} value={season.id}>
@@ -36,7 +44,9 @@ export default function InsightsHeader({
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+            {disableDropdown ? null : (
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+            )}
           </div>
         ) : null}
       </div>

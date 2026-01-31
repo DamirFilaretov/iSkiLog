@@ -22,6 +22,10 @@ export default function TricksFields({
   trickType,
   onTrickTypeChange
 }: Props) {
+  function sanitizeIntegerInput(raw: string) {
+    return raw.replace(/[^\d]/g, "")
+  }
+
   return (
     <div className="space-y-4">
       {/* Duration */}
@@ -29,19 +33,20 @@ export default function TricksFields({
         <label className="block text-sm text-gray-500 mb-1">Duration</label>
 
         <input
-          type="number"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           placeholder="minutes"
-          min={0}
-          step={1}
           // Convert null -> empty string so the input stays controlled.
           value={duration ?? ""}
           onChange={e => {
             // Empty input means "no value yet"
-            if (e.target.value === "") {
+            const cleaned = sanitizeIntegerInput(e.target.value)
+            if (cleaned === "") {
               onDurationChange(null)
             } else {
               // Convert string to number explicitly
-              onDurationChange(Number(e.target.value))
+              onDurationChange(Number(cleaned))
             }
           }}
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"

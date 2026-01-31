@@ -35,10 +35,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAll,
     setSeasons,
     setActiveSeasonId,
-    setSetsHydrated
+    setSetsHydrated,
+    setsHydrated
   } = useSetsStore()
 
   const lastUserIdRef = useRef<string | null>(null)
+  const lastHydratedUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -63,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
 
       const nextUser = session?.user ?? null
@@ -72,9 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const nextId = nextUser?.id ?? null
 
       if (nextId !== lastUserIdRef.current) {
-        if (nextId) {
-          setSetsHydrated(false)
-        } else {
+        // Only force re-hydration when the auth identity actually changes.
+        if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
           setSetsHydrated(false)
         }
         lastUserIdRef.current = nextId
@@ -97,6 +98,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!user) {
         clearAll()
         setSetsHydrated(false)
+        lastHydratedUserIdRef.current = null
+        return
+      }
+
+      if (setsHydrated && user.id === lastHydratedUserIdRef.current) {
         return
       }
 
@@ -152,6 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const sets = await fetchSets()
         replaceAll(sets)
+        lastHydratedUserIdRef.current = user.id
       } catch (err) {
         console.error("Failed to hydrate data", err)
       } finally {
@@ -162,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hydrate()
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
+  }, [user, setsHydrated])
 
   return (
     <AuthContext.Provider value={{ user, loading }}>
