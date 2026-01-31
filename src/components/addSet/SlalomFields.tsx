@@ -59,6 +59,14 @@ export default function SlalomFields({
     }
   }, [buoys])
 
+  function sanitizeDecimalInput(raw: string) {
+    const cleaned = raw.replace(/[^0-9.,]/g, "")
+    const normalized = cleaned.replace(/,/g, ".")
+    const parts = normalized.split(".")
+    if (parts.length === 1) return cleaned
+    return `${parts[0]}.${parts.slice(1).join("").slice(0, 2)}`
+  }
+
   useEffect(() => {
     function handlePointerDown(event: MouseEvent | TouchEvent) {
       const el = ropeDropdownRef.current
@@ -86,20 +94,23 @@ export default function SlalomFields({
       <div>
         <label className="block text-sm text-gray-500 mb-1">Buoys</label>
 
-        <input
-          type="text"
-          placeholder="e.g. 3.5"
+          <input
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]*[.,]?[0-9]*"
+            placeholder="e.g. 3.5"
           value={buoysInput}
           onChange={e => {
             const raw = e.target.value
-            setBuoysInput(raw)
+            const cleaned = sanitizeDecimalInput(raw)
+            setBuoysInput(cleaned)
 
-            if (raw.trim() === "") {
+            if (cleaned.trim() === "") {
               onBuoysChange(null)
               return
             }
 
-            const normalized = raw.replace(",", ".")
+            const normalized = cleaned.replace(",", ".")
             const next = Number.parseFloat(normalized)
             onBuoysChange(Number.isFinite(next) ? next : null)
           }}
@@ -169,13 +180,18 @@ export default function SlalomFields({
         <div>
           <label className="block text-sm text-gray-500 mb-1">Speed</label>
 
-          <input
-            type="text"
-            placeholder={speedPlaceholder}
-            value={speed}
-            onChange={e => onSpeedChange(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
-          />
+        <input
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9]*[.,]?[0-9]*"
+          placeholder={speedPlaceholder}
+          value={speed}
+          onChange={e => {
+            const cleaned = sanitizeDecimalInput(e.target.value)
+            onSpeedChange(cleaned)
+          }}
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
+        />
         </div>
       </div>
     </div>

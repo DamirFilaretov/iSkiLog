@@ -168,7 +168,24 @@ export default function AddSet() {
     event === "slalom" && slalomBuoys !== null && slalomBuoys > 6
   const buoysError = buoysInvalid ? "Buoys cannot be more than 6." : ""
 
-  const canSave = !dateIsInFuture && !isSubmitting && !buoysInvalid
+  const requiredMissing = (() => {
+    if (event === "slalom") {
+      return slalomBuoys === null || !slalomRopeLength || !slalomSpeed
+    }
+    if (event === "tricks") {
+      return tricksDuration === null
+    }
+    if (event === "jump") {
+      return jumpAttempts === null
+    }
+    if (event === "cuts") {
+      return cutsPasses === null
+    }
+    return !otherName.trim()
+  })()
+
+  const canSave =
+    !dateIsInFuture && !isSubmitting && !buoysInvalid && !requiredMissing
 
   function buildSetObject(id: string, seasonId: string | null): SkiSet {
     if (event === "slalom") {
@@ -269,7 +286,22 @@ export default function AddSet() {
   }
 
   async function handleSave() {
-    if (!canSave) return
+    if (requiredMissing) {
+      setError("Please fill out all required fields.")
+      return
+    }
+
+    if (buoysInvalid) {
+      setError("Buoys cannot be more than 6.")
+      return
+    }
+
+    if (dateIsInFuture) {
+      setError("Date cannot be in the future.")
+      return
+    }
+
+    if (isSubmitting) return
 
     setIsSubmitting(true)
     setError(null)
