@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js"
 import { supabase } from "../lib/supabaseClient"
 import { fetchSets } from "../data/setsApi"
 import { fetchSeasons, createSeason, setActiveSeason, updateSeasonDates } from "../data/seasonsApi"
-import { useSetsStore } from "../store/setsStore"
+import { readSetsCache, useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
 
 type AuthContextValue = {
@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSeasons,
     setActiveSeasonId,
     setSetsHydrated,
+    setCacheUserId,
     setsHydrated
   } = useSetsStore()
 
@@ -98,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!user) {
         clearAll()
         setSetsHydrated(false)
+        setCacheUserId(null)
         lastHydratedUserIdRef.current = null
         return
       }
@@ -107,7 +109,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        setSetsHydrated(false)
+        setCacheUserId(user.id)
+        const cached = readSetsCache(user.id)
+
+        if (cached && !setsHydrated) {
+          replaceAll(cached.sets)
+          setSeasons(cached.seasons)
+          setActiveSeasonId(cached.activeSeasonId)
+          setSetsHydrated(true)
+        }
+
+        if (!cached) {
+          setSetsHydrated(false)
+        }
 
         let seasons = await fetchSeasons()
         const currentYear = new Date().getFullYear()
