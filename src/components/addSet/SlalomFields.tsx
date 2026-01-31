@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { usePreferences } from "../../lib/preferences"
 
 type Props = {
   // Buoys is numeric by definition.
@@ -38,6 +39,8 @@ export default function SlalomFields({
   onSpeedChange,
   buoysError
 }: Props) {
+  const { preferences } = usePreferences()
+  const speedPlaceholder = preferences.speedUnit === "kmh" ? "e.g. 55 km/h" : "e.g. 34 mph"
   // Controls rope dropdown open state only.
   const [ropeOpen, setRopeOpen] = useState(false)
   const [buoysInput, setBuoysInput] = useState("")
@@ -168,7 +171,7 @@ export default function SlalomFields({
 
           <input
             type="text"
-            placeholder="e.g. 34 mph"
+            placeholder={speedPlaceholder}
             value={speed}
             onChange={e => onSpeedChange(e.target.value)}
             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"

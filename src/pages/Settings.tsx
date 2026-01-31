@@ -34,21 +34,9 @@ export default function Settings() {
         />
 
         <SettingsCard
-          title="Notifications"
-          subtitle="Configure alerts and reminders"
-          onClick={() => {}}
-        />
-
-        <SettingsCard
           title="Privacy & Security"
           subtitle="Control your data and security"
-          onClick={() => {}}
-        />
-
-        <SettingsCard
-          title="Help & Support"
-          subtitle="Get assistance and tutorials"
-          onClick={() => {}}
+          onClick={() => navigate("/privacy-security")}
         />
 
         <SettingsCard
