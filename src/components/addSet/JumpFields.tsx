@@ -28,10 +28,6 @@ export default function JumpFields({
     return raw.replace(/[^\d]/g, "")
   }
 
-  // When attempts is known, we cap passed and made at attempts using max.
-  // This is UI guidance. Final validation is enforced in AddSet before saving.
-  const maxWhenAttemptsKnown = attempts ?? undefined
-
   return (
     <div className="space-y-4">
       <div>
