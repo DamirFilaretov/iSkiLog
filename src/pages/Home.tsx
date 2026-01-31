@@ -31,18 +31,39 @@ function HomeLoading() {
 }
 
 export default function Home() {
-  const { setsHydrated } = useSetsStore()
+  const { setsHydrated, sets, activeSeasonId, getActiveSeason } = useSetsStore()
 
   if (!setsHydrated) {
     return <HomeLoading />
   }
 
+  const activeSeason = getActiveSeason()
+  const seasonSets =
+    activeSeasonId ? sets.filter(s => s.seasonId === activeSeasonId) : []
+  const showEmptySeason = Boolean(activeSeason) && seasonSets.length === 0
+
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 pt-6 flex flex-col overflow-hidden">
       <HomeHeader />
-      <SeasonSummaryCard />
-      <QuickAdd />
-      <RecentPreview />
+
+      {showEmptySeason ? (
+        <div className="mt-4 space-y-4 pb-6">
+          <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
+            <p className="text-sm font-medium text-slate-900">No sets logged yet</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Log your first set to start tracking this season.
+            </p>
+          </div>
+
+          <QuickAdd />
+        </div>
+      ) : (
+        <>
+          <SeasonSummaryCard />
+          <QuickAdd />
+          <RecentPreview />
+        </>
+      )}
     </div>
   )
 }
