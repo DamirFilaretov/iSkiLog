@@ -1,11 +1,15 @@
-import { useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useEffect, useMemo, useState } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 
 import HistoryHeader from "../components/history/HistoryHeader"
 import TimeRangeTabs, { type RangeKey } from "../components/history/TimeRangeTabs"
 import HistoryItem from "../components/history/HistoryItem"
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet } from "../types/sets"
+
+function isRangeKey(value: string | null): value is RangeKey {
+  return value === "day" || value === "week" || value === "month" || value === "season" || value === "all"
+}
 
 function todayLocalIsoDate() {
   const now = new Date()
@@ -63,9 +67,28 @@ function filterByRange(range: RangeKey, sets: SkiSet[]) {
 
 export default function History() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { sets, getActiveSeason, setsHydrated } = useSetsStore()
 
-  const [range, setRange] = useState<RangeKey>("day")
+  const initialRange = isRangeKey(searchParams.get("range"))
+    ? (searchParams.get("range") as RangeKey)
+    : "day"
+
+  const [range, setRange] = useState<RangeKey>(initialRange)
+
+  useEffect(() => {
+    const param = searchParams.get("range")
+    if (isRangeKey(param) && param !== range) {
+      setRange(param)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    if (searchParams.get("range") === range) return
+    const next = new URLSearchParams(searchParams)
+    next.set("range", range)
+    setSearchParams(next, { replace: true })
+  }, [range, searchParams, setSearchParams])
 
   const activeSeason = getActiveSeason()
 
