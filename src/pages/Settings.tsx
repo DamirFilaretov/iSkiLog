@@ -54,7 +54,7 @@ export default function Settings() {
         <SettingsCard
           title="About iSkiLog"
           subtitle="App version and information"
-          onClick={() => {}}
+          onClick={() => navigate("/about")}
         />
       </div>
 

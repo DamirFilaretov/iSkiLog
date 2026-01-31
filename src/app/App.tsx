@@ -10,6 +10,7 @@ import ProfileSettings from "../pages/ProfileSettings"
 import PersonalInfo from "../pages/PersonalInfo"
 import SeasonSettings from "../pages/SeasonSettings"
 import Insights from "../pages/Insights"
+import About from "../pages/About"
 
 import BottomTabBar from "../components/nav/BottomTabBar"
 
@@ -119,6 +120,7 @@ function AppContent() {
         <Route path="/season-settings" element={<SeasonSettings />} />
         <Route path="/profile" element={<ProfileSettings />} />
         <Route path="/personal-info" element={<PersonalInfo />} />
+        <Route path="/about" element={<About />} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
