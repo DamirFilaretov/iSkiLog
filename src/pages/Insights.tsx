@@ -22,6 +22,13 @@ import {
 
 type ExportRange = "season" | "month" | "week" | "custom"
 type ExportFormat = "csv" | "excel"
+type ResolvedRange =
+  | { ok: true; start: string; end: string; label: string }
+  | { ok: false; error: string }
+
+type ExportCsvResult =
+  | { ok: true; csv: string; filename: string }
+  | { ok: false; error: string }
 
 function toLocalIsoDate(date: Date) {
   const y = date.getFullYear()
@@ -137,7 +144,7 @@ export default function Insights() {
     [seasonSets]
   )
 
-  function resolveExportRange() {
+  function resolveExportRange(): ResolvedRange {
     if (!activeSeason) {
       return {
         ok: false,
@@ -181,7 +188,7 @@ export default function Insights() {
     return { ok: true, start: customStart, end: customEnd, label: "Custom Range" }
   }
 
-  function buildExportCsv() {
+  function buildExportCsv(): ExportCsvResult {
     const range = resolveExportRange()
     if (!range.ok) return { ok: false, error: range.error }
 
