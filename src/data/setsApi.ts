@@ -44,7 +44,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         .from("slalom_sets")
         .select("*")
         .eq("set_id", s.id)
-        .single()
+        .maybeSingle()
 
       results.push({
         id: s.id,
@@ -66,7 +66,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         .from("tricks_sets")
         .select("*")
         .eq("set_id", s.id)
-        .single()
+        .maybeSingle()
 
       results.push({
         id: s.id,
@@ -87,7 +87,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         .from("jump_sets")
         .select("*")
         .eq("set_id", s.id)
-        .single()
+        .maybeSingle()
 
       results.push({
         id: s.id,
@@ -109,7 +109,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         .from("cuts_sets")
         .select("*")
         .eq("set_id", s.id)
-        .single()
+        .maybeSingle()
 
       results.push({
         id: s.id,
@@ -129,7 +129,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         .from("other_sets")
         .select("*")
         .eq("set_id", s.id)
-        .single()
+        .maybeSingle()
 
       results.push({
         id: s.id,

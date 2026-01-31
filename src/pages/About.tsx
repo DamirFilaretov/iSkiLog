@@ -79,7 +79,7 @@ export default function About() {
               <div>
                 <p className="text-slate-900 text-sm">Season Tracking</p>
                 <p className="text-slate-500 text-xs">
-                  Organize data by custom season timelines
+                  Compare stats across different seasons
                 </p>
               </div>
             </div>
