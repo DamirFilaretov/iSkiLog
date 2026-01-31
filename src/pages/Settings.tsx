@@ -53,12 +53,23 @@ export default function Settings() {
 
       {/* Logout */}
       <div className="mt-8">
-        <button
-          onClick={handleLogout}
-          className="w-full rounded-full border border-red-500 bg-white py-3 text-red-500 shadow-lg shadow-rose-100/80"
-        >
-          Log Out
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handleLogout}
+            className="w-full rounded-full border border-red-500 bg-white py-3 text-red-500 shadow-lg shadow-rose-100/80"
+          >
+            Log Out
+          </button>
+          <button
+            onClick={() => {
+              window.localStorage.removeItem("iskilog:welcome-complete")
+              window.location.reload()
+            }}
+            className="w-full rounded-full border border-slate-200 bg-white py-3 text-slate-600 shadow-lg shadow-slate-200/60"
+          >
+            Reset Welcome
+          </button>
+        </div>
       </div>
     </div>
   )

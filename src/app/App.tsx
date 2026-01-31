@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom"
+import { useEffect, useState } from "react"
 
 import Home from "../pages/Home"
 import History from "../pages/History"
@@ -11,6 +12,7 @@ import SeasonSettings from "../pages/SeasonSettings"
 import Insights from "../pages/Insights"
 import About from "../pages/About"
 import PrivacySecurity from "../pages/PrivacySecurity"
+import Welcome from "../pages/Welcome"
 
 import BottomTabBar from "../components/nav/BottomTabBar"
 
@@ -100,6 +102,31 @@ function TabLayout() {
 function AppContent() {
   const { user, loading: authLoading } = useAuth()
   const { setsHydrated } = useSetsStore()
+  const [welcomeChecked, setWelcomeChecked] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
+
+  useEffect(() => {
+    const key = "iskilog:welcome-complete"
+    const stored = typeof window === "undefined" ? null : window.localStorage.getItem(key)
+    if (stored === "true") {
+      setShowWelcome(false)
+    } else {
+      setShowWelcome(true)
+    }
+    setWelcomeChecked(true)
+  }, [])
+
+  if (!welcomeChecked) return <AppLoading />
+  if (showWelcome) {
+    return (
+      <Welcome
+        onComplete={() => {
+          window.localStorage.setItem("iskilog:welcome-complete", "true")
+          setShowWelcome(false)
+        }}
+      />
+    )
+  }
 
   if (authLoading) return <AppLoading />
   if (!user) return <Auth />
