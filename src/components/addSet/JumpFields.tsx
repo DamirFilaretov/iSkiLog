@@ -31,7 +31,7 @@ export default function JumpFields({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm text-gray-500 mb-1">Attempts</label>
+        <label className="block text-sm text-gray-500 mb-1">Total Attempts</label>
 
         <input
           type="number"
@@ -50,7 +50,6 @@ export default function JumpFields({
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
         />
 
-        <p className="mt-1 text-xs text-gray-500">Passed + Made should equal Attempts</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -74,11 +73,10 @@ export default function JumpFields({
             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
           />
 
-          <p className="mt-1 text-xs text-gray-500">Updates Made automatically</p>
         </div>
 
         <div>
-          <label className="block text-sm text-gray-500 mb-1">Made</label>
+          <label className="block text-sm text-gray-500 mb-1">Jumped</label>
 
           <input
             type="number"
@@ -97,7 +95,6 @@ export default function JumpFields({
             className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
           />
 
-          <p className="mt-1 text-xs text-gray-500">Updates Passed automatically</p>
         </div>
       </div>
     </div>

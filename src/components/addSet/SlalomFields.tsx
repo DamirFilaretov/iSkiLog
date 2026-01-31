@@ -9,6 +9,8 @@ type Props = {
   onBuoysChange: (value: number | null) => void
   onRopeLengthChange: (value: string) => void
   onSpeedChange: (value: string) => void
+
+  buoysError?: string
 }
 
 /**
@@ -33,16 +35,26 @@ export default function SlalomFields({
   speed,
   onBuoysChange,
   onRopeLengthChange,
-  onSpeedChange
+  onSpeedChange,
+  buoysError
 }: Props) {
   // Controls rope dropdown open state only.
   const [ropeOpen, setRopeOpen] = useState(false)
+  const [buoysInput, setBuoysInput] = useState("")
 
   // Ref used to detect clicks outside this dropdown.
   const ropeDropdownRef = useRef<HTMLDivElement>(null)
 
   // Derive selected rope for display.
   const selectedRope = ROPE_LENGTHS.find(r => r.id === ropeLength) ?? null
+
+  useEffect(() => {
+    if (buoys === null || Number.isNaN(buoys)) {
+      setBuoysInput("")
+    } else {
+      setBuoysInput(String(buoys))
+    }
+  }, [buoys])
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent | TouchEvent) {
@@ -72,28 +84,33 @@ export default function SlalomFields({
         <label className="block text-sm text-gray-500 mb-1">Buoys</label>
 
         <input
-          type="number"
-          step="0.25"
-          min={0}
-          max={6}
+          type="text"
           placeholder="e.g. 3.5"
-          // Convert null to empty string so the input stays controlled.
-          value={buoys ?? ""}
+          value={buoysInput}
           onChange={e => {
-            // Empty input means "no value yet".
-            if (e.target.value === "") {
+            const raw = e.target.value
+            setBuoysInput(raw)
+
+            if (raw.trim() === "") {
               onBuoysChange(null)
               return
             }
 
-            // Convert string to number explicitly.
-            const next = Number(e.target.value)
+            const normalized = raw.replace(",", ".")
+            const next = Number.parseFloat(normalized)
             onBuoysChange(Number.isFinite(next) ? next : null)
           }}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
+          className={[
+            "w-full rounded-xl border bg-white px-4 py-3 text-gray-900",
+            buoysError ? "border-red-300" : "border-gray-200"
+          ].join(" ")}
         />
 
-        <p className="mt-1 text-xs text-gray-500">Max 6</p>
+        {buoysError ? (
+          <p className="mt-1 text-xs text-red-600">{buoysError}</p>
+        ) : (
+          <p className="mt-1 text-xs text-gray-500">Max 6</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

@@ -109,9 +109,66 @@ export default function AddSet() {
     }
   }, [editingSet])
 
+  function clampNonNegative(value: number) {
+    return value < 0 ? 0 : value
+  }
+
+  function handleJumpAttemptsChange(value: number | null) {
+    setJumpAttempts(value)
+
+    if (value === null) return
+
+    if (jumpPassed !== null) {
+      const computed = clampNonNegative(value - jumpPassed)
+      setJumpMade(computed)
+      return
+    }
+
+    if (jumpMade !== null) {
+      const computed = clampNonNegative(value - jumpMade)
+      setJumpPassed(computed)
+    }
+  }
+
+  function handleJumpPassedChange(value: number | null) {
+    setJumpPassed(value)
+
+    if (value === null) return
+
+    if (jumpAttempts !== null) {
+      const computed = clampNonNegative(jumpAttempts - value)
+      setJumpMade(computed)
+      return
+    }
+
+    if (jumpMade !== null) {
+      setJumpAttempts(value + jumpMade)
+    }
+  }
+
+  function handleJumpMadeChange(value: number | null) {
+    setJumpMade(value)
+
+    if (value === null) return
+
+    if (jumpAttempts !== null) {
+      const computed = clampNonNegative(jumpAttempts - value)
+      setJumpPassed(computed)
+      return
+    }
+
+    if (jumpPassed !== null) {
+      setJumpAttempts(value + jumpPassed)
+    }
+  }
+
   const dateIsInFuture = date > maxDate
 
-  const canSave = !dateIsInFuture && !isSubmitting
+  const buoysInvalid =
+    event === "slalom" && slalomBuoys !== null && slalomBuoys > 6
+  const buoysError = buoysInvalid ? "Buoys cannot be more than 6." : ""
+
+  const canSave = !dateIsInFuture && !isSubmitting && !buoysInvalid
 
   function buildSetObject(id: string, seasonId: string | null): SkiSet {
     if (event === "slalom") {
@@ -254,6 +311,7 @@ export default function AddSet() {
             onBuoysChange={setSlalomBuoys}
             onRopeLengthChange={setSlalomRopeLength}
             onSpeedChange={setSlalomSpeed}
+            buoysError={buoysError}
           />
         )}
 
@@ -271,9 +329,9 @@ export default function AddSet() {
             attempts={jumpAttempts}
             passed={jumpPassed}
             made={jumpMade}
-            onAttemptsChange={setJumpAttempts}
-            onPassedChange={setJumpPassed}
-            onMadeChange={setJumpMade}
+            onAttemptsChange={handleJumpAttemptsChange}
+            onPassedChange={handleJumpPassedChange}
+            onMadeChange={handleJumpMadeChange}
           />
         )}
 
