@@ -18,7 +18,10 @@ export default function ProfileSettings() {
   const navigate = useNavigate()
   const { preferences, setRopeUnit, setSpeedUnit } = usePreferences()
 
-  const [name, setName] = useState("Alex Morgan")
+  const [name, setName] = useState("")
+  const [nameSaving, setNameSaving] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [memberSince, setMemberSince] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
   const [password, setPassword] = useState("••••••••")
   const [editingName, setEditingName] = useState(false)
@@ -34,10 +37,63 @@ export default function ProfileSettings() {
   const speedUnit = preferences.speedUnit
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null)
+    let mounted = true
+
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!mounted) return
+      const user = data.user
+      setEmail(user?.email ?? null)
+      if (user?.created_at) {
+        const year = new Date(user.created_at).getFullYear()
+        setMemberSince(String(year))
+      }
+
+      if (!user) return
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .maybeSingle()
+
+      if (!mounted) return
+      setName(profile?.full_name ?? "")
     })
+
+    return () => {
+      mounted = false
+    }
   }, [])
+
+  async function handleNameSave() {
+    setNameError(null)
+
+    const { data, error } = await supabase.auth.getUser()
+    if (error) {
+      setNameError(error.message)
+      return
+    }
+
+    const user = data.user
+    if (!user) {
+      setNameError("Not authenticated.")
+      return
+    }
+
+    setNameSaving(true)
+
+    const { error: upsertError } = await supabase.from("profiles").upsert({
+      user_id: user.id,
+      full_name: name.trim()
+    })
+
+    if (upsertError) {
+      setNameError(upsertError.message)
+    } else {
+      setEditingName(false)
+    }
+
+    setNameSaving(false)
+  }
 
   async function handlePasswordSave() {
     setPasswordError(null)
@@ -109,7 +165,9 @@ export default function ProfileSettings() {
           </div>
 
           <h2 className="mt-4 text-lg font-semibold text-slate-900">{name}</h2>
-          <p className="text-xs text-slate-500">Member since 2023</p>
+          <p className="text-xs text-slate-500">
+            {memberSince ? `Member since ${memberSince}` : "Member since —"}
+          </p>
         </div>
 
         <div className="mt-6">
@@ -127,17 +185,35 @@ export default function ProfileSettings() {
                     value={name}
                     onChange={e => setName(e.target.value)}
                     disabled={!editingName}
-                    className="mt-1 w-full bg-transparent text-sm font-medium text-slate-900 outline-none disabled:text-slate-400"
+                    placeholder={editingName ? "Enter your name" : ""}
+                    autoFocus={editingName}
+                    className={[
+                      "mt-1 w-full text-sm font-medium text-slate-900 outline-none",
+                      editingName
+                        ? "rounded-lg border border-blue-200 bg-blue-50/60 px-2 py-1"
+                        : "bg-transparent disabled:text-slate-400"
+                    ].join(" ")}
                   />
                 </div>
                 <button
                   type="button"
-                  onClick={() => setEditingName(v => !v)}
-                  className="text-sm font-medium text-blue-600"
+                  onClick={() => {
+                    if (editingName) {
+                      void handleNameSave()
+                      return
+                    }
+                    setNameError(null)
+                    setEditingName(true)
+                  }}
+                  className="text-sm font-medium text-blue-600 disabled:opacity-60"
+                  disabled={nameSaving}
                 >
-                  {editingName ? "Done" : "Edit"}
+                  {editingName ? (nameSaving ? "Saving..." : "Done") : "Edit"}
                 </button>
               </div>
+              {nameError ? (
+                <p className="mt-2 text-xs text-red-600">{nameError}</p>
+              ) : null}
             </div>
 
             <div className="rounded-2xl bg-white p-4 shadow-sm">
