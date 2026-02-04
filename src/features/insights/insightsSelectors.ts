@@ -554,7 +554,7 @@ export function getSlalomSeries(
     return points
   }
 
-  const byMonth = new Map<string, SkiSet[]>()
+  const byMonth = new Map<string, (SkiSet & { event: "slalom" })[]>()
   slalom.forEach(set => {
     const d = isoToDate(set.date)
     const key = monthKeyFromDate(d)

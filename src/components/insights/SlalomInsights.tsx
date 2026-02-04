@@ -217,7 +217,10 @@ function SeriesChart({ points }: { points: SlalomSeriesPoint[] }) {
     value: point.value
   }))
 
-  const renderTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  const renderTooltip = (
+    props: TooltipProps<number, string> & { payload?: Array<{ value?: number }>; label?: string }
+  ) => {
+    const { active, payload, label } = props
     if (!active || !payload || payload.length === 0) return null
     const value = (payload[0]?.value as number | undefined) ?? 0
     const buoys = formatChartLabel(value)
@@ -409,3 +412,4 @@ export default function SlalomInsights({ sets }: Props) {
     </div>
   )
 }
+
