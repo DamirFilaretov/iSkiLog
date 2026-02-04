@@ -395,7 +395,7 @@ export type SlalomSeriesPoint = {
   value: number
 }
 
-function ropeIndexFromLength(value: string | number | null | undefined) {
+function ropeIndexFromLength(value: string | number | null | undefined): number {
   if (value === null || value === undefined || value === "") return 0
   if (typeof value === "number") {
     return Number.isFinite(value)
@@ -420,12 +420,12 @@ export function getSlalomScore(ropeLength: string | null | undefined, buoys: num
 }
 
 export function getSlalomStats(sets: SkiSet[]): SlalomStats {
-  const slalom = sets.filter(s => s.event === "slalom")
+  const slalom = sets.filter((s): s is SkiSet & { event: "slalom" } => s.event === "slalom")
   const totalSets = slalom.length
 
-  const scoreValues = slalom.map(s => {
-    return getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
-  })
+  const scoreValues = slalom.map(s =>
+    getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
+  )
 
   const averageScore =
     scoreValues.length === 0
@@ -502,7 +502,7 @@ export function getSlalomSeries(
   range: "week" | "month" | "season",
   now = new Date()
 ): SlalomSeriesPoint[] {
-  const slalom = sets.filter(s => s.event === "slalom")
+  const slalom = sets.filter((s): s is SkiSet & { event: "slalom" } => s.event === "slalom")
   if (slalom.length === 0) return []
 
   if (range === "week") {
