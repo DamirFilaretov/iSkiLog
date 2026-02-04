@@ -10,6 +10,7 @@ import QuickStatsGrid from "../components/insights/QuickStatsGrid"
 import EventBreakdown from "../components/insights/EventBreakdown"
 import WeeklyActivityChart from "../components/insights/WeeklyActivityChart"
 import MonthlyProgressList from "../components/insights/MonthlyProgressList"
+import SlalomInsights from "../components/insights/SlalomInsights"
 
 import {
   getWeeklyStats,
@@ -22,7 +23,9 @@ import {
 } from "../features/insights/insightsSelectors"
 
 type ExportRange = "season" | "month" | "week" | "custom"
+
 type ExportFormat = "csv" | "excel"
+
 type ResolvedRange =
   | { ok: true; start: string; end: string; label: string }
   | { ok: false; error: string }
@@ -71,6 +74,11 @@ export default function Insights() {
   const getSeasonLabel = (startDate: string) => {
     const year = startDate.slice(0, 4)
     return `${year} Season`
+  }
+
+  const getEventLabel = (event: EventKey | "all") => {
+    if (event === "all") return "Training"
+    return event.charAt(0).toUpperCase() + event.slice(1)
   }
 
   const sortedSeasons = useMemo(() => {
@@ -151,6 +159,15 @@ export default function Insights() {
     [filteredSeasonSets]
   )
 
+  const seasonTitle = selectedSeason
+    ? `${selectedSeason.startDate.slice(0, 4)} ${getEventLabel(selectedEvent)} Training`
+    : ""
+
+  const seasonSubtitle =
+    selectedEvent === "all"
+      ? "Total training sets"
+      : `${getEventLabel(selectedEvent)} sets logged`
+
   function resolveExportRange(): ResolvedRange {
     if (!activeSeason) {
       return {
@@ -210,7 +227,7 @@ export default function Insights() {
     const totalSets = filtered.length
     const trainingDays = uniqueTrainingDaysCount(filtered)
     const breakdown = getEventBreakdown(filtered)
-    const mostPracticed = getMostPracticedEvent(filtered)
+    const mostPracticedEvent = getMostPracticedEvent(filtered)
     const breakdownWithPercent = breakdown.map(item => {
       const percent =
         totalSets === 0 ? 0 : (item.count / totalSets) * 100
@@ -229,7 +246,7 @@ export default function Insights() {
     lines.push(`Total Training Days,${trainingDays}`)
     lines.push(
       `Most Practiced,${csvEscape(
-        `${mostPracticed.event} (${mostPracticed.count} sets)`
+        `${mostPracticedEvent.event} (${mostPracticedEvent.count} sets)`
       )}`
     )
 
@@ -326,65 +343,74 @@ export default function Insights() {
             className="w-full rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 shadow-lg shadow-slate-200/60"
           >
             <option value="all">All Events</option>
-          <option value="slalom">Slalom</option>
-          <option value="tricks">Tricks</option>
-          <option value="jump">Jump</option>
-          <option value="other">Other</option>
-        </select>
+            <option value="slalom">Slalom</option>
+            <option value="tricks">Tricks</option>
+            <option value="jump">Jump</option>
+            <option value="other">Other</option>
+          </select>
         </div>
 
         <SeasonOverviewCard
-          seasonName={getSeasonLabel(selectedSeason.startDate)}
+          seasonTitle={seasonTitle}
           totalSets={filteredSeasonSets.length}
+          subtitle={seasonSubtitle}
         />
 
-        <QuickStatsGrid
-          avgPerDay={weeklyStats.avgPerTrainingDay.toFixed(2)}
-          avgDeltaText={
-            weeklyStats.deltaPercent === null
-              ? "—"
-              : `${weeklyStats.deltaPercent > 0 ? "↑" : "↓"} ${Math.abs(
-                  Math.round(weeklyStats.deltaPercent)
-                )}% vs last week`
-          }
-          trainingDaysThisMonth={String(trainingDaysThisMonth)}
-          mostPracticedLabel={mostPracticed.event}
-          mostPracticedSubtext={`${mostPracticed.count} sets`}
-          currentStreak={String(currentStreak)}
-        />
+        {selectedEvent === "slalom" ? (
+          <SlalomInsights sets={filteredSeasonSets} />
+        ) : (
+          <>
+            <QuickStatsGrid
+              avgPerDay={weeklyStats.avgPerTrainingDay.toFixed(2)}
+              avgDeltaText={
+                weeklyStats.deltaPercent === null
+                  ? "�"
+                  : `${weeklyStats.deltaPercent > 0 ? "^" : "v"} ${Math.abs(
+                      Math.round(weeklyStats.deltaPercent)
+                    )}% vs last week`
+              }
+              trainingDaysThisMonth={String(trainingDaysThisMonth)}
+              mostPracticedLabel={mostPracticed.event}
+              mostPracticedSubtext={`${mostPracticed.count} sets`}
+              currentStreak={String(currentStreak)}
+            />
 
-        <EventBreakdown items={eventBreakdown} />
+            <EventBreakdown items={eventBreakdown} />
 
-        <WeeklyActivityChart
-          bars={weeklyBars.bars}
-          totalText={weeklyBars.totalText}
-          deltaText={weeklyBars.deltaText}
-        />
+            <WeeklyActivityChart
+              bars={weeklyBars.bars}
+              totalText={weeklyBars.totalText}
+              deltaText={weeklyBars.deltaText}
+            />
 
-        <MonthlyProgressList items={monthlyProgress} />
+            <MonthlyProgressList items={monthlyProgress} />
+          </>
+        )}
       </div>
 
-      <div className="px-4 pt-6 pb-10">
-        <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-slate-900">Export season details</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Download summary stats for the active season
-              </p>
+      {selectedEvent === "all" ? (
+        <div className="px-4 pt-6 pb-10">
+          <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Export season details</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Download summary stats for the active season
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setExportOpen(true)
+                  setExportError(null)
+                }}
+                className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white"
+              >
+                Export CSV
+              </button>
             </div>
-            <button
-              onClick={() => {
-                setExportOpen(true)
-                setExportError(null)
-              }}
-              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white"
-            >
-              Export CSV
-            </button>
           </div>
         </div>
-      </div>
+      ) : null}
 
       {exportOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6">

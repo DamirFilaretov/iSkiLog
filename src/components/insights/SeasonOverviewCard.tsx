@@ -1,17 +1,19 @@
 type Props = {
-  seasonName: string
+  seasonTitle: string
   totalSets: number
+  subtitle?: string
 }
 
 export default function SeasonOverviewCard({
-  seasonName,
-  totalSets
+  seasonTitle,
+  totalSets,
+  subtitle = "Total training sets"
 }: Props) {
   return (
     <div className="px-4">
       <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-500 p-5 shadow-lg shadow-blue-500/20">
         <p className="text-blue-100 text-sm">
-          {seasonName}
+          {seasonTitle}
         </p>
 
         <p className="mt-2 text-white text-4xl font-semibold tracking-tight">
@@ -19,7 +21,7 @@ export default function SeasonOverviewCard({
         </p>
 
         <p className="text-blue-100 text-xs">
-          Total training sets
+          {subtitle}
         </p>
       </div>
     </div>

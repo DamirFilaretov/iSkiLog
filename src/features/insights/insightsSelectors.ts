@@ -338,3 +338,244 @@ function getEventGradient(event: EventKey) {
       return "bg-gradient-to-r from-indigo-500 to-blue-400"
   }
 }
+
+/* -----------------------------
+   Slalom helpers
+----------------------------- */
+
+function parseRopeLengthMeters(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return Number.POSITIVE_INFINITY
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY
+  }
+
+  const match = value.match(/[\d.]+/)
+  if (!match) return Number.POSITIVE_INFINITY
+  const num = Number.parseFloat(match[0])
+  return Number.isFinite(num) ? num : Number.POSITIVE_INFINITY
+}
+
+function parseSpeed(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return Number.NEGATIVE_INFINITY
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY
+  }
+
+  const match = value.match(/[\d.]+/)
+  if (!match) return Number.NEGATIVE_INFINITY
+  const num = Number.parseFloat(match[0])
+  return Number.isFinite(num) ? num : Number.NEGATIVE_INFINITY
+}
+
+export type SlalomBestSet = {
+  buoys: number | null
+  ropeLength: string
+  speed: string
+  date: string
+  score: number
+}
+
+export type SlalomStats = {
+  totalSets: number
+  averageScore: number
+  averageBuoys: number
+  averageRope: number
+  averageSpeed: number
+  bestSet: SlalomBestSet | null
+}
+
+export type SlalomSeriesPoint = {
+  label: string
+  value: number
+}
+
+function ropeIndexFromLength(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return 0
+  if (typeof value === "number") {
+    return Number.isFinite(value)
+      ? ropeIndexFromLength(String(value))
+      : 0
+  }
+
+  const match = value.match(/[\d.]+/)
+  if (!match) return 0
+  const num = Number.parseFloat(match[0])
+  if (!Number.isFinite(num)) return 0
+
+  const lengths = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
+  const index = lengths.findIndex(l => Math.abs(l - num) < 0.01)
+  return index === -1 ? 0 : index
+}
+
+export function getSlalomScore(ropeLength: string | null | undefined, buoys: number | null) {
+  const ropeIndex = ropeIndexFromLength(ropeLength)
+  const buoysValue = buoys ?? 0
+  return ropeIndex * 6 + buoysValue
+}
+
+export function getSlalomStats(sets: SkiSet[]): SlalomStats {
+  const slalom = sets.filter(s => s.event === "slalom")
+  const totalSets = slalom.length
+
+  const scoreValues = slalom.map(s => {
+    return getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
+  })
+
+  const averageScore =
+    scoreValues.length === 0
+      ? 0
+      : scoreValues.reduce((sum, v) => sum + v, 0) / scoreValues.length
+
+  const buoysValues = slalom
+    .map(s => s.data.buoys)
+    .filter((v): v is number => v !== null && Number.isFinite(v))
+
+  const averageBuoys =
+    buoysValues.length === 0
+      ? 0
+      : buoysValues.reduce((sum, v) => sum + v, 0) / buoysValues.length
+
+  const ropeValues = slalom
+    .map(s => parseRopeLengthMeters(s.data.ropeLength))
+    .filter(v => Number.isFinite(v) && v !== Number.POSITIVE_INFINITY)
+
+  const averageRope =
+    ropeValues.length === 0
+      ? 0
+      : ropeValues.reduce((sum, v) => sum + v, 0) / ropeValues.length
+
+  const speedValues = slalom
+    .map(s => parseSpeed(s.data.speed))
+    .filter(v => Number.isFinite(v) && v !== Number.NEGATIVE_INFINITY)
+
+  const averageSpeed =
+    speedValues.length === 0
+      ? 0
+      : speedValues.reduce((sum, v) => sum + v, 0) / speedValues.length
+
+  const best = slalom.reduce<SlalomBestSet | null>((current, set) => {
+    const score = getSlalomScore(set.data.ropeLength ?? "", set.data.buoys ?? null)
+    const candidate: SlalomBestSet = {
+      buoys: set.data.buoys ?? null,
+      ropeLength: set.data.ropeLength ?? "",
+      speed: set.data.speed ?? "",
+      date: set.date,
+      score
+    }
+
+    if (!current) return candidate
+
+    if (candidate.score > current.score) return candidate
+    if (candidate.score < current.score) return current
+
+    const currentRope = parseRopeLengthMeters(current.ropeLength)
+    const candidateRope = parseRopeLengthMeters(candidate.ropeLength)
+
+    if (candidateRope < currentRope) return candidate
+    if (candidateRope > currentRope) return current
+
+    const currentSpeed = parseSpeed(current.speed)
+    const candidateSpeed = parseSpeed(candidate.speed)
+
+    if (candidateSpeed > currentSpeed) return candidate
+    return current
+  }, null)
+
+  return {
+    totalSets,
+    averageScore,
+    averageBuoys,
+    averageRope,
+    averageSpeed,
+    bestSet: best
+  }
+}
+
+export function getSlalomSeries(
+  sets: SkiSet[],
+  range: "week" | "month" | "season",
+  now = new Date()
+): SlalomSeriesPoint[] {
+  const slalom = sets.filter(s => s.event === "slalom")
+  if (slalom.length === 0) return []
+
+  if (range === "week") {
+    const start = startOfWeekMonday(now)
+    const days: SlalomSeriesPoint[] = []
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start)
+      d.setDate(start.getDate() + i)
+      const iso = dateToIso(d)
+      const daySets = slalom.filter(s => normalizeIsoDay(s.date) === iso)
+      const avg =
+        daySets.length === 0
+          ? 0
+          : daySets.reduce((sum, s) => {
+              return sum + getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
+            }, 0) / daySets.length
+
+      days.push({
+        label: d.toLocaleDateString("en-US", { weekday: "short" }),
+        value: Number.isFinite(avg) ? avg : 0
+      })
+    }
+
+    return days
+  }
+
+  if (range === "month") {
+    const month = now.getMonth()
+    const year = now.getFullYear()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const points: SlalomSeriesPoint[] = []
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day)
+      const iso = dateToIso(d)
+      const daySets = slalom.filter(s => normalizeIsoDay(s.date) === iso)
+      if (daySets.length === 0) continue
+      const avg =
+        daySets.reduce((sum, s) => {
+          return sum + getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
+        }, 0) / daySets.length
+      points.push({
+        label: String(day),
+        value: Number.isFinite(avg) ? avg : 0
+      })
+    }
+
+    return points
+  }
+
+  const byMonth = new Map<string, SkiSet[]>()
+  slalom.forEach(set => {
+    const d = isoToDate(set.date)
+    const key = monthKeyFromDate(d)
+    if (!byMonth.has(key)) byMonth.set(key, [])
+    byMonth.get(key)!.push(set)
+  })
+
+  const monthKeys = Array.from(byMonth.keys()).sort()
+
+  return monthKeys.map(key => {
+    const monthSets = byMonth.get(key) ?? []
+    const avg =
+      monthSets.length === 0
+        ? 0
+        : monthSets.reduce((sum, s) => {
+            return sum + getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
+          }, 0) / monthSets.length
+
+    return {
+      label: monthLabelFromKey(key),
+      value: Number.isFinite(avg) ? avg : 0
+    }
+  })
+}

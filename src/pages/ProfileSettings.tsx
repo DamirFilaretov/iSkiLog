@@ -13,6 +13,7 @@ import {
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabaseClient"
 import { usePreferences } from "../lib/preferences"
+import type { EventKey } from "../types/sets"
 
 export default function ProfileSettings() {
   const navigate = useNavigate()
@@ -33,6 +34,12 @@ export default function ProfileSettings() {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
   const [isSavingPassword, setIsSavingPassword] = useState(false)
+  const [seedEvent, setSeedEvent] = useState<EventKey>("slalom")
+  const [seedCount, setSeedCount] = useState(20)
+  const [seedStatus, setSeedStatus] = useState<string | null>(null)
+  const [seedError, setSeedError] = useState<string | null>(null)
+  const [isSeeding, setIsSeeding] = useState(false)
+  const [isClearingSeed, setIsClearingSeed] = useState(false)
   const ropeUnit = preferences.ropeUnit
   const speedUnit = preferences.speedUnit
 
@@ -127,6 +134,201 @@ export default function ProfileSettings() {
       setPasswordError(message)
     } finally {
       setIsSavingPassword(false)
+    }
+  }
+
+  function randomInt(min: number, max: number) {
+    return Math.floor(Math.random() * (max - min + 1)) + min
+  }
+
+  function randomChoice<T>(items: T[]) {
+    return items[randomInt(0, items.length - 1)]
+  }
+
+  function roundBuoys(value: number) {
+    const rounded = Math.round(value * 4) / 4
+    const whole = Math.floor(rounded)
+    const fraction = rounded - whole
+    return fraction === 0.75 ? whole + 1 : rounded
+  }
+
+  function toLocalIso(date: Date) {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, "0")
+    const d = String(date.getDate()).padStart(2, "0")
+    return `${y}-${m}-${d}`
+  }
+
+  function randomDateBetween(startIso: string, endIso: string) {
+    const start = new Date(startIso)
+    const end = new Date(endIso)
+    const startTime = start.getTime()
+    const endTime = end.getTime()
+    if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
+      return toLocalIso(new Date())
+    }
+    const rand = startTime + Math.random() * Math.max(1, endTime - startTime)
+    return toLocalIso(new Date(rand))
+  }
+
+  async function handleSeedSets() {
+    setSeedError(null)
+    setSeedStatus(null)
+
+    const count = Math.max(1, Math.min(200, Math.floor(Number(seedCount))))
+    if (!Number.isFinite(count)) {
+      setSeedError("Enter a valid number.")
+      return
+    }
+
+    setIsSeeding(true)
+
+    try {
+      const { data: userResult, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
+      const user = userResult.user
+      if (!user) throw new Error("Not authenticated.")
+
+      const { data: season, error: seasonError } = await supabase
+        .from("seasons")
+        .select("id,start_date,end_date")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle()
+
+      if (seasonError) throw seasonError
+      if (!season) throw new Error("No active season found.")
+
+      const slalomRopes = [
+        "18m",
+        "16m",
+        "14m",
+        "13m",
+        "12m",
+        "11.25m",
+        "10.75m",
+        "10.25m",
+        "9.75m"
+      ]
+      const slalomSpeedsMph = [30, 32, 34, 36]
+      const slalomSpeedsKmh = [55, 58, 60, 62]
+      const otherNames = ["Free ski", "Training set", "Morning run", "Evening session"]
+
+      for (let i = 0; i < count; i += 1) {
+        const date = randomDateBetween(season.start_date, season.end_date)
+        const { data: base, error: baseError } = await supabase
+          .from("sets")
+          .insert({
+            user_id: user.id,
+            season_id: season.id,
+            event_type: seedEvent,
+            date,
+            notes: "Seeded data"
+          })
+          .select("id")
+          .single()
+
+        if (baseError || !base) throw baseError
+
+        if (seedEvent === "slalom") {
+          const buoys = Math.min(6, roundBuoys(Math.random() * 6))
+          const rope = randomChoice(slalomRopes)
+          const speed = speedUnit === "kmh"
+            ? randomChoice(slalomSpeedsKmh)
+            : randomChoice(slalomSpeedsMph)
+
+          const { error } = await supabase.from("slalom_sets").insert({
+            set_id: base.id,
+            buoys,
+            rope_length: rope,
+            speed
+          })
+          if (error) throw error
+        }
+
+        if (seedEvent === "tricks") {
+          const { error } = await supabase.from("tricks_sets").insert({
+            set_id: base.id,
+            duration_minutes: randomInt(8, 45),
+            trick_type: randomChoice(["hands", "toes"])
+          })
+          if (error) throw error
+        }
+
+        if (seedEvent === "jump") {
+          const attempts = randomInt(3, 8)
+          const passed = randomInt(0, attempts)
+          const made = Math.max(0, attempts - passed)
+          const distance = randomInt(30, 60)
+
+          const { error } = await supabase.from("jump_sets").insert({
+            set_id: base.id,
+            subevent: "jump",
+            attempts,
+            passed,
+            made,
+            distance,
+            cuts_type: null,
+            cuts_count: null
+          })
+          if (error) throw error
+        }
+
+        if (seedEvent === "other") {
+          const { error } = await supabase.from("other_sets").insert({
+            set_id: base.id,
+            name: randomChoice(otherNames)
+          })
+          if (error) throw error
+        }
+      }
+
+      setSeedStatus(`Added ${count} ${seedEvent} sets.`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to seed sets."
+      setSeedError(message)
+    } finally {
+      setIsSeeding(false)
+    }
+  }
+
+  async function handleClearSeededSets() {
+    setSeedError(null)
+    setSeedStatus(null)
+    setIsClearingSeed(true)
+
+    try {
+      const { data: userResult, error: userError } = await supabase.auth.getUser()
+      if (userError) throw userError
+      const user = userResult.user
+      if (!user) throw new Error("Not authenticated.")
+
+      const { data: season, error: seasonError } = await supabase
+        .from("seasons")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle()
+
+      if (seasonError) throw seasonError
+      if (!season) throw new Error("No active season found.")
+
+      const { data: deleted, error: deleteError } = await supabase
+        .from("sets")
+        .delete()
+        .eq("season_id", season.id)
+        .eq("notes", "Seeded data")
+        .select("id")
+
+      if (deleteError) throw deleteError
+
+      const count = deleted?.length ?? 0
+      setSeedStatus(`Removed ${count} seeded sets.`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete seeded sets."
+      setSeedError(message)
+    } finally {
+      setIsClearingSeed(false)
     }
   }
 
@@ -405,6 +607,72 @@ export default function ProfileSettings() {
             </div>
           </div>
         </div>
+
+        {import.meta.env.DEV ? (
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-slate-700 mb-3">Dev Tools</h3>
+            <div className="rounded-2xl bg-white p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Seed Sets</p>
+                  <p className="text-xs text-slate-500">Generate test data for charts.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleClearSeededSets}
+                    disabled={isClearingSeed}
+                    className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-60"
+                  >
+                    {isClearingSeed ? "Clearing..." : "Delete Seeded"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSeedSets}
+                    disabled={isSeeding}
+                    className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                  >
+                    {isSeeding ? "Seeding..." : "Add Sets"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Event</label>
+                  <select
+                    value={seedEvent}
+                    onChange={e => setSeedEvent(e.target.value as EventKey)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900"
+                  >
+                    <option value="slalom">Slalom</option>
+                    <option value="tricks">Tricks</option>
+                    <option value="jump">Jump</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">How many</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={seedCount}
+                    onChange={e => setSeedCount(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900"
+                  />
+                </div>
+              </div>
+
+              {seedError ? (
+                <p className="text-xs text-red-600">{seedError}</p>
+              ) : null}
+              {seedStatus ? (
+                <p className="text-xs text-emerald-600">{seedStatus}</p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
       </div>
     </div>
