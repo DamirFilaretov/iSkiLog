@@ -12,7 +12,7 @@ export default function QuickAdd() {
           event="slalom"
           label="Slalom"
           gradient="bg-gradient-to-br from-blue-600 to-cyan-500"
-          icon="🌊"
+          icon="🌉"
         />
         <EventTile
           event="tricks"
@@ -25,12 +25,6 @@ export default function QuickAdd() {
           label="Jump"
           gradient="bg-gradient-to-br from-orange-500 to-yellow-400"
           icon="✈️"
-        />
-        <EventTile
-          event="cuts"
-          label="Cuts"
-          gradient="bg-gradient-to-br from-emerald-500 to-teal-400"
-          icon="💨"
         />
         <EventTile
           event="other"

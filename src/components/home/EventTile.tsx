@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom"
-
-export type EventKey = "slalom" | "tricks" | "jump" | "cuts" | "other"
+import type { EventKey } from "../../types/sets"
 
 type EventTileProps = {
   event: EventKey

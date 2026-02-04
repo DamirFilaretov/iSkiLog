@@ -1,4 +1,4 @@
-export type EventKey = "slalom" | "tricks" | "jump" | "cuts" | "other"
+export type EventKey = "slalom" | "tricks" | "jump" | "other"
 
 export type SetBase = {
   id: string
@@ -31,13 +31,13 @@ export type TricksData = {
 }
 
 export type JumpData = {
+  subEvent: "jump" | "cuts"
   attempts: number | null
   passed: number | null
   made: number | null
-}
-
-export type CutsData = {
-  passes: number | null
+  distance?: number | null
+  cutsType?: "cut_pass" | "open_cuts" | null
+  cutsCount?: number | null
 }
 
 export type OtherData = {
@@ -48,7 +48,6 @@ export type SkiSet =
   | (SetBase & { event: "slalom"; data: SlalomData })
   | (SetBase & { event: "tricks"; data: TricksData })
   | (SetBase & { event: "jump"; data: JumpData })
-  | (SetBase & { event: "cuts"; data: CutsData })
   | (SetBase & { event: "other"; data: OtherData })
 
 export type Season = {
