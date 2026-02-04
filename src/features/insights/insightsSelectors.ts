@@ -295,7 +295,6 @@ export function getEventBreakdown(
     slalom: 0,
     tricks: 0,
     jump: 0,
-    cuts: 0,
     other: 0
   }
 
@@ -335,8 +334,6 @@ function getEventGradient(event: EventKey) {
       return "bg-gradient-to-r from-orange-500 to-yellow-400"
     case "tricks":
       return "bg-gradient-to-r from-purple-500 to-pink-400"
-    case "cuts":
-      return "bg-gradient-to-r from-emerald-500 to-teal-400"
     default:
       return "bg-gradient-to-r from-indigo-500 to-blue-400"
   }

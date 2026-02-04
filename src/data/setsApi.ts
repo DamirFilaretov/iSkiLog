@@ -97,29 +97,13 @@ export async function fetchSets(): Promise<SkiSet[]> {
         notes: s.notes ?? "",
         touchedAt,
         data: {
+          subEvent: (data?.subevent as "jump" | "cuts" | undefined) ?? "jump",
           attempts: data?.attempts ?? null,
           passed: data?.passed ?? null,
-          made: data?.made ?? null
-        }
-      })
-    }
-
-    if (s.event_type === "cuts") {
-      const { data } = await supabase
-        .from("cuts_sets")
-        .select("*")
-        .eq("set_id", s.id)
-        .maybeSingle()
-
-      results.push({
-        id: s.id,
-        event: "cuts",
-        date: s.date,
-        seasonId,
-        notes: s.notes ?? "",
-        touchedAt,
-        data: {
-          passes: data?.passes_num ?? null
+          made: data?.made ?? null,
+          distance: data?.distance ?? null,
+          cutsType: (data?.cuts_type as "cut_pass" | "open_cuts" | undefined) ?? null,
+          cutsCount: data?.cuts_count ?? null
         }
       })
     }

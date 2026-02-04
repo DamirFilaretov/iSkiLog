@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { useSetsStore } from "../store/setsStore"
+import type { EventKey } from "../types/sets"
 
 import InsightsHeader from "../components/insights/InsightsHeader"
 import SeasonOverviewCard from "../components/insights/SeasonOverviewCard"
@@ -59,6 +60,7 @@ export default function Insights() {
 
   const { sets, setsHydrated, seasons, activeSeasonId } = useSetsStore()
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<EventKey | "all">("all")
   const [exportOpen, setExportOpen] = useState(false)
   const [exportRange, setExportRange] = useState<ExportRange>("season")
   const [exportFormat, setExportFormat] = useState<ExportFormat>("csv")
@@ -112,36 +114,41 @@ export default function Insights() {
     return sets.filter(s => s.seasonId === selectedSeasonId)
   }, [sets, selectedSeasonId])
 
-  const weeklyStats = useMemo(() => getWeeklyStats(seasonSets), [seasonSets])
+  const filteredSeasonSets = useMemo(() => {
+    if (selectedEvent === "all") return seasonSets
+    return seasonSets.filter(s => s.event === selectedEvent)
+  }, [seasonSets, selectedEvent])
+
+  const weeklyStats = useMemo(() => getWeeklyStats(filteredSeasonSets), [filteredSeasonSets])
 
   const weeklyBars = useMemo(
-    () => getWeeklyChartBars(seasonSets),
-    [seasonSets]
+    () => getWeeklyChartBars(filteredSeasonSets),
+    [filteredSeasonSets]
   )
 
   const trainingDaysThisMonth = useMemo(
-    () => getMonthlyTrainingDays(sets),
-    [sets]
+    () => getMonthlyTrainingDays(filteredSeasonSets),
+    [filteredSeasonSets]
   )
 
   const mostPracticed = useMemo(
-    () => getMostPracticedEvent(seasonSets),
-    [seasonSets]
+    () => getMostPracticedEvent(filteredSeasonSets),
+    [filteredSeasonSets]
   )
 
   const eventBreakdown = useMemo(
-    () => getEventBreakdown(seasonSets),
-    [seasonSets]
+    () => getEventBreakdown(filteredSeasonSets),
+    [filteredSeasonSets]
   )
 
   const monthlyProgress = useMemo(
-    () => getMonthlyProgress(sets),
-    [sets]
+    () => getMonthlyProgress(filteredSeasonSets),
+    [filteredSeasonSets]
   )
 
   const currentStreak = useMemo(
-    () => getCurrentStreak(seasonSets),
-    [seasonSets]
+    () => getCurrentStreak(filteredSeasonSets),
+    [filteredSeasonSets]
   )
 
   function resolveExportRange(): ResolvedRange {
@@ -312,9 +319,23 @@ export default function Insights() {
       />
 
       <div className="space-y-4">
+        <div className="px-4">
+          <select
+            value={selectedEvent}
+            onChange={e => setSelectedEvent(e.target.value as EventKey | "all")}
+            className="w-full rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 shadow-lg shadow-slate-200/60"
+          >
+            <option value="all">All Events</option>
+          <option value="slalom">Slalom</option>
+          <option value="tricks">Tricks</option>
+          <option value="jump">Jump</option>
+          <option value="other">Other</option>
+        </select>
+        </div>
+
         <SeasonOverviewCard
           seasonName={getSeasonLabel(selectedSeason.startDate)}
-          totalSets={seasonSets.length}
+          totalSets={filteredSeasonSets.length}
         />
 
         <QuickStatsGrid

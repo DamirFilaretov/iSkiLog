@@ -5,11 +5,12 @@ import type { SkiSet } from "../../types/sets"
 /**
  * Small helper for consistent event labels in the UI.
  */
-function getEventLabel(event: SkiSet["event"]) {
-  if (event === "slalom") return "Slalom"
-  if (event === "tricks") return "Tricks"
-  if (event === "jump") return "Jump"
-  if (event === "cuts") return "Cuts"
+function getEventLabel(set: SkiSet) {
+  if (set.event === "slalom") return "Slalom"
+  if (set.event === "tricks") return "Tricks"
+  if (set.event === "jump") {
+    return set.data.subEvent === "cuts" ? "Cuts" : "Jump"
+  }
   return "Other"
 }
 
@@ -49,7 +50,7 @@ export default function RecentPreview() {
           <div>
             {/* Basic label based on event type */}
             <p className="text-sm font-medium text-slate-900">
-              {getEventLabel(recent.event)} set
+              {getEventLabel(recent)} set
             </p>
 
             {/* For now we keep the subtitle simple and reliable */}

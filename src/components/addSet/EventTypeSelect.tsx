@@ -3,10 +3,9 @@ import type { EventKey } from "../../types/sets"
 
 // UI config stays here because it is presentation only, not the data model.
 const EVENTS: { id: EventKey; label: string; icon: string; color: string }[] = [
-  { id: "slalom", label: "Slalom", icon: "🌊", color: "bg-blue-600" },
+  { id: "slalom", label: "Slalom", icon: "🌉", color: "bg-blue-600" },
   { id: "tricks", label: "Tricks", icon: "🏆", color: "bg-purple-600" },
   { id: "jump", label: "Jump", icon: "✈️", color: "bg-orange-500" },
-  { id: "cuts", label: "Cuts", icon: "💨", color: "bg-green-600" },
   { id: "other", label: "Other", icon: "➕", color: "bg-indigo-600" }
 ]
 

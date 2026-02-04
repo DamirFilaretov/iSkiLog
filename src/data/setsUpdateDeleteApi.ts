@@ -46,17 +46,13 @@ export async function updateSetInDb(args: { set: SkiSet; previousEvent: EventKey
   if (set.event === "jump") {
     const { error } = await supabase.from("jump_sets").upsert({
       set_id: set.id,
-      attempts: set.data.attempts ?? 0,
-      passed: set.data.passed ?? 0,
-      made: set.data.made ?? 0
-    })
-    if (error) throw error
-  }
-
-  if (set.event === "cuts") {
-    const { error } = await supabase.from("cuts_sets").upsert({
-      set_id: set.id,
-      passes_num: set.data.passes ?? 0
+      subevent: set.data.subEvent ?? "jump",
+      attempts: set.data.subEvent === "cuts" ? 0 : set.data.attempts ?? 0,
+      passed: set.data.subEvent === "cuts" ? 0 : set.data.passed ?? 0,
+      made: set.data.subEvent === "cuts" ? 0 : set.data.made ?? 0,
+      distance: set.data.distance ?? null,
+      cuts_type: set.data.cutsType ?? null,
+      cuts_count: set.data.cutsCount ?? null
     })
     if (error) throw error
   }
@@ -87,10 +83,6 @@ export async function updateSetInDb(args: { set: SkiSet; previousEvent: EventKey
       if (error) throw error
     }
 
-    if (set.event !== "cuts") {
-      const { error } = await supabase.from("cuts_sets").delete().eq("set_id", set.id)
-      if (error) throw error
-    }
 
     if (set.event !== "other") {
       const { error } = await supabase.from("other_sets").delete().eq("set_id", set.id)

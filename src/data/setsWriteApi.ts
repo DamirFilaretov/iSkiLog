@@ -48,17 +48,13 @@ export async function createSet(args: { set: SkiSet }): Promise<string> {
   if (set.event === "jump") {
     const { error } = await supabase.from("jump_sets").insert({
       set_id: setId,
-      attempts: set.data.attempts ?? 0,
-      passed: set.data.passed ?? 0,
-      made: set.data.made ?? 0
-    })
-    if (error) throw error
-  }
-
-  if (set.event === "cuts") {
-    const { error } = await supabase.from("cuts_sets").insert({
-      set_id: setId,
-      passes_num: set.data.passes ?? 0
+      subevent: set.data.subEvent ?? "jump",
+      attempts: set.data.subEvent === "cuts" ? 0 : set.data.attempts ?? 0,
+      passed: set.data.subEvent === "cuts" ? 0 : set.data.passed ?? 0,
+      made: set.data.subEvent === "cuts" ? 0 : set.data.made ?? 0,
+      distance: set.data.distance ?? null,
+      cuts_type: set.data.cutsType ?? null,
+      cuts_count: set.data.cutsCount ?? null
     })
     if (error) throw error
   }

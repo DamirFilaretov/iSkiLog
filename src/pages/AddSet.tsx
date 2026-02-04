@@ -10,7 +10,6 @@ import BaseFields from "../components/addSet/BaseFields"
 import SlalomFields from "../components/addSet/SlalomFields"
 import TricksFields from "../components/addSet/TricksFields"
 import JumpFields from "../components/addSet/JumpFields"
-import CutsFields from "../components/addSet/CutsFields"
 import OtherFields from "../components/addSet/OtherFields"
 import SaveSetButton from "../components/addSet/SaveSetButton"
 
@@ -26,7 +25,7 @@ function todayLocalIsoDate() {
 }
 
 function isEventKey(v: string | null): v is EventKey {
-  return v === "slalom" || v === "tricks" || v === "jump" || v === "cuts" || v === "other"
+  return v === "slalom" || v === "tricks" || v === "jump" || v === "other"
 }
 
 export default function AddSet() {
@@ -57,11 +56,13 @@ export default function AddSet() {
   const [tricksDuration, setTricksDuration] = useState<number | null>(null)
   const [tricksType, setTricksType] = useState<"hands" | "toes">("hands")
 
+  const [jumpSubEvent, setJumpSubEvent] = useState<"jump" | "cuts">("jump")
   const [jumpAttempts, setJumpAttempts] = useState<number | null>(null)
   const [jumpPassed, setJumpPassed] = useState<number | null>(null)
   const [jumpMade, setJumpMade] = useState<number | null>(null)
-
-  const [cutsPasses, setCutsPasses] = useState<number | null>(null)
+  const [jumpDistance, setJumpDistance] = useState<number | null>(null)
+  const [cutsType, setCutsType] = useState<"cut_pass" | "open_cuts">("cut_pass")
+  const [cutsCount, setCutsCount] = useState<number | null>(null)
   const [otherName, setOtherName] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -72,6 +73,11 @@ export default function AddSet() {
   useEffect(() => {
     if (!isEditing) {
       const fromUrl = searchParams.get("event")
+      if (fromUrl === "cuts") {
+        setEvent("jump")
+        setJumpSubEvent("cuts")
+        return
+      }
       if (isEventKey(fromUrl)) setEvent(fromUrl)
     }
   }, [isEditing, searchParams])
@@ -95,13 +101,15 @@ export default function AddSet() {
     }
 
     if (editingSet.event === "jump") {
+      setJumpSubEvent(editingSet.data.subEvent ?? "jump")
       setJumpAttempts(editingSet.data.attempts)
       setJumpPassed(editingSet.data.passed)
       setJumpMade(editingSet.data.made)
-    }
-
-    if (editingSet.event === "cuts") {
-      setCutsPasses(editingSet.data.passes)
+      setJumpDistance(editingSet.data.distance ?? null)
+      if (editingSet.data.subEvent === "cuts") {
+        setCutsType(editingSet.data.cutsType ?? "cut_pass")
+        setCutsCount(editingSet.data.cutsCount ?? null)
+      }
     }
 
     if (editingSet.event === "other") {
@@ -116,6 +124,7 @@ export default function AddSet() {
   function handleJumpAttemptsChange(value: number | null) {
     setJumpAttempts(value)
 
+    if (jumpSubEvent !== "jump") return
     if (value === null) return
 
     if (jumpPassed !== null) {
@@ -133,6 +142,7 @@ export default function AddSet() {
   function handleJumpPassedChange(value: number | null) {
     setJumpPassed(value)
 
+    if (jumpSubEvent !== "jump") return
     if (value === null) return
 
     if (jumpAttempts !== null) {
@@ -149,6 +159,7 @@ export default function AddSet() {
   function handleJumpMadeChange(value: number | null) {
     setJumpMade(value)
 
+    if (jumpSubEvent !== "jump") return
     if (value === null) return
 
     if (jumpAttempts !== null) {
@@ -176,10 +187,10 @@ export default function AddSet() {
       return tricksDuration === null
     }
     if (event === "jump") {
-      return jumpAttempts === null
-    }
-    if (event === "cuts") {
-      return cutsPasses === null
+      if (jumpSubEvent === "jump") {
+        return jumpAttempts === null
+      }
+      return cutsCount === null || !cutsType
     }
     return !otherName.trim()
   })()
@@ -225,22 +236,13 @@ export default function AddSet() {
         seasonId,
         notes,
         data: {
-          attempts: jumpAttempts,
-          passed: jumpPassed,
-          made: jumpMade
-        }
-      }
-    }
-
-    if (event === "cuts") {
-      return {
-        id,
-        event,
-        date,
-        seasonId,
-        notes,
-        data: {
-          passes: cutsPasses
+          subEvent: jumpSubEvent,
+          attempts: jumpSubEvent === "jump" ? jumpAttempts : null,
+          passed: jumpSubEvent === "jump" ? jumpPassed : null,
+          made: jumpSubEvent === "jump" ? jumpMade : null,
+          distance: jumpSubEvent === "jump" ? jumpDistance : null,
+          cutsType: jumpSubEvent === "cuts" ? cutsType : null,
+          cutsCount: jumpSubEvent === "cuts" ? cutsCount : null
         }
       }
     }
@@ -358,16 +360,22 @@ export default function AddSet() {
 
         {event === "jump" && (
           <JumpFields
+            subEvent={jumpSubEvent}
+            onSubEventChange={setJumpSubEvent}
             attempts={jumpAttempts}
             passed={jumpPassed}
             made={jumpMade}
+            distance={jumpDistance}
+            onDistanceChange={setJumpDistance}
+            cutsType={cutsType}
+            onCutsTypeChange={setCutsType}
+            cutsCount={cutsCount}
+            onCutsCountChange={setCutsCount}
             onAttemptsChange={handleJumpAttemptsChange}
             onPassedChange={handleJumpPassedChange}
             onMadeChange={handleJumpMadeChange}
           />
         )}
-
-        {event === "cuts" && <CutsFields passes={cutsPasses} onPassesChange={setCutsPasses} />}
 
         {event === "other" && <OtherFields name={otherName} onNameChange={setOtherName} />}
 

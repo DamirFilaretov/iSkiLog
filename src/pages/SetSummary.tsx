@@ -8,28 +8,29 @@ import type { SkiSet } from "../types/sets"
 /**
  * Small UI helper to keep event icons consistent.
  */
-function eventIcon(eventType: SkiSet["event"]) {
-  if (eventType === "slalom") return "🌊"
-  if (eventType === "tricks") return "🏆"
-  if (eventType === "jump") return "✈️"
-  if (eventType === "cuts") return "💨"
+function eventIcon(set: SkiSet) {
+  if (set.event === "slalom") return "🌉"
+  if (set.event === "tricks") return "🏆"
+  if (set.event === "jump") {
+    return set.data.subEvent === "cuts" ? "💨" : "✈️"
+  }
   return "➕"
 }
 
 /**
  * Small UI helper to show a readable event label.
  */
-function eventLabel(eventType: SkiSet["event"]) {
-  if (eventType === "slalom") return "Slalom"
-  if (eventType === "tricks") return "Tricks"
-  if (eventType === "jump") return "Jump"
-  if (eventType === "cuts") return "Cuts"
+function eventLabel(set: SkiSet) {
+  if (set.event === "slalom") return "Slalom"
+  if (set.event === "tricks") return "Tricks"
+  if (set.event === "jump") {
+    return set.data.subEvent === "cuts" ? "Cuts" : "Jump"
+  }
   return "Other"
 }
 
 /**
  * Convert ISO "YYYY-MM-DD" to a local Date without timezone shifting.
- * This prevents the one day back bug in the UI.
  */
 function isoToLocalDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number)
@@ -55,30 +56,17 @@ export default function SetSummary() {
   const { getSetById, deleteSet } = useSetsStore()
 
   const [confirmOpen, setConfirmOpen] = useState(false)
-
-  // Prevent rapid delete spam and prevent multiple navigations racing each other.
   const [isDeleting, setIsDeleting] = useState(false)
-
-  // Inline delete error shown inside the confirmation modal.
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const skiSet = useMemo(() => {
     return id ? getSetById(id) : undefined
   }, [id, getSetById])
 
-  /**
-   * Back button behavior
-   * After many deletes, the browser history can contain routes to deleted sets.
-   * A deterministic navigation is more stable than navigate(-1).
-   */
   function goBackSafe() {
     navigate(-1)
   }
 
-  /**
-   * If we do not find the set, show a simple not found screen.
-   * This can happen if the set was deleted, or if the store is not hydrated yet.
-   */
   if (!skiSet) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -126,36 +114,45 @@ export default function SetSummary() {
             { label: "Trick Type", value: skiSet.data.trickType }
           ]
         : skiSet.event === "jump"
-          ? [
-              {
-                label: "Attempts",
-                value: skiSet.data.attempts === null ? "—" : String(skiSet.data.attempts)
-              },
-              {
-                label: "Passed",
-                value: skiSet.data.passed === null ? "—" : String(skiSet.data.passed)
-              },
-              { label: "Made", value: skiSet.data.made === null ? "—" : String(skiSet.data.made) }
-            ]
-          : skiSet.event === "cuts"
+          ? skiSet.data.subEvent === "cuts"
             ? [
                 {
-                  label: "Passes",
-                  value: skiSet.data.passes === null ? "—" : String(skiSet.data.passes)
+                  label: "Cuts Type",
+                  value: skiSet.data.cutsType === "open_cuts" ? "Open Cuts" : "Cut & Pass"
+                },
+                {
+                  label: "Cuts",
+                  value:
+                    skiSet.data.cutsCount === null || skiSet.data.cutsCount === undefined
+                      ? "—"
+                      : String(skiSet.data.cutsCount)
                 }
               ]
-            : [{ label: "Name", value: skiSet.data.name || "—" }]
+            : [
+                {
+                  label: "Attempts",
+                  value: skiSet.data.attempts === null ? "—" : String(skiSet.data.attempts)
+                },
+                {
+                  label: "Passed",
+                  value: skiSet.data.passed === null ? "—" : String(skiSet.data.passed)
+                },
+                { label: "Jumped", value: skiSet.data.made === null ? "—" : String(skiSet.data.made) },
+                {
+                  label: "Distance",
+                  value:
+                    skiSet.data.distance === null || skiSet.data.distance === undefined
+                      ? "—"
+                      : String(skiSet.data.distance)
+                }
+              ]
+          : [{ label: "Name", value: skiSet.data.name || "—" }]
 
   const details: { label: string; value: string }[] = [
-    { label: "Event Type", value: eventLabel(skiSet.event) },
+    { label: "Event Type", value: eventLabel(skiSet) },
     { label: "Date Logged", value: formatDateLabel(skiSet.date) }
   ]
 
-  /**
-   * Confirmed delete handler.
-   * Guarded so it cannot run twice in parallel.
-   * If delete fails, show inline error and keep the modal open.
-   */
   async function handleConfirmDelete() {
     if (isDeleting) return
 
@@ -165,8 +162,6 @@ export default function SetSummary() {
     try {
       await deleteSetFromDb(id)
       deleteSet(id)
-
-      // Close modal and navigate only after DB confirms delete.
       setConfirmOpen(false)
       navigate(-1)
     } catch (err) {
@@ -198,11 +193,11 @@ export default function SetSummary() {
       <div className="px-4 space-y-5 pb-28">
         <div className="rounded-2xl bg-blue-600 p-5 shadow-md flex items-center gap-4">
           <div className="h-12 w-12 rounded-2xl bg-white/15 flex items-center justify-center text-white text-lg">
-            {eventIcon(skiSet.event)}
+            {eventIcon(skiSet)}
           </div>
 
           <div className="flex-1">
-            <div className="text-white text-lg font-medium">{eventLabel(skiSet.event)}</div>
+            <div className="text-white text-lg font-medium">{eventLabel(skiSet)}</div>
 
             <div className="mt-1 flex items-center gap-4 text-sm text-white/80">
               <div className="flex items-center gap-2">
