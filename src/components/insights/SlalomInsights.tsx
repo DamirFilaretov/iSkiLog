@@ -6,7 +6,7 @@ import {
   LineChart,
   ResponsiveContainer,
   Tooltip,
-  type TooltipProps,
+  type TooltipContentProps,
   XAxis,
   YAxis
 } from "recharts"
@@ -218,11 +218,12 @@ function SeriesChart({ points }: { points: SlalomSeriesPoint[] }) {
   }))
 
   const renderTooltip = (
-    props: TooltipProps<number, string> & { payload?: Array<{ value?: number }>; label?: string }
+    props: TooltipContentProps<number, string>
   ) => {
     const { active, payload, label } = props
-    if (!active || !payload || payload.length === 0) return null
-    const value = (payload[0]?.value as number | undefined) ?? 0
+    const safePayload = payload ?? []
+    if (!active || safePayload.length === 0) return null
+    const value = (safePayload[0] as { value?: number } | undefined)?.value ?? 0
     const buoys = formatChartLabel(value)
     return (
       <div className="rounded-xl bg-white px-3 py-2 text-xs shadow-lg shadow-slate-200/70">
@@ -412,4 +413,6 @@ export default function SlalomInsights({ sets }: Props) {
     </div>
   )
 }
+
+
 
