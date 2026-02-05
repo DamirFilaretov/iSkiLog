@@ -106,9 +106,11 @@ export function getWeeklyStats(
   sets: SkiSet[],
   now = new Date()
 ): WeeklyStats {
-  const start = startOfWeekMonday(now)
-  const end = new Date(start)
-  end.setDate(start.getDate() + 6)
+  const end = new Date(now)
+  end.setHours(23, 59, 59, 999)
+  const start = new Date(now)
+  start.setDate(now.getDate() - 6)
+  start.setHours(0, 0, 0, 0)
 
   const thisWeek = sets.filter(s => {
     const d = isoToDate(s.date)
@@ -117,9 +119,11 @@ export function getWeeklyStats(
 
   const lastWeekStart = new Date(start)
   lastWeekStart.setDate(start.getDate() - 7)
+  lastWeekStart.setHours(0, 0, 0, 0)
 
   const lastWeekEnd = new Date(end)
   lastWeekEnd.setDate(end.getDate() - 7)
+  lastWeekEnd.setHours(23, 59, 59, 999)
 
   const lastWeek = sets.filter(s => {
     const d = isoToDate(s.date)
@@ -393,6 +397,9 @@ export type SlalomStats = {
 export type SlalomSeriesPoint = {
   label: string
   value: number
+  bestSet: SlalomBestSet | null
+  startDate: string
+  endDate: string
 }
 
 function ropeIndexFromLength(value: string | number | null | undefined): number {
@@ -459,7 +466,20 @@ export function getSlalomStats(sets: SkiSet[]): SlalomStats {
       ? 0
       : speedValues.reduce((sum, v) => sum + v, 0) / speedValues.length
 
-  const best = slalom.reduce<SlalomBestSet | null>((current, set) => {
+  const best = getBestSlalomSet(slalom)
+
+  return {
+    totalSets,
+    averageScore,
+    averageBuoys,
+    averageRope,
+    averageSpeed,
+    bestSet: best
+  }
+}
+
+function getBestSlalomSet(slalom: (SkiSet & { event: "slalom" })[]): SlalomBestSet | null {
+  return slalom.reduce<SlalomBestSet | null>((current, set) => {
     const score = getSlalomScore(set.data.ropeLength ?? "", set.data.buoys ?? null)
     const candidate: SlalomBestSet = {
       buoys: set.data.buoys ?? null,
@@ -486,27 +506,22 @@ export function getSlalomStats(sets: SkiSet[]): SlalomStats {
     if (candidateSpeed > currentSpeed) return candidate
     return current
   }, null)
-
-  return {
-    totalSets,
-    averageScore,
-    averageBuoys,
-    averageRope,
-    averageSpeed,
-    bestSet: best
-  }
 }
 
 export function getSlalomSeries(
   sets: SkiSet[],
-  range: "week" | "month" | "season",
+  range: "week" | "month" | "season" | "custom",
+  customStart?: string,
+  customEnd?: string,
   now = new Date()
 ): SlalomSeriesPoint[] {
   const slalom = sets.filter((s): s is SkiSet & { event: "slalom" } => s.event === "slalom")
   if (slalom.length === 0) return []
 
   if (range === "week") {
-    const start = startOfWeekMonday(now)
+    const start = new Date(now)
+    start.setDate(now.getDate() - 6)
+    start.setHours(0, 0, 0, 0)
     const days: SlalomSeriesPoint[] = []
 
     for (let i = 0; i < 7; i++) {
@@ -514,17 +529,18 @@ export function getSlalomSeries(
       d.setDate(start.getDate() + i)
       const iso = dateToIso(d)
       const daySets = slalom.filter(s => normalizeIsoDay(s.date) === iso)
-      const avg =
-        daySets.length === 0
-          ? 0
-          : daySets.reduce((sum, s) => {
-              return sum + getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
-            }, 0) / daySets.length
+      if (daySets.length > 0) {
+        const bestSet = getBestSlalomSet(daySets)
+        if (!bestSet) continue
 
-      days.push({
-        label: d.toLocaleDateString("en-US", { weekday: "short" }),
-        value: Number.isFinite(avg) ? avg : 0
-      })
+        days.push({
+          label: d.toLocaleDateString("en-US", { weekday: "short" }),
+          value: bestSet.score,
+          bestSet,
+          startDate: iso,
+          endDate: iso
+        })
+      }
     }
 
     return days
@@ -540,42 +556,156 @@ export function getSlalomSeries(
       const d = new Date(year, month, day)
       const iso = dateToIso(d)
       const daySets = slalom.filter(s => normalizeIsoDay(s.date) === iso)
-      if (daySets.length === 0) continue
-      const avg =
-        daySets.reduce((sum, s) => {
-          return sum + getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
-        }, 0) / daySets.length
-      points.push({
-        label: String(day),
-        value: Number.isFinite(avg) ? avg : 0
-      })
+      if (daySets.length > 0) {
+        const bestSet = getBestSlalomSet(daySets)
+        if (!bestSet) continue
+        points.push({
+          label: String(day),
+          value: bestSet.score,
+          bestSet,
+          startDate: iso,
+          endDate: iso
+        })
+      }
     }
 
     return points
   }
 
-  const byMonth = new Map<string, (SkiSet & { event: "slalom" })[]>()
-  slalom.forEach(set => {
-    const d = isoToDate(set.date)
-    const key = monthKeyFromDate(d)
-    if (!byMonth.has(key)) byMonth.set(key, [])
-    byMonth.get(key)!.push(set)
-  })
+  if (range === "custom") {
+    if (!customStart || !customEnd) return []
+    const start = isoToDate(customStart)
+    const end = isoToDate(customEnd)
+    const totalDays = Math.max(
+      1,
+      Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1
+    )
 
-  const monthKeys = Array.from(byMonth.keys()).sort()
-
-  return monthKeys.map(key => {
-    const monthSets = byMonth.get(key) ?? []
-    const avg =
-      monthSets.length === 0
-        ? 0
-        : monthSets.reduce((sum, s) => {
-            return sum + getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
-          }, 0) / monthSets.length
-
-    return {
-      label: monthLabelFromKey(key),
-      value: Number.isFinite(avg) ? avg : 0
+    if (totalDays <= 30) {
+      const points: SlalomSeriesPoint[] = []
+      for (let i = 0; i < totalDays; i++) {
+        const d = new Date(start)
+        d.setDate(start.getDate() + i)
+        const iso = dateToIso(d)
+        const daySets = slalom.filter(s => normalizeIsoDay(s.date) === iso)
+        if (daySets.length > 0) {
+          const bestSet = getBestSlalomSet(daySets)
+          if (!bestSet) continue
+          points.push({
+            label: d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" }),
+            value: bestSet.score,
+            bestSet,
+            startDate: iso,
+            endDate: iso
+          })
+        }
+      }
+      return points
     }
-  })
+
+    if (totalDays <= 180) {
+      const points: SlalomSeriesPoint[] = []
+      const cursor = new Date(start)
+      while (cursor <= end) {
+        const weekStart = new Date(cursor)
+        const weekEnd = new Date(cursor)
+        weekEnd.setDate(weekEnd.getDate() + 6)
+        if (weekEnd > end) weekEnd.setTime(end.getTime())
+
+        const startIso = dateToIso(weekStart)
+        const endIso = dateToIso(weekEnd)
+        const weekSets = slalom.filter(s => {
+          const dayIso = normalizeIsoDay(s.date)
+          return dayIso >= startIso && dayIso <= endIso
+        })
+        if (weekSets.length > 0) {
+          const bestSet = getBestSlalomSet(weekSets)
+          if (!bestSet) continue
+          const label =
+            startIso === endIso
+              ? weekStart.toLocaleDateString("en-US", { month: "numeric", day: "numeric" })
+              : `${weekStart.toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}-${weekEnd.toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}`
+
+          points.push({
+            label,
+            value: bestSet.score,
+            bestSet,
+            startDate: startIso,
+            endDate: endIso
+          })
+        }
+
+        cursor.setDate(cursor.getDate() + 7)
+      }
+      return points
+    }
+
+    // Fallback: bucket by month for very long ranges
+    const byMonth = new Map<string, (SkiSet & { event: "slalom" })[]>()
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
+    const endCursor = new Date(end.getFullYear(), end.getMonth(), 1)
+    while (cursor <= endCursor) {
+      byMonth.set(monthKeyFromDate(cursor), [])
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+
+    slalom.forEach(set => {
+      const d = isoToDate(set.date)
+      const key = monthKeyFromDate(d)
+      if (!byMonth.has(key)) byMonth.set(key, [])
+      byMonth.get(key)!.push(set)
+    })
+
+    const monthKeys = Array.from(byMonth.keys()).sort()
+    return monthKeys.map(key => {
+      const monthSets = byMonth.get(key) ?? []
+      const avg = averageScore(monthSets)
+      const avgSpeed = averageSpeed(monthSets)
+      const [yStr, mStr] = key.split("-")
+      const y = Number(yStr)
+      const m = Number(mStr)
+      const monthStart = new Date(y, (m ?? 1) - 1, 1)
+      const monthEnd = new Date(y, (m ?? 1), 0)
+      return {
+        label: monthLabelFromKey(key),
+        value: Number.isFinite(avg) ? avg : 0,
+        avgSpeed,
+        startDate: dateToIso(monthStart),
+        endDate: dateToIso(monthEnd)
+      }
+    })
+  }
+
+  let year = now.getFullYear()
+  if (slalom.length > 0) {
+    const latest = slalom.reduce((acc, set) => {
+      const d = isoToDate(set.date)
+      return d > acc ? d : acc
+    }, isoToDate(slalom[0].date))
+    year = latest.getFullYear()
+  }
+  const points: SlalomSeriesPoint[] = []
+  for (let month = 0; month < 12; month++) {
+    const monthStart = new Date(year, month, 1)
+    const monthEnd = new Date(year, month + 1, 0)
+    const startIso = dateToIso(monthStart)
+    const endIso = dateToIso(monthEnd)
+    const monthSets = slalom.filter(s => {
+      const dayIso = normalizeIsoDay(s.date)
+      return dayIso >= startIso && dayIso <= endIso
+    })
+    const bestSet = getBestSlalomSet(monthSets)
+    if (!bestSet) {
+      continue
+    }
+    points.push({
+      label: monthLabelFromKey(monthKeyFromDate(monthStart)),
+      value: bestSet.score,
+      bestSet,
+      startDate: startIso,
+      endDate: endIso
+    })
+  }
+
+  return points
 }

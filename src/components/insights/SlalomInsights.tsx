@@ -67,9 +67,10 @@ function filterSetsByRange(
   if (range === "season") return sets
 
   if (range === "week") {
-    const start = startOfWeekMonday(now)
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
+    const end = new Date(now)
+    end.setHours(23, 59, 59, 999)
+    const start = new Date(now)
+    start.setDate(now.getDate() - 6)
     const bounds = clampRange(start, end)
     return sets.filter(set => {
       const d = isoToDate(set.date)
@@ -133,8 +134,9 @@ function formatRopeDisplay(meters: number, unit: "meters" | "feet") {
 
 function formatSpeedDisplay(speed: number | string, unit: "kmh" | "mph") {
   const numeric = typeof speed === "number" ? speed : Number.parseFloat(speed)
-  if (!Number.isFinite(numeric) || numeric <= 0) return "—"
-  const value = Math.round(numeric)
+  if (!Number.isFinite(numeric) || numeric <= 0) return "--"
+  const converted = unit === "kmh" ? numeric * 1.60934 : numeric
+  const value = Math.round(converted)
   return unit === "kmh" ? `${value}kph` : `${value}mph`
 }
 
@@ -201,9 +203,20 @@ function formatChartLabel(score: number) {
 type ChartPoint = {
   label: string
   value: number
+  bestSet: SlalomSeriesPoint["bestSet"]
+  startDate: string
+  endDate: string
 }
 
-function SeriesChart({ points }: { points: SlalomSeriesPoint[] }) {
+function SeriesChart({
+  points,
+  speedUnit,
+  ropeUnit
+}: {
+  points: SlalomSeriesPoint[]
+  speedUnit: "kmh" | "mph"
+  ropeUnit: "meters" | "feet"
+}) {
   if (points.length === 0) {
     return (
       <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
@@ -214,21 +227,21 @@ function SeriesChart({ points }: { points: SlalomSeriesPoint[] }) {
 
   const data: ChartPoint[] = points.map(point => ({
     label: point.label,
-    value: point.value
+    value: point.value,
+    bestSet: point.bestSet,
+    startDate: point.startDate,
+    endDate: point.endDate
   }))
 
-  const renderTooltip = (
-    props: TooltipContentProps<number, string>
-  ) => {
-    const { active, payload, label } = props
-    const safePayload = payload ?? []
-    if (!active || safePayload.length === 0) return null
-    const value = (safePayload[0] as { value?: number } | undefined)?.value ?? 0
-    const buoys = formatChartLabel(value)
+  const renderTooltip = ({ active, payload, label }: TooltipContentProps<number, string>) => {
+    if (!active || !payload || payload.length === 0) return null
+    const item = payload[0]?.payload as ChartPoint | undefined
+    const best = item?.bestSet ?? null
+    const result = formatBestSet(best, speedUnit, ropeUnit)
     return (
       <div className="rounded-xl bg-white px-3 py-2 text-xs shadow-lg shadow-slate-200/70">
         <p className="text-slate-500">{label}</p>
-        <p className="mt-1 text-sm font-semibold text-slate-900">{buoys || "—"}</p>
+        <p className="mt-1 text-sm font-semibold text-slate-900">{result}</p>
       </div>
     )
   }
@@ -292,8 +305,8 @@ export default function SlalomInsights({ sets }: Props) {
   const stats = useMemo(() => getSlalomStats(filteredSets), [filteredSets])
   const normalizedRange = range === "custom" ? "season" : range
   const series = useMemo(
-    () => getSlalomSeries(filteredSets, normalizedRange),
-    [filteredSets, normalizedRange]
+    () => getSlalomSeries(filteredSets, range, customStart, customEnd),
+    [filteredSets, range, customStart, customEnd]
   )
 
   useEffect(() => {
@@ -404,7 +417,11 @@ export default function SlalomInsights({ sets }: Props) {
             <p className="text-sm font-semibold text-slate-900">Results Over Time</p>
             <span className="text-xs text-emerald-600">{trendText}</span>
           </div>
-          <SeriesChart points={series} />
+          <SeriesChart
+            points={series}
+            speedUnit={preferences.speedUnit}
+            ropeUnit={preferences.ropeUnit}
+          />
           <div className="mt-2 flex justify-between text-[11px] text-slate-400">
             <span>Season progress tracking</span>
           </div>
