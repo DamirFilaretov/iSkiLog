@@ -15,6 +15,7 @@ import SaveSetButton from "../components/addSet/SaveSetButton"
 
 import type { EventKey, SkiSet } from "../types/sets"
 import { useSetsStore } from "../store/setsStore"
+import { usePreferences } from "../lib/preferences"
 
 function todayLocalIsoDate() {
   const now = new Date()
@@ -31,6 +32,7 @@ function isEventKey(v: string | null): v is EventKey {
 export default function AddSet() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { preferences } = usePreferences()
   const {
     addSet,
     updateSet,
@@ -70,6 +72,25 @@ export default function AddSet() {
 
   const maxDate = todayLocalIsoDate()
 
+  function parseSpeedInput(value: string) {
+    const numeric = Number.parseFloat(value)
+    return Number.isFinite(numeric) ? numeric : null
+  }
+
+  function roundWhole(value: number) {
+    return Math.round(value)
+  }
+
+  function toMphFromPreference(value: number, unit: "kmh" | "mph") {
+    if (unit === "kmh") return value / 1.60934
+    return value
+  }
+
+  function fromMphToPreference(value: number, unit: "kmh" | "mph") {
+    if (unit === "kmh") return value * 1.60934
+    return value
+  }
+
   useEffect(() => {
     if (!isEditing) {
       const fromUrl = searchParams.get("event")
@@ -92,7 +113,13 @@ export default function AddSet() {
     if (editingSet.event === "slalom") {
       setSlalomBuoys(editingSet.data.buoys)
       setSlalomRopeLength(editingSet.data.ropeLength)
-      setSlalomSpeed(editingSet.data.speed)
+      const speedValue = parseSpeedInput(editingSet.data.speed)
+      if (speedValue === null) {
+        setSlalomSpeed("")
+      } else {
+        const converted = fromMphToPreference(speedValue, preferences.speedUnit)
+        setSlalomSpeed(String(roundWhole(converted)))
+      }
     }
 
     if (editingSet.event === "tricks") {
@@ -200,6 +227,11 @@ export default function AddSet() {
 
   function buildSetObject(id: string, seasonId: string | null): SkiSet {
     if (event === "slalom") {
+      const parsedSpeed = parseSpeedInput(slalomSpeed)
+      const normalizedSpeed =
+        parsedSpeed === null
+          ? ""
+          : String(roundWhole(toMphFromPreference(parsedSpeed, preferences.speedUnit)))
       return {
         id,
         event,
@@ -209,7 +241,7 @@ export default function AddSet() {
         data: {
           buoys: slalomBuoys,
           ropeLength: slalomRopeLength,
-          speed: slalomSpeed
+          speed: normalizedSpeed
         }
       }
     }

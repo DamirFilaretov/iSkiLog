@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import type { SkiSet } from "../../types/sets"
+import { usePreferences } from "../../lib/preferences"
 
 /**
  * UI helpers for icons and labels.
@@ -23,31 +24,58 @@ function eventLabel(set: SkiSet) {
   return "Other"
 }
 
+const ROPE_LENGTHS = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
+const ROPE_OFF = ["15off", "22off", "28off", "32off", "35off", "38off", "39.5off", "41off", "43off"]
+
+function formatRopeLength(value: string, unit: "meters" | "feet") {
+  if (!value) return "--"
+  if (unit === "meters") return value
+
+  const match = value.match(/[\d.]+/)
+  if (!match) return value
+  const meters = Number.parseFloat(match[0])
+  if (!Number.isFinite(meters)) return value
+
+  const index = ROPE_LENGTHS.findIndex(v => Math.abs(v - meters) < 0.01)
+  if (index < 0) return value
+  return ROPE_OFF[index]
+}
+
+function formatSpeed(value: string, unit: "kmh" | "mph") {
+  if (!value) return "--"
+  const numeric = Number.parseFloat(value)
+  if (!Number.isFinite(numeric)) return "--"
+  const converted = unit === "kmh" ? numeric * 1.60934 : numeric
+  const rounded = Math.round(converted)
+  return unit === "kmh" ? `${rounded}kph` : `${rounded}mph`
+}
+
+
 /**
  * Build a short highlight line that depends on the event type.
  */
-function highlight(set: SkiSet) {
+function highlight(set: SkiSet, ropeUnit: "meters" | "feet", speedUnit: "kmh" | "mph") {
   if (set.event === "slalom") {
-    const buoys = set.data.buoys === null ? "—" : String(set.data.buoys)
-    return buoys
+    const buoys = set.data.buoys === null ? "--" : String(set.data.buoys)
+    const rope = formatRopeLength(set.data.ropeLength, ropeUnit)
+    const speed = formatSpeed(set.data.speed, speedUnit)
+    return `${buoys}/${speed} @ ${rope}`
   }
 
   if (set.event === "tricks") {
-    return set.data.duration === null ? "—" : `${set.data.duration} min`
+    return set.data.duration === null ? "--" : `${set.data.duration} min`
   }
 
   if (set.event === "jump") {
     if (set.data.subEvent === "cuts") {
-      const cuts = set.data.cutsCount === null || set.data.cutsCount === undefined
-        ? "—"
-        : String(set.data.cutsCount)
+      const cuts = set.data.cutsCount === null ? "--" : String(set.data.cutsCount)
       return `${cuts} cuts`
     }
-    const attempts = set.data.attempts === null ? "—" : String(set.data.attempts)
+    const attempts = set.data.attempts === null ? "--" : String(set.data.attempts)
     return `${attempts} attempts`
   }
 
-  return set.data.name || "—"
+  return set.data.name || "--"
 }
 
 type Props = {
@@ -55,6 +83,7 @@ type Props = {
 }
 
 export default function HistoryItem({ set }: Props) {
+  const { preferences } = usePreferences()
   const navigate = useNavigate()
 
   return (
@@ -73,7 +102,7 @@ export default function HistoryItem({ set }: Props) {
           <span className="text-xs text-gray-400">{set.date}</span>
         </div>
 
-        <p className="mt-1 text-sm font-medium text-blue-600">{highlight(set)}</p>
+        <p className="mt-1 text-sm font-medium text-blue-600">{highlight(set, preferences.ropeUnit, preferences.speedUnit)}</p>
 
         <p className="mt-1 text-sm text-gray-500">
           {set.notes.trim() ? set.notes : "No notes."}

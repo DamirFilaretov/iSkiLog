@@ -4,6 +4,7 @@ import { deleteSetFromDb } from "../data/setsUpdateDeleteApi"
 
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet } from "../types/sets"
+import { usePreferences } from "../lib/preferences"
 
 /**
  * Small UI helper to keep event icons consistent.
@@ -29,6 +30,34 @@ function eventLabel(set: SkiSet) {
   return "Other"
 }
 
+const ROPE_LENGTHS = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
+const ROPE_OFF = ["15off", "22off", "28off", "32off", "35off", "38off", "39.5off", "41off", "43off"]
+
+function formatRopeLength(value: string, unit: "meters" | "feet") {
+  if (!value) return "--"
+  if (unit === "meters") return value
+
+  const match = value.match(/[\d.]+/)
+  if (!match) return value
+  const meters = Number.parseFloat(match[0])
+  if (!Number.isFinite(meters)) return value
+
+  const index = ROPE_LENGTHS.findIndex(v => Math.abs(v - meters) < 0.01)
+  if (index < 0) return value
+  return ROPE_OFF[index]
+}
+
+function formatSpeed(value: string, unit: "kmh" | "mph") {
+  if (!value) return "--"
+  const numeric = Number.parseFloat(value)
+  if (!Number.isFinite(numeric)) return "--"
+  const converted = unit === "kmh" ? numeric * 1.60934 : numeric
+  const rounded = Math.round(converted)
+  return unit === "kmh" ? `${rounded}kph` : `${rounded}mph`
+}
+
+
+
 /**
  * Convert ISO "YYYY-MM-DD" to a local Date without timezone shifting.
  */
@@ -49,6 +78,7 @@ function formatDateLabel(iso: string) {
 }
 
 export default function SetSummary() {
+  const { preferences } = usePreferences()
   const navigate = useNavigate()
   const params = useParams()
   const id = params.id ?? ""
@@ -102,8 +132,8 @@ export default function SetSummary() {
     skiSet.event === "slalom"
       ? [
           { label: "Buoys", value: skiSet.data.buoys === null ? "—" : String(skiSet.data.buoys) },
-          { label: "Rope Length", value: skiSet.data.ropeLength || "—" },
-          { label: "Speed", value: skiSet.data.speed || "—" }
+          { label: "Rope Length", value: formatRopeLength(skiSet.data.ropeLength, preferences.ropeUnit) },
+          { label: "Speed", value: formatSpeed(skiSet.data.speed, preferences.speedUnit) }
         ]
       : skiSet.event === "tricks"
         ? [
