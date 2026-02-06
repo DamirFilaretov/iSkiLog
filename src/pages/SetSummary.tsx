@@ -47,10 +47,6 @@ function formatRopeLength(value: string, unit: "meters" | "feet") {
   return ROPE_OFF[index]
 }
 
-function trimNumber(value: number) {
-  return value.toFixed(2).replace(/\.?0+$/, "")
-}
-
 function formatSpeed(value: string, unit: "kmh" | "mph") {
   if (!value) return "--"
   const numeric = Number.parseFloat(value)

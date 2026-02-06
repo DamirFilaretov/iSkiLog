@@ -40,14 +40,6 @@ function isoToDate(iso: string) {
   return new Date(y, (m ?? 1) - 1, d ?? 1)
 }
 
-function startOfWeekMonday(date: Date) {
-  const day = date.getDay() || 7
-  const start = new Date(date)
-  start.setDate(date.getDate() - day + 1)
-  start.setHours(0, 0, 0, 0)
-  return start
-}
-
 function clampRange(start: Date, end: Date) {
   const normalizedStart = new Date(start)
   const normalizedEnd = new Date(end)
@@ -303,7 +295,6 @@ export default function SlalomInsights({ sets }: Props) {
   )
 
   const stats = useMemo(() => getSlalomStats(filteredSets), [filteredSets])
-  const normalizedRange = range === "custom" ? "season" : range
   const series = useMemo(
     () => getSlalomSeries(filteredSets, range, customStart, customEnd),
     [filteredSets, range, customStart, customEnd]

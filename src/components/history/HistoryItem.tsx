@@ -27,10 +27,6 @@ function eventLabel(set: SkiSet) {
 const ROPE_LENGTHS = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
 const ROPE_OFF = ["15off", "22off", "28off", "32off", "35off", "38off", "39.5off", "41off", "43off"]
 
-function trimNumber(value: number) {
-  return value.toFixed(2).replace(/\.?0+$/, "")
-}
-
 function formatRopeLength(value: string, unit: "meters" | "feet") {
   if (!value) return "--"
   if (unit === "meters") return value

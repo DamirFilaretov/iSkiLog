@@ -28,13 +28,6 @@ function dateToIso(date: Date) {
   return `${y}-${m}-${d}`
 }
 
-function startOfWeekMonday(date: Date) {
-  const day = date.getDay() || 7
-  const start = new Date(date)
-  start.setDate(date.getDate() - day + 1)
-  return start
-}
-
 function monthKeyFromDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 }
@@ -657,22 +650,24 @@ export function getSlalomSeries(
     })
 
     const monthKeys = Array.from(byMonth.keys()).sort()
-    return monthKeys.map(key => {
+    return monthKeys.flatMap(key => {
       const monthSets = byMonth.get(key) ?? []
-      const avg = averageScore(monthSets)
-      const avgSpeed = averageSpeed(monthSets)
+      const bestSet = getBestSlalomSet(monthSets)
+      if (!bestSet) return []
       const [yStr, mStr] = key.split("-")
       const y = Number(yStr)
       const m = Number(mStr)
       const monthStart = new Date(y, (m ?? 1) - 1, 1)
       const monthEnd = new Date(y, (m ?? 1), 0)
-      return {
-        label: monthLabelFromKey(key),
-        value: Number.isFinite(avg) ? avg : 0,
-        avgSpeed,
-        startDate: dateToIso(monthStart),
-        endDate: dateToIso(monthEnd)
-      }
+      return [
+        {
+          label: monthLabelFromKey(key),
+          value: bestSet.score,
+          bestSet,
+          startDate: dateToIso(monthStart),
+          endDate: dateToIso(monthEnd)
+        }
+      ]
     })
   }
 
