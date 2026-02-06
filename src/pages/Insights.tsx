@@ -364,8 +364,8 @@ export default function Insights() {
               avgPerDay={weeklyStats.avgPerTrainingDay.toFixed(2)}
               avgDeltaText={
                 weeklyStats.deltaPercent === null
-                  ? "—"
-                  : `${weeklyStats.deltaPercent > 0 ? "^" : "v"} ${Math.abs(
+                  ? "--"
+                  : `${weeklyStats.deltaPercent > 0 ? "Up" : "Down"} ${Math.abs(
                       Math.round(weeklyStats.deltaPercent)
                     )}% vs last week`
               }
