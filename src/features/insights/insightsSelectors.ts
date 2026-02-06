@@ -189,8 +189,8 @@ export function getWeeklyChartBars(
     totalText: `Total this week: ${stats.totalThisWeek} sets`,
     deltaText:
       stats.deltaPercent === null
-        ? "—"
-        : `${stats.deltaPercent > 0 ? "↑" : "↓"} ${Math.abs(
+        ? "--"
+        : `${stats.deltaPercent > 0 ? "Up" : "Down"} ${Math.abs(
             Math.round(stats.deltaPercent)
           )}% from last week`
   }
