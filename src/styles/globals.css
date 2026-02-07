@@ -3,7 +3,6 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  overscroll-behavior-y: none;
 }
 
 html,
@@ -12,16 +11,9 @@ body {
   padding: 0;
   width: 100%;
   overflow-x: hidden;
-  min-height: 100%;
 }
 
 #root {
   width: 100%;
   overflow-x: hidden;
-  min-height: 100%;
-}
-
-body {
-  overscroll-behavior-y: none;
-  -webkit-overflow-scrolling: touch;
 }

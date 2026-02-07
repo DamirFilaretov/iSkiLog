@@ -470,7 +470,7 @@ export default function Insights() {
               </div>
 
               {exportRange === "custom" ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-slate-500">Start date</label>
                     <input

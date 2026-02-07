@@ -234,7 +234,7 @@ export default function TricksInsights({ sets, dataSource }: Props) {
       </div>
 
       {range === "custom" ? (
-        <div className="px-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="px-4 grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] text-slate-500 mb-1">Start date</label>
             <input
