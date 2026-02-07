@@ -208,7 +208,7 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   return (
     <div className="space-y-4">
       <div className="px-4 flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-slate-900">Tricks Insights</h4>
+        <h4 className="text-sm font-semibold text-slate-900">Time range</h4>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           {(["week", "month", "season", "custom"] as RangeKey[]).map(key => (
             <button

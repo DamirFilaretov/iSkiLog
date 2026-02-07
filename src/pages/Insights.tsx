@@ -12,6 +12,7 @@ import WeeklyActivityChart from "../components/insights/WeeklyActivityChart"
 import MonthlyProgressList from "../components/insights/MonthlyProgressList"
 import SlalomInsights from "../components/insights/SlalomInsights"
 import TricksInsights from "../components/insights/TricksInsights"
+import JumpInsights from "../components/insights/JumpInsights"
 
 import {
   getWeeklyStats,
@@ -170,6 +171,7 @@ export default function Insights() {
       : `${getEventLabel(selectedEvent)} sets logged`
   const showSlalomInsights = selectedEvent === "slalom"
   const showTricksInsights = selectedEvent === "tricks"
+  const showJumpInsights = selectedEvent === "jump"
   const showAllEventOverview = selectedEvent === "all"
 
   function resolveExportRange(): ResolvedRange {
@@ -366,6 +368,10 @@ export default function Insights() {
 
         {showTricksInsights ? (
           <TricksInsights sets={filteredSeasonSets} />
+        ) : null}
+
+        {showJumpInsights ? (
+          <JumpInsights sets={filteredSeasonSets} />
         ) : null}
 
         {showAllEventOverview ? (
