@@ -11,6 +11,7 @@ import EventBreakdown from "../components/insights/EventBreakdown"
 import WeeklyActivityChart from "../components/insights/WeeklyActivityChart"
 import MonthlyProgressList from "../components/insights/MonthlyProgressList"
 import SlalomInsights from "../components/insights/SlalomInsights"
+import TricksInsights from "../components/insights/TricksInsights"
 
 import {
   getWeeklyStats,
@@ -167,6 +168,9 @@ export default function Insights() {
     selectedEvent === "all"
       ? "Total training sets"
       : `${getEventLabel(selectedEvent)} sets logged`
+  const showSlalomInsights = selectedEvent === "slalom"
+  const showTricksInsights = selectedEvent === "tricks"
+  const showAllEventOverview = selectedEvent === "all"
 
   function resolveExportRange(): ResolvedRange {
     if (!activeSeason) {
@@ -356,9 +360,15 @@ export default function Insights() {
           subtitle={seasonSubtitle}
         />
 
-        {selectedEvent === "slalom" ? (
+        {showSlalomInsights ? (
           <SlalomInsights sets={filteredSeasonSets} />
-        ) : (
+        ) : null}
+
+        {showTricksInsights ? (
+          <TricksInsights sets={filteredSeasonSets} />
+        ) : null}
+
+        {showAllEventOverview ? (
           <>
             <QuickStatsGrid
               avgPerDay={weeklyStats.avgPerTrainingDay.toFixed(2)}
@@ -385,10 +395,11 @@ export default function Insights() {
 
             <MonthlyProgressList items={monthlyProgress} />
           </>
-        )}
+        ) : null}
+
       </div>
 
-      {selectedEvent === "all" ? (
+      {showAllEventOverview ? (
         <div className="px-4 pt-6 pb-10">
           <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
             <div className="flex items-center justify-between gap-4">
