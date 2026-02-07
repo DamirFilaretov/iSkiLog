@@ -175,23 +175,23 @@ export default function OtherInsights({ sets, dataSource }: Props) {
 
       <div className="grid grid-cols-2 gap-3 px-4">
         <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
             <Target className="h-4 w-4" />
           </div>
           <p className="mt-3 text-xs text-slate-500">Total Sets</p>
           <p className="mt-1 text-3xl font-semibold text-slate-900">{source.totalSets}</p>
-          <p className="mt-1 text-xs text-indigo-500">
+          <p className="mt-1 text-xs text-emerald-500">
             {range === "season" ? "This season" : "Selected range"}
           </p>
         </div>
 
         <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
             <Clock3 className="h-4 w-4" />
           </div>
           <p className="mt-3 text-xs text-slate-500">Total Time</p>
           <p className="mt-1 text-3xl font-semibold text-slate-900">{source.totalHours.toFixed(1)}h</p>
-          <p className="mt-1 text-xs text-indigo-400">Training hours</p>
+          <p className="mt-1 text-xs text-emerald-500">Training hours</p>
         </div>
       </div>
     </div>

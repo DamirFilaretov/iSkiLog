@@ -14,7 +14,12 @@ export default function SeasonOverviewCard({
   event
 }: Props) {
   const tone =
-    event === "tricks"
+    event === "all"
+      ? {
+          card: "bg-gradient-to-br from-blue-600 to-cyan-500 shadow-blue-500/20",
+          muted: "text-blue-100"
+        }
+      : event === "tricks"
       ? {
           card: "bg-gradient-to-br from-purple-600 to-fuchsia-500 shadow-purple-500/20",
           muted: "text-purple-100"
@@ -26,12 +31,12 @@ export default function SeasonOverviewCard({
           }
         : event === "other"
           ? {
-              card: "bg-gradient-to-br from-indigo-600 to-blue-500 shadow-indigo-500/20",
-              muted: "text-indigo-100"
+              card: "bg-gradient-to-br from-emerald-500 to-green-400 shadow-emerald-500/20",
+              muted: "text-emerald-100"
             }
           : {
-              card: "bg-gradient-to-br from-blue-600 to-blue-500 shadow-blue-500/20",
-              muted: "text-blue-100"
+              card: "bg-gradient-to-br from-sky-500 to-cyan-400 shadow-sky-500/20",
+              muted: "text-sky-100"
             }
 
   return (
