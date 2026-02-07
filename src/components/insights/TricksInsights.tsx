@@ -234,14 +234,14 @@ export default function TricksInsights({ sets, dataSource }: Props) {
       </div>
 
       {range === "custom" ? (
-        <div className="px-4 grid grid-cols-2 gap-3">
+        <div className="px-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-[11px] text-slate-500 mb-1">Start date</label>
             <input
               type="date"
               value={customStart}
               onChange={event => setCustomStart(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
             />
           </div>
           <div>
@@ -250,7 +250,7 @@ export default function TricksInsights({ sets, dataSource }: Props) {
               type="date"
               value={customEnd}
               onChange={event => setCustomEnd(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 shadow-sm"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
             />
           </div>
         </div>
