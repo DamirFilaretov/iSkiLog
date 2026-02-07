@@ -471,7 +471,7 @@ export default function Insights() {
 
               {exportRange === "custom" ? (
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <label className="text-xs text-slate-500">Start date</label>
                     <input
                       type="date"
@@ -480,10 +480,10 @@ export default function Insights() {
                         setCustomStart(e.target.value)
                         setExportError(null)
                       }}
-                      className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
+                      className="mt-2 w-full max-w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label className="text-xs text-slate-500">End date</label>
                     <input
                       type="date"
@@ -492,7 +492,7 @@ export default function Insights() {
                         setCustomEnd(e.target.value)
                         setExportError(null)
                       }}
-                      className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
+                      className="mt-2 w-full max-w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
                     />
                   </div>
                 </div>
