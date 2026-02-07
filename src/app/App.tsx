@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 
 import Home from "../pages/Home"
 import History from "../pages/History"
+import HistoryAll from "../pages/HistoryAll"
 import AddSet from "../pages/AddSet"
 import SetSummary from "../pages/SetSummary"
 import Auth from "../pages/Auth"
@@ -135,6 +136,7 @@ function AppContent() {
         </Route>
 
         <Route path="/history" element={<History />} />
+        <Route path="/history/all" element={<HistoryAll />} />
         <Route path="/add" element={<AddSet />} />
         <Route path="/set/:id" element={<SetSummary />} />
         <Route path="/season-settings" element={<SeasonSettings />} />

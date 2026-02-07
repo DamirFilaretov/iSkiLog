@@ -15,6 +15,7 @@ export async function createSet(args: { set: SkiSet }): Promise<string> {
     .insert({
       user_id: authUser.id,
       season_id: set.seasonId,
+      is_favorite: set.isFavorite,
       event_type: set.event,
       date: set.date,
       notes: set.notes

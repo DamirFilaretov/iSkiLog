@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom"
-
 export default function HistoryHeader() {
   const navigate = useNavigate()
 

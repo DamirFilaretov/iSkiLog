@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom"
 import type { SkiSet } from "../../types/sets"
 import { usePreferences } from "../../lib/preferences"
+import { Star } from "lucide-react"
 
 /**
  * UI helpers for icons and labels.
@@ -89,9 +90,15 @@ function highlight(set: SkiSet, ropeUnit: "meters" | "feet", speedUnit: "kmh" | 
 
 type Props = {
   set: SkiSet
+  onToggleFavorite: (set: SkiSet, nextValue: boolean) => void
+  favoriteDisabled?: boolean
 }
 
-export default function HistoryItem({ set }: Props) {
+export default function HistoryItem({
+  set,
+  onToggleFavorite,
+  favoriteDisabled = false
+}: Props) {
   const { preferences } = usePreferences()
   const navigate = useNavigate()
 
@@ -108,7 +115,29 @@ export default function HistoryItem({ set }: Props) {
       <div className="flex-1">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-gray-900">{eventLabel(set)}</p>
-          <span className="text-xs text-gray-400">{set.date}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{set.date}</span>
+            <button
+              type="button"
+              onClick={event => {
+                event.preventDefault()
+                event.stopPropagation()
+                onToggleFavorite(set, !set.isFavorite)
+              }}
+              disabled={favoriteDisabled}
+              className={[
+                "h-7 w-7 rounded-full flex items-center justify-center transition",
+                set.isFavorite ? "text-amber-500" : "text-gray-300 hover:text-amber-500",
+                favoriteDisabled ? "opacity-50 cursor-not-allowed" : ""
+              ].join(" ")}
+              aria-label={set.isFavorite ? "Remove from favourites" : "Add to favourites"}
+            >
+              <Star
+                className="h-4 w-4"
+                fill={set.isFavorite ? "currentColor" : "none"}
+              />
+            </button>
+          </div>
         </div>
 
         <p className="mt-1 text-sm font-medium text-blue-600">{highlight(set, preferences.ropeUnit, preferences.speedUnit)}</p>

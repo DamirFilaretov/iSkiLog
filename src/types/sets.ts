@@ -11,6 +11,9 @@ export type SetBase = {
   // This is the source of truth for which season the set belongs to.
   seasonId: string | null
 
+  // True when the user marked this set as a favourite.
+  isFavorite: boolean
+
   notes: string
 
   // Timestamp of last user interaction with this set.

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react"
 import type { Season, SkiSet } from "../types/sets"
 
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2
 
 type SetsState = {
   sets: SkiSet[]
@@ -13,6 +13,7 @@ type SetsState = {
 type SetsAction =
   | { type: "ADD_SET"; payload: SkiSet }
   | { type: "UPDATE_SET"; payload: SkiSet }
+  | { type: "SET_FAVORITE"; payload: { id: string; isFavorite: boolean } }
   | { type: "DELETE_SET"; payload: { id: string } }
   | { type: "CLEAR_ALL" }
   | { type: "SET_ALL"; payload: SkiSet[] }
@@ -98,6 +99,14 @@ function setsReducer(state: SetsState, action: SetsAction): SetsState {
       return { ...state, sets: filtered }
     }
 
+    case "SET_FAVORITE": {
+      const updated = state.sets.map(setItem => {
+        if (setItem.id !== action.payload.id) return setItem
+        return { ...setItem, isFavorite: action.payload.isFavorite }
+      })
+      return { ...state, sets: updated }
+    }
+
     case "CLEAR_ALL": {
       return { sets: [], seasons: [], activeSeasonId: null, setsHydrated: false }
     }
@@ -149,6 +158,7 @@ type SetsStore = {
 
   addSet: (set: SkiSet) => void
   updateSet: (set: SkiSet) => void
+  setFavorite: (id: string, isFavorite: boolean) => void
   deleteSet: (id: string) => void
   clearAll: () => void
   replaceAll: (sets: SkiSet[]) => void
@@ -198,6 +208,10 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
 
       updateSet: (set: SkiSet) => {
         dispatch({ type: "UPDATE_SET", payload: set })
+      },
+
+      setFavorite: (id: string, isFavorite: boolean) => {
+        dispatch({ type: "SET_FAVORITE", payload: { id, isFavorite } })
       },
 
       deleteSet: (id: string) => {

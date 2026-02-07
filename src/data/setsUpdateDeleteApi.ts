@@ -18,7 +18,8 @@ export async function updateSetInDb(args: { set: SkiSet; previousEvent: EventKey
       event_type: set.event,
       date: set.date,
       notes: set.notes,
-      season_id: set.seasonId
+      season_id: set.seasonId,
+      is_favorite: set.isFavorite
     })
     .eq("id", set.id)
 
@@ -97,5 +98,17 @@ export async function updateSetInDb(args: { set: SkiSet; previousEvent: EventKey
  */
 export async function deleteSetFromDb(id: string): Promise<void> {
   const { error } = await supabase.from("sets").delete().eq("id", id)
+  if (error) throw error
+}
+
+export async function updateSetFavoriteInDb(args: {
+  id: string
+  isFavorite: boolean
+}): Promise<void> {
+  const { error } = await supabase
+    .from("sets")
+    .update({ is_favorite: args.isFavorite })
+    .eq("id", args.id)
+
   if (error) throw error
 }
