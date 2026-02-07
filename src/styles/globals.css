@@ -21,7 +21,7 @@ body {
 /* Keep iOS date inputs inside their grid cell (Safari has large intrinsic width). */
 input[type="date"].ios-date-fix {
   width: 100%;
-  max-width: 100%;
+  max-width: 50rem;
   min-width: 0;
   display: block;
   box-sizing: border-box;
