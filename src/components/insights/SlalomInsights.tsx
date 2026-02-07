@@ -309,17 +309,18 @@ export default function SlalomInsights({ sets }: Props) {
     )
   }, [stats.averageScore, stats.averageSpeed])
 
-  const bestResult = formatBestSet(
-    stats.bestSet,
-    preferences.speedUnit,
-    preferences.ropeUnit
-  )
-  const averageResult = formatAvgResult(
-    stats.averageScore,
-    stats.averageSpeed,
-    preferences.speedUnit,
-    preferences.ropeUnit
-  )
+  const hasSlalomSets = stats.totalSets > 0
+  const bestResult = hasSlalomSets
+    ? formatBestSet(stats.bestSet, preferences.speedUnit, preferences.ropeUnit)
+    : "No sets yet"
+  const averageResult = hasSlalomSets
+    ? formatAvgResult(
+        stats.averageScore,
+        stats.averageSpeed,
+        preferences.speedUnit,
+        preferences.ropeUnit
+      )
+    : "No sets yet"
 
   const trendText = series.length > 1 && series[series.length - 1].value >= series[0].value
     ? "Improving trend"
