@@ -151,23 +151,23 @@ export default function OtherInsights({ sets, dataSource }: Props) {
       </div>
 
       {range === "custom" ? (
-        <div className="px-4 grid grid-cols-2 gap-3">
-          <div className="min-w-0">
+        <div className="px-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="min-w-0 overflow-hidden">
             <label className="block text-[11px] text-slate-500 mb-1">Start date</label>
             <input
               type="date"
               value={customStart}
               onChange={event => setCustomStart(event.target.value)}
-              className="w-full max-w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
+              className="ios-date-fix w-full max-w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
             />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 overflow-hidden">
             <label className="block text-[11px] text-slate-500 mb-1">End date</label>
             <input
               type="date"
               value={customEnd}
               onChange={event => setCustomEnd(event.target.value)}
-              className="w-full max-w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
+              className="ios-date-fix w-full max-w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
             />
           </div>
         </div>

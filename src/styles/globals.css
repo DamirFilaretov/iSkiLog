@@ -17,3 +17,16 @@ body {
   width: 100%;
   overflow-x: hidden;
 }
+
+/* Keep iOS date inputs inside their grid cell (Safari has large intrinsic width). */
+input[type="date"].ios-date-fix {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: block;
+}
+
+input[type="date"].ios-date-fix::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
