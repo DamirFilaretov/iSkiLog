@@ -13,6 +13,7 @@ import MonthlyProgressList from "../components/insights/MonthlyProgressList"
 import SlalomInsights from "../components/insights/SlalomInsights"
 import TricksInsights from "../components/insights/TricksInsights"
 import JumpInsights from "../components/insights/JumpInsights"
+import OtherInsights from "../components/insights/OtherInsights"
 
 import {
   getWeeklyStats,
@@ -172,6 +173,7 @@ export default function Insights() {
   const showSlalomInsights = selectedEvent === "slalom"
   const showTricksInsights = selectedEvent === "tricks"
   const showJumpInsights = selectedEvent === "jump"
+  const showOtherInsights = selectedEvent === "other"
   const showAllEventOverview = selectedEvent === "all"
 
   function resolveExportRange(): ResolvedRange {
@@ -360,6 +362,7 @@ export default function Insights() {
           seasonTitle={seasonTitle}
           totalSets={filteredSeasonSets.length}
           subtitle={seasonSubtitle}
+          event={selectedEvent}
         />
 
         {showSlalomInsights ? (
@@ -372,6 +375,10 @@ export default function Insights() {
 
         {showJumpInsights ? (
           <JumpInsights sets={filteredSeasonSets} />
+        ) : null}
+
+        {showOtherInsights ? (
+          <OtherInsights sets={filteredSeasonSets} />
         ) : null}
 
         {showAllEventOverview ? (
