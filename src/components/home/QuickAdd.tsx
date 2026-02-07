@@ -30,7 +30,7 @@ export default function QuickAdd() {
         <EventTile
           event="other"
           label="Other"
-          gradient="bg-gradient-to-br from-indigo-500 to-blue-500"
+          gradient="bg-gradient-to-br from-emerald-500 to-green-400"
           icon={<Zap className="w-5 h-5 text-white" strokeWidth={2} />}
         />
       </div>

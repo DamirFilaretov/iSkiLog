@@ -91,6 +91,16 @@ export default function AddSet() {
     return value
   }
 
+  function toMetersFromPreference(value: number, unit: "meters" | "feet") {
+    if (unit === "feet") return value / 3.28084
+    return value
+  }
+
+  function fromMetersToPreference(value: number, unit: "meters" | "feet") {
+    if (unit === "feet") return value * 3.28084
+    return value
+  }
+
   useEffect(() => {
     if (!isEditing) {
       const fromUrl = searchParams.get("event")
@@ -132,7 +142,13 @@ export default function AddSet() {
       setJumpAttempts(editingSet.data.attempts)
       setJumpPassed(editingSet.data.passed)
       setJumpMade(editingSet.data.made)
-      setJumpDistance(editingSet.data.distance ?? null)
+      if (editingSet.data.distance === null || editingSet.data.distance === undefined) {
+        setJumpDistance(null)
+      } else {
+        const converted = fromMetersToPreference(editingSet.data.distance, preferences.ropeUnit)
+        const rounded = Math.round(converted * 100) / 100
+        setJumpDistance(Number.isFinite(rounded) ? rounded : null)
+      }
       if (editingSet.data.subEvent === "cuts") {
         setCutsType(editingSet.data.cutsType ?? "cut_pass")
         setCutsCount(editingSet.data.cutsCount ?? null)
@@ -142,7 +158,7 @@ export default function AddSet() {
     if (editingSet.event === "other") {
       setOtherName(editingSet.data.name)
     }
-  }, [editingSet])
+  }, [editingSet, preferences.ropeUnit])
 
   function clampNonNegative(value: number) {
     return value < 0 ? 0 : value
@@ -261,6 +277,10 @@ export default function AddSet() {
     }
 
     if (event === "jump") {
+      const normalizedDistance =
+        jumpSubEvent === "jump" && jumpDistance !== null
+          ? toMetersFromPreference(jumpDistance, preferences.ropeUnit)
+          : null
       return {
         id,
         event,
@@ -272,7 +292,7 @@ export default function AddSet() {
           attempts: jumpSubEvent === "jump" ? jumpAttempts : null,
           passed: jumpSubEvent === "jump" ? jumpPassed : null,
           made: jumpSubEvent === "jump" ? jumpMade : null,
-          distance: jumpSubEvent === "jump" ? jumpDistance : null,
+          distance: normalizedDistance,
           cutsType: jumpSubEvent === "cuts" ? cutsType : null,
           cutsCount: jumpSubEvent === "cuts" ? cutsCount : null
         }
@@ -398,6 +418,7 @@ export default function AddSet() {
             passed={jumpPassed}
             made={jumpMade}
             distance={jumpDistance}
+            distanceUnit={preferences.ropeUnit}
             onDistanceChange={setJumpDistance}
             cutsType={cutsType}
             onCutsTypeChange={setCutsType}

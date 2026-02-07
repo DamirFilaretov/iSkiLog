@@ -50,6 +50,14 @@ function formatSpeed(value: string, unit: "kmh" | "mph") {
   return unit === "kmh" ? `${rounded}kph` : `${rounded}mph`
 }
 
+function formatJumpDistance(value: number | null | undefined, unit: "meters" | "feet") {
+  if (value === null || value === undefined || !Number.isFinite(value)) return ""
+  const converted = unit === "feet" ? value * 3.28084 : value
+  const rounded = Math.round(converted * 10) / 10
+  const suffix = unit === "feet" ? "ft" : "m"
+  return `${rounded}${suffix}`
+}
+
 
 /**
  * Build a short highlight line that depends on the event type.
@@ -72,7 +80,8 @@ function highlight(set: SkiSet, ropeUnit: "meters" | "feet", speedUnit: "kmh" | 
       return `${cuts} cuts`
     }
     const attempts = set.data.attempts === null ? "--" : String(set.data.attempts)
-    return `${attempts} attempts`
+    const distance = formatJumpDistance(set.data.distance, ropeUnit)
+    return distance ? `${attempts} attempts | ${distance}` : `${attempts} attempts`
   }
 
   return set.data.name || "--"

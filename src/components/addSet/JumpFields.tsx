@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react"
+
 type Props = {
   subEvent: "jump" | "cuts"
   onSubEventChange: (value: "jump" | "cuts") => void
@@ -6,6 +8,7 @@ type Props = {
   passed: number | null
   made: number | null
   distance: number | null
+  distanceUnit: "meters" | "feet"
 
   cutsType: "cut_pass" | "open_cuts"
   cutsCount: number | null
@@ -25,6 +28,7 @@ export default function JumpFields({
   passed,
   made,
   distance,
+  distanceUnit,
   cutsType,
   cutsCount,
   onAttemptsChange,
@@ -34,6 +38,16 @@ export default function JumpFields({
   onCutsTypeChange,
   onCutsCountChange
 }: Props) {
+  const [distanceInput, setDistanceInput] = useState("")
+
+  useEffect(() => {
+    if (distance === null || Number.isNaN(distance)) {
+      setDistanceInput("")
+      return
+    }
+    setDistanceInput(String(distance))
+  }, [distance])
+
   function sanitizeIntegerInput(raw: string) {
     return raw.replace(/[^\d]/g, "")
   }
@@ -139,15 +153,18 @@ export default function JumpFields({
           </div>
 
           <div>
-            <label className="block text-sm text-gray-500 mb-1">Distance (optional)</label>
+            <label className="block text-sm text-gray-500 mb-1">
+              Distance ({distanceUnit === "feet" ? "ft" : "m"}, optional)
+            </label>
             <input
               type="text"
               inputMode="decimal"
               pattern="[0-9]*[.,]?[0-9]*"
-              placeholder="e.g. 42.5"
-              value={distance ?? ""}
+              placeholder={distanceUnit === "feet" ? "e.g. 140.5" : "e.g. 42.5"}
+              value={distanceInput}
               onChange={e => {
                 const cleaned = sanitizeDecimalInput(e.target.value)
+                setDistanceInput(cleaned)
                 if (cleaned === "") {
                   onDistanceChange(null)
                   return

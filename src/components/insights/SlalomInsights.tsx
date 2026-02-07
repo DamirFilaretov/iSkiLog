@@ -107,16 +107,16 @@ function trimNumber(value: number) {
 }
 
 function extractNumberText(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === "") return "—"
+  if (value === null || value === undefined || value === "") return "ï¿½"
   if (typeof value === "number") {
-    return Number.isFinite(value) ? trimNumber(value) : "—"
+    return Number.isFinite(value) ? trimNumber(value) : "ï¿½"
   }
   const match = value.match(/[\d.]+/)
-  return match ? match[0] : "—"
+  return match ? match[0] : "ï¿½"
 }
 
 function formatRopeDisplay(meters: number, unit: "meters" | "feet") {
-  if (!Number.isFinite(meters)) return "—"
+  if (!Number.isFinite(meters)) return "ï¿½"
   const index = ROPE_LENGTHS.findIndex(value => Math.abs(value - meters) < 0.01)
   if (unit === "feet" && index >= 0) {
     return ROPE_OFF[index]
@@ -139,7 +139,7 @@ function describeAvgResultRule(score: number, speed: number) {
   )
   const buoys = score - ropeIndex * 6
   const rope = ROPE_LENGTHS[ropeIndex]
-  const speedText = Number.isFinite(speed) && speed > 0 ? Math.round(speed) : "—"
+  const speedText = Number.isFinite(speed) && speed > 0 ? Math.round(speed) : "ï¿½"
   return `avgScore=${score.toFixed(2)} => ropeIndex=floor(score/6)=${ropeIndex}, buoys=score-${ropeIndex}*6=${buoys.toFixed(2)}, rope=${rope}m, speed=round(${speed.toFixed(2)})=${speedText}`
 }
 
@@ -150,7 +150,7 @@ function formatAvgResult(
   ropeUnit: "meters" | "feet"
 ) {
   if (!Number.isFinite(score) || score <= 0) {
-    return "—"
+    return "ï¿½"
   }
 
   const ropeIndex = Math.min(
@@ -162,8 +162,8 @@ function formatAvgResult(
   const ropeText = formatRopeDisplay(ROPE_LENGTHS[ropeIndex], ropeUnit)
   const speedText = formatSpeedDisplay(speed, speedUnit)
 
-  if (speedText === "—") {
-    return `${buoysText}/— @ ${ropeText}`
+  if (speedText === "ï¿½") {
+    return `${buoysText}/ï¿½ @ ${ropeText}`
   }
 
   return `${buoysText}/${speedText} @ ${ropeText}`
@@ -174,11 +174,11 @@ function formatBestSet(
   speedUnit: "kmh" | "mph",
   ropeUnit: "meters" | "feet"
 ) {
-  if (!best) return "—"
-  const buoys = best.buoys === null ? "—" : trimNumber(roundBuoys(best.buoys))
+  if (!best) return "ï¿½"
+  const buoys = best.buoys === null ? "ï¿½" : trimNumber(roundBuoys(best.buoys))
   const ropeValue = best.ropeLength ? Number.parseFloat(extractNumberText(best.ropeLength)) : NaN
   const rope = formatRopeDisplay(ropeValue, ropeUnit)
-  const speed = best.speed ? formatSpeedDisplay(best.speed, speedUnit) : "—"
+  const speed = best.speed ? formatSpeedDisplay(best.speed, speedUnit) : "ï¿½"
   return `${buoys}/${speed} @ ${rope}`
 }
 
@@ -328,7 +328,7 @@ export default function SlalomInsights({ sets }: Props) {
   return (
     <div className="space-y-4">
       <div className="px-4 flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-slate-900">Insights</h4>
+        <h4 className="text-sm font-semibold text-slate-900">Time range</h4>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           {(["week", "month", "season", "custom"] as RangeKey[]).map(key => (
             <button
