@@ -6,6 +6,7 @@ import TimeRangeTabs, { type RangeKey } from "../components/history/TimeRangeTab
 import HistoryItem from "../components/history/HistoryItem"
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet } from "../types/sets"
+import { updateSetFavoriteInDb } from "../data/setsUpdateDeleteApi"
 
 function isRangeKey(value: string | null): value is RangeKey {
   return value === "day" || value === "week" || value === "month" || value === "season" || value === "all"
@@ -68,13 +69,18 @@ function filterByRange(range: RangeKey, sets: SkiSet[]) {
 export default function History() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { sets, getActiveSeason, setsHydrated } = useSetsStore()
+  const { sets, getActiveSeason, setsHydrated, setFavorite } = useSetsStore()
 
   const initialRange = isRangeKey(searchParams.get("range"))
     ? (searchParams.get("range") as RangeKey)
     : "day"
 
   const [range, setRange] = useState<RangeKey>(initialRange)
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [favoriteError, setFavoriteError] = useState<string | null>(null)
+  const [togglingFavoriteIds, setTogglingFavoriteIds] = useState<Set<string>>(
+    () => new Set()
+  )
 
   useEffect(() => {
     const param = searchParams.get("range")
@@ -107,24 +113,70 @@ export default function History() {
   }, [range, sets, seasonOnlySets])
 
   const filteredAndSorted = useMemo(() => {
-    const filtered = filterByRange(range, listToFilter)
+    const filteredByRange = filterByRange(range, listToFilter)
+    const filtered = favoritesOnly
+      ? filteredByRange.filter(setItem => setItem.isFavorite)
+      : filteredByRange
 
     return [...filtered].sort((a, b) => {
       if (a.date > b.date) return -1
       if (a.date < b.date) return 1
       return 0
     })
-  }, [range, listToFilter])
+  }, [range, listToFilter, favoritesOnly])
 
   const needsSeasonButMissing = range !== "all" && !activeSeason
   const seasonHasNoSets = range !== "all" && activeSeason && seasonOnlySets.length === 0
 
   const showLoading = !setsHydrated
 
+  function handleToggleFavoritesFilter() {
+    setFavoritesOnly(prev => {
+      const next = !prev
+      if (next && range === "day") {
+        setRange("all")
+      }
+      return next
+    })
+  }
+
+  async function handleToggleFavorite(setItem: SkiSet, nextValue: boolean) {
+    const id = setItem.id
+    if (togglingFavoriteIds.has(id)) return
+
+    setFavoriteError(null)
+    setTogglingFavoriteIds(prev => {
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+
+    setFavorite(id, nextValue)
+
+    try {
+      await updateSetFavoriteInDb({ id, isFavorite: nextValue })
+    } catch (err) {
+      console.error("Failed to update favourite", err)
+      setFavorite(id, setItem.isFavorite)
+      setFavoriteError("Failed to update favourite set. Please try again.")
+    } finally {
+      setTogglingFavoriteIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <HistoryHeader />
-      <TimeRangeTabs value={range} onChange={setRange} />
+      <TimeRangeTabs
+        value={range}
+        onChange={setRange}
+        favoritesOnly={favoritesOnly}
+        onFavoritesToggle={handleToggleFavoritesFilter}
+      />
 
       <div className="mt-4 px-4 space-y-4 pb-6">
         {showLoading ? (
@@ -154,15 +206,34 @@ export default function History() {
               Log a set
             </button>
           </div>
-        ) : filteredAndSorted.length === 0 ? (
+        ) : null}
+
+        {favoriteError ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-sm font-medium text-gray-900">No sets in this range</p>
+            <p className="text-sm font-medium text-red-600">{favoriteError}</p>
+          </div>
+        ) : null}
+
+        {showLoading || needsSeasonButMissing || seasonHasNoSets ? null : filteredAndSorted.length === 0 ? (
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-900">
+              {favoritesOnly ? "No favourite sets in this range" : "No sets in this range"}
+            </p>
             <p className="mt-1 text-sm text-gray-500">
-              Try a different time range or add a new set.
+              {favoritesOnly
+                ? "Try another filter or mark sets as favourites."
+                : "Try a different time range or add a new set."}
             </p>
           </div>
         ) : (
-          filteredAndSorted.map(set => <HistoryItem key={set.id} set={set} />)
+          filteredAndSorted.map(setItem => (
+            <HistoryItem
+              key={setItem.id}
+              set={setItem}
+              onToggleFavorite={handleToggleFavorite}
+              favoriteDisabled={togglingFavoriteIds.has(setItem.id)}
+            />
+          ))
         )}
       </div>
     </div>

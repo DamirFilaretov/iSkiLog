@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
+import { Star } from "lucide-react"
 import { createSet } from "../data/setsWriteApi"
 import { updateSetInDb } from "../data/setsUpdateDeleteApi"
 import { createSeason, setActiveSeason } from "../data/seasonsApi"
@@ -49,6 +50,7 @@ export default function AddSet() {
 
   const [event, setEvent] = useState<EventKey>("slalom")
   const [date, setDate] = useState(todayLocalIsoDate())
+  const [isFavorite, setIsFavorite] = useState(false)
   const [notes, setNotes] = useState("")
 
   const [slalomBuoys, setSlalomBuoys] = useState<number | null>(null)
@@ -118,6 +120,7 @@ export default function AddSet() {
 
     setEvent(editingSet.event)
     setDate(editingSet.date)
+    setIsFavorite(editingSet.isFavorite)
     setNotes(editingSet.notes)
 
     if (editingSet.event === "slalom") {
@@ -253,6 +256,7 @@ export default function AddSet() {
         event,
         date,
         seasonId,
+        isFavorite,
         notes,
         data: {
           buoys: slalomBuoys,
@@ -268,6 +272,7 @@ export default function AddSet() {
         event,
         date,
         seasonId,
+        isFavorite,
         notes,
         data: {
           duration: tricksDuration,
@@ -286,6 +291,7 @@ export default function AddSet() {
         event,
         date,
         seasonId,
+        isFavorite,
         notes,
         data: {
           subEvent: jumpSubEvent,
@@ -304,6 +310,7 @@ export default function AddSet() {
       event: "other",
       date,
       seasonId,
+      isFavorite,
       notes,
       data: {
         name: otherName
@@ -384,7 +391,24 @@ export default function AddSet() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <AddSetHeader disabled={isSubmitting} />
+      <AddSetHeader
+        disabled={isSubmitting}
+        rightAction={
+          <button
+            type="button"
+            onClick={() => setIsFavorite(prev => !prev)}
+            disabled={isSubmitting}
+            className={[
+              "h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center transition",
+              isFavorite ? "text-amber-500" : "text-slate-400 hover:text-amber-500"
+            ].join(" ")}
+            aria-label={isFavorite ? "Remove from favourites" : "Mark as favourite"}
+            title={isFavorite ? "Favourite set" : "Not favourite"}
+          >
+            <Star className="h-5 w-5" fill={isFavorite ? "currentColor" : "none"} />
+          </button>
+        }
+      />
 
       <div className="px-4 space-y-4 pb-28">
         <EventTypeSelect value={event} onChange={setEvent} />

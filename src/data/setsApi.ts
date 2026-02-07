@@ -32,6 +32,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
 
   for (const s of sets) {
     const seasonId = (s.season_id as string | null) ?? null
+    const isFavorite = (s.is_favorite as boolean | null) ?? false
 
     // Prefer updated_at, fall back to created_at if it exists, otherwise undefined.
     const touchedAt =
@@ -51,6 +52,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         event: "slalom",
         date: s.date,
         seasonId,
+        isFavorite,
         notes: s.notes ?? "",
         touchedAt,
         data: {
@@ -73,6 +75,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         event: "tricks",
         date: s.date,
         seasonId,
+        isFavorite,
         notes: s.notes ?? "",
         touchedAt,
         data: {
@@ -94,6 +97,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         event: "jump",
         date: s.date,
         seasonId,
+        isFavorite,
         notes: s.notes ?? "",
         touchedAt,
         data: {
@@ -120,6 +124,7 @@ export async function fetchSets(): Promise<SkiSet[]> {
         event: "other",
         date: s.date,
         seasonId,
+        isFavorite,
         notes: s.notes ?? "",
         touchedAt,
         data: {
