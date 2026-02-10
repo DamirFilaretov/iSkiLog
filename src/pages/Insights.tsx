@@ -14,6 +14,7 @@ import SlalomInsights from "../components/insights/SlalomInsights"
 import TricksInsights from "../components/insights/TricksInsights"
 import JumpInsights from "../components/insights/JumpInsights"
 import OtherInsights from "../components/insights/OtherInsights"
+import DateFieldNativeOverlay from "../components/date/DateFieldNativeOverlay"
 
 import {
   getWeeklyStats,
@@ -471,30 +472,26 @@ export default function Insights() {
 
               {exportRange === "custom" ? (
                 <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
-                  <div className="min-w-0">
-                    <label className="text-xs text-slate-500">Start date</label>
-                    <input
-                      type="date"
-                      value={customStart}
-                      onChange={e => {
-                        setCustomStart(e.target.value)
-                        setExportError(null)
-                      }}
-                      className="date-input-export mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <label className="text-xs text-slate-500">End date</label>
-                    <input
-                      type="date"
-                      value={customEnd}
-                      onChange={e => {
-                        setCustomEnd(e.target.value)
-                        setExportError(null)
-                      }}
-                      className="date-input-export mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
-                    />
-                  </div>
+                  <DateFieldNativeOverlay
+                    value={customStart}
+                    onChange={nextValue => {
+                      setCustomStart(nextValue)
+                      setExportError(null)
+                    }}
+                    label="Start date"
+                    placeholder="Select start date"
+                    variant="export"
+                  />
+                  <DateFieldNativeOverlay
+                    value={customEnd}
+                    onChange={nextValue => {
+                      setCustomEnd(nextValue)
+                      setExportError(null)
+                    }}
+                    label="End date"
+                    placeholder="Select end date"
+                    variant="export"
+                  />
                 </div>
               ) : null}
 

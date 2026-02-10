@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Target, Clock3 } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
+import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 
 type RangeKey = "week" | "month" | "season" | "custom"
 
@@ -152,24 +153,20 @@ export default function OtherInsights({ sets, dataSource }: Props) {
 
       {range === "custom" ? (
         <div className="px-4 flex flex-col gap-3 lg:grid lg:grid-cols-2">
-          <div className="min-w-0">
-            <label className="block text-[11px] text-slate-500 mb-1">Start date</label>
-            <input
-              type="date"
-              value={customStart}
-              onChange={event => setCustomStart(event.target.value)}
-              className="date-input-insight w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
-            />
-          </div>
-          <div className="min-w-0">
-            <label className="block text-[11px] text-slate-500 mb-1">End date</label>
-            <input
-              type="date"
-              value={customEnd}
-              onChange={event => setCustomEnd(event.target.value)}
-              className="date-input-insight w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
-            />
-          </div>
+          <DateFieldNativeOverlay
+            value={customStart}
+            onChange={setCustomStart}
+            label="Start date"
+            placeholder="Select start date"
+            variant="insight"
+          />
+          <DateFieldNativeOverlay
+            value={customEnd}
+            onChange={setCustomEnd}
+            label="End date"
+            placeholder="Select end date"
+            variant="insight"
+          />
         </div>
       ) : null}
 

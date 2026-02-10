@@ -1,3 +1,5 @@
+import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
+
 type Props = {
   // Controlled value for the date input.
   date: string
@@ -31,18 +33,13 @@ export default function BaseFields({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm text-gray-500 mb-1">Date</label>
-
-        <input
-          type="date"
-          // Controlled input, value comes from AddSet state.
+        <DateFieldNativeOverlay
           value={date}
-          // Block selecting any date after today.
-          // This prevents future dates through the picker UI.
+          onChange={onDateChange}
           max={maxDate}
-          // Update AddSet state when the user edits the value.
-          onChange={e => onDateChange(e.target.value)}
-          className="date-input-add-set w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
+          label="Date"
+          variant="addSet"
+          placeholder="Select date"
         />
 
         {/* Show validation feedback directly under the field */}
