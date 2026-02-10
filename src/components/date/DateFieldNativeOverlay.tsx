@@ -1,4 +1,5 @@
 import { useId } from "react"
+import { CalendarDays } from "lucide-react"
 
 type DateFieldVariant = "addSet" | "insight" | "export"
 
@@ -48,12 +49,12 @@ function getLabelClassName(variant: DateFieldVariant) {
 
 function getShellClassName(variant: DateFieldVariant) {
   if (variant === "addSet") {
-    return "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
+    return "w-full rounded-xl border border-gray-200 bg-white px-4 pr-11 py-3 text-gray-900"
   }
   if (variant === "insight") {
-    return "w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
+    return "w-full rounded-2xl border border-slate-200 bg-white px-3 pr-10 py-2 text-base text-slate-900 shadow-sm"
   }
-  return "w-full rounded-2xl bg-slate-100 px-4 py-3 text-base text-slate-900"
+  return "w-full rounded-2xl bg-slate-100 px-4 pr-11 py-3 text-base text-slate-900"
 }
 
 function getInputWrapClassName(variant: DateFieldVariant) {
@@ -91,6 +92,9 @@ export default function DateFieldNativeOverlay({
         >
           {displayText}
         </div>
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+          <CalendarDays className="h-4 w-4" />
+        </span>
 
         <input
           id={inputId}
