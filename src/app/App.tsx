@@ -87,9 +87,7 @@ function TabLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="min-h-screen pb-[calc(7rem+env(safe-area-inset-bottom))]">
-        <Outlet />
-      </div>
+      <Outlet />
       {showTabs ? <BottomTabBar /> : null}
     </div>
   )
