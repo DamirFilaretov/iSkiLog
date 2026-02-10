@@ -18,26 +18,38 @@ body {
   overflow-x: hidden;
 }
 
-/* Keep iOS date inputs stable on physical iPhone Safari. */
-input[type="date"].ios-date-fix {
+/* iOS-safe date inputs per context (no hard max-width caps). */
+input[type="date"].date-input-add-set,
+input[type="date"].date-input-insight,
+input[type="date"].date-input-export {
   display: block;
   width: 100%;
   inline-size: 100%;
   min-inline-size: 0;
   min-width: 0;
+  max-width: none;
   box-sizing: border-box;
+  font-size: 16px;
+  line-height: 1.25;
+  overflow: clip;
 }
 
-input[type="date"].ios-date-fix::-webkit-date-and-time-value {
+input[type="date"].date-input-add-set::-webkit-date-and-time-value,
+input[type="date"].date-input-insight::-webkit-date-and-time-value,
+input[type="date"].date-input-export::-webkit-date-and-time-value {
   min-width: 0;
   text-align: left;
 }
 
-input[type="date"].ios-date-fix::-webkit-datetime-edit {
+input[type="date"].date-input-add-set::-webkit-datetime-edit,
+input[type="date"].date-input-insight::-webkit-datetime-edit,
+input[type="date"].date-input-export::-webkit-datetime-edit {
   min-width: 0;
   padding: 0;
 }
 
-input[type="date"].ios-date-fix::-webkit-datetime-edit-fields-wrapper {
+input[type="date"].date-input-add-set::-webkit-datetime-edit-fields-wrapper,
+input[type="date"].date-input-insight::-webkit-datetime-edit-fields-wrapper,
+input[type="date"].date-input-export::-webkit-datetime-edit-fields-wrapper {
   min-width: 0;
 }

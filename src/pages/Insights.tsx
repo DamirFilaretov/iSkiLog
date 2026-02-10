@@ -480,7 +480,7 @@ export default function Insights() {
                         setCustomStart(e.target.value)
                         setExportError(null)
                       }}
-                      className="ios-date-fix mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
+                      className="date-input-export mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
                     />
                   </div>
                   <div className="min-w-0">
@@ -492,7 +492,7 @@ export default function Insights() {
                         setCustomEnd(e.target.value)
                         setExportError(null)
                       }}
-                      className="ios-date-fix mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
+                      className="date-input-export mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
                     />
                   </div>
                 </div>

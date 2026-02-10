@@ -42,7 +42,7 @@ export default function BaseFields({
           max={maxDate}
           // Update AddSet state when the user edits the value.
           onChange={e => onDateChange(e.target.value)}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
+          className="date-input-add-set w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
         />
 
         {/* Show validation feedback directly under the field */}

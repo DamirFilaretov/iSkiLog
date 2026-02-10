@@ -158,7 +158,7 @@ export default function OtherInsights({ sets, dataSource }: Props) {
               type="date"
               value={customStart}
               onChange={event => setCustomStart(event.target.value)}
-              className="ios-date-fix w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
+              className="date-input-insight w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
             />
           </div>
           <div className="min-w-0">
@@ -167,7 +167,7 @@ export default function OtherInsights({ sets, dataSource }: Props) {
               type="date"
               value={customEnd}
               onChange={event => setCustomEnd(event.target.value)}
-              className="ios-date-fix w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
+              className="date-input-insight w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 shadow-sm"
             />
           </div>
         </div>
