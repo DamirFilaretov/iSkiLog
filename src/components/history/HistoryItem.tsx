@@ -1,19 +1,26 @@
 import { useNavigate } from "react-router-dom"
 import type { SkiSet } from "../../types/sets"
 import { usePreferences } from "../../lib/preferences"
-import { Star } from "lucide-react"
+import { Star, Route, Shuffle, Rocket, Zap, Wind } from "lucide-react"
 
-/**
- * UI helpers for icons and labels.
- * Keep these here so HistoryItem stays self contained.
- */
 function eventIcon(set: SkiSet) {
-  if (set.event === "slalom") return "🌉"
-  if (set.event === "tricks") return "🏆"
+  if (set.event === "slalom") return <Route className="h-5 w-5 text-white" strokeWidth={2} />
+  if (set.event === "tricks") return <Shuffle className="h-5 w-5 text-white" strokeWidth={2} />
   if (set.event === "jump") {
-    return set.data.subEvent === "cuts" ? "💨" : "✈️"
+    return set.data.subEvent === "cuts"
+      ? <Wind className="h-5 w-5 text-white" strokeWidth={2} />
+      : <Rocket className="h-5 w-5 text-white" strokeWidth={2} />
   }
-  return "➕"
+  return <Zap className="h-5 w-5 text-white" strokeWidth={2} />
+}
+
+function eventIconBgClass(set: SkiSet) {
+  if (set.event === "slalom") return "bg-blue-600"
+  if (set.event === "tricks") return "bg-purple-600"
+  if (set.event === "jump") {
+    return set.data.subEvent === "cuts" ? "bg-amber-500" : "bg-orange-500"
+  }
+  return "bg-emerald-500"
 }
 
 function eventLabel(set: SkiSet) {
@@ -59,10 +66,6 @@ function formatJumpDistance(value: number | null | undefined, unit: "meters" | "
   return `${rounded}${suffix}`
 }
 
-
-/**
- * Build a short highlight line that depends on the event type.
- */
 function highlight(set: SkiSet, ropeUnit: "meters" | "feet", speedUnit: "kmh" | "mph") {
   if (set.event === "slalom") {
     const buoys = set.data.buoys === null ? "--" : String(set.data.buoys)
@@ -106,9 +109,14 @@ export default function HistoryItem({
     <button
       type="button"
       onClick={() => navigate(`/set/${set.id}`)}
-      className="w-full text-left flex items-start gap-4 rounded-2xl bg-white p-4 shadow-sm active:scale-95 transition"
+      className="flex w-full items-start gap-4 rounded-2xl bg-white p-4 text-left shadow-sm transition active:scale-95"
     >
-      <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+      <div
+        className={[
+          "flex h-10 w-10 items-center justify-center rounded-xl text-white",
+          eventIconBgClass(set)
+        ].join(" ")}
+      >
         {eventIcon(set)}
       </div>
 
@@ -126,9 +134,9 @@ export default function HistoryItem({
               }}
               disabled={favoriteDisabled}
               className={[
-                "h-7 w-7 rounded-full flex items-center justify-center transition",
+                "flex h-7 w-7 items-center justify-center rounded-full transition",
                 set.isFavorite ? "text-amber-500" : "text-gray-300 hover:text-amber-500",
-                favoriteDisabled ? "opacity-50 cursor-not-allowed" : ""
+                favoriteDisabled ? "cursor-not-allowed opacity-50" : ""
               ].join(" ")}
               aria-label={set.isFavorite ? "Remove from favourites" : "Add to favourites"}
             >
@@ -140,7 +148,9 @@ export default function HistoryItem({
           </div>
         </div>
 
-        <p className="mt-1 text-sm font-medium text-blue-600">{highlight(set, preferences.ropeUnit, preferences.speedUnit)}</p>
+        <p className="mt-1 text-sm font-medium text-blue-600">
+          {highlight(set, preferences.ropeUnit, preferences.speedUnit)}
+        </p>
 
         <p className="mt-1 text-sm text-gray-500">
           {set.notes.trim() ? set.notes : "No notes."}

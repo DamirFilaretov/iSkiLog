@@ -1,14 +1,14 @@
 import { useNavigate } from "react-router-dom"
+import { History } from "lucide-react"
 
 export default function HomeHeader() {
   const navigate = useNavigate()
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        {/* App title */}
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 mb-0.5">
+          <h1 className="mb-0.5 text-xl font-semibold text-slate-900">
             iSkiLog
           </h1>
           <p className="text-sm text-slate-500">
@@ -16,13 +16,12 @@ export default function HomeHeader() {
           </p>
         </div>
 
-        {/* History button */}
         <button
           onClick={() => navigate("/history")}
-          className="w-11 h-11 rounded-full bg-white shadow-sm flex items-center justify-center hover:shadow-md transition-shadow"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:text-slate-900 hover:shadow-md"
           aria-label="History"
         >
-          <span className="text-sm text-slate-700">🕒</span>
+          <History className="h-[18px] w-[18px]" />
         </button>
       </div>
     </div>

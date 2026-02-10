@@ -1,12 +1,32 @@
 import { useEffect, useRef, useState } from "react"
+import { ChevronDown, Route, Shuffle, Rocket, Zap } from "lucide-react"
 import type { EventKey } from "../../types/sets"
 
-// UI config stays here because it is presentation only, not the data model.
-const EVENTS: { id: EventKey; label: string; icon: string; color: string }[] = [
-  { id: "slalom", label: "Slalom", icon: "🌉", color: "bg-blue-600" },
-  { id: "tricks", label: "Tricks", icon: "🏆", color: "bg-purple-600" },
-  { id: "jump", label: "Jump", icon: "✈️", color: "bg-orange-500" },
-  { id: "other", label: "Other", icon: "➕", color: "bg-indigo-600" }
+const EVENTS: { id: EventKey; label: string; icon: React.ReactNode; color: string }[] = [
+  {
+    id: "slalom",
+    label: "Slalom",
+    icon: <Route className="h-3.5 w-3.5 text-white" strokeWidth={2} />,
+    color: "bg-blue-600"
+  },
+  {
+    id: "tricks",
+    label: "Tricks",
+    icon: <Shuffle className="h-3.5 w-3.5 text-white" strokeWidth={2} />,
+    color: "bg-purple-600"
+  },
+  {
+    id: "jump",
+    label: "Jump",
+    icon: <Rocket className="h-3.5 w-3.5 text-white" strokeWidth={2} />,
+    color: "bg-orange-500"
+  },
+  {
+    id: "other",
+    label: "Other",
+    icon: <Zap className="h-3.5 w-3.5 text-white" strokeWidth={2} />,
+    color: "bg-emerald-500"
+  }
 ]
 
 type Props = {
@@ -16,11 +36,8 @@ type Props = {
 
 export default function EventTypeSelect({ value, onChange }: Props) {
   const [open, setOpen] = useState(false)
-
-  // Ref to detect outside clicks
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  // Derive selected event for display
   const selected = EVENTS.find(e => e.id === value) ?? EVENTS[0]
 
   useEffect(() => {
@@ -31,7 +48,6 @@ export default function EventTypeSelect({ value, onChange }: Props) {
       const target = event.target as Node | null
       if (!target) return
 
-      // Close dropdown when clicking outside
       if (!el.contains(target)) setOpen(false)
     }
 
@@ -46,27 +62,27 @@ export default function EventTypeSelect({ value, onChange }: Props) {
 
   return (
     <div ref={wrapperRef} className="relative">
-      <label className="block text-sm text-gray-500 mb-1">Event Type</label>
+      <label className="mb-1 block text-sm text-gray-500">Event Type</label>
 
       <button
         onClick={() => setOpen(prev => !prev)}
         type="button"
-        className="w-full rounded-xl bg-white border border-gray-200 px-4 py-3 flex items-center justify-between"
+        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3"
       >
         <div className="flex items-center gap-3">
           <div
-            className={`h-6 w-6 rounded-md flex items-center justify-center text-white ${selected.color}`}
+            className={`flex h-6 w-6 items-center justify-center rounded-md ${selected.color}`}
           >
             {selected.icon}
           </div>
           <span className="text-gray-900">{selected.label}</span>
         </div>
 
-        <span className="text-gray-400">▾</span>
+        <ChevronDown className="h-4 w-4 text-gray-400" />
       </button>
 
-      {open && (
-        <div className="absolute z-10 mt-2 w-full rounded-xl bg-white shadow-lg border border-gray-100 overflow-hidden">
+      {open ? (
+        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg">
           {EVENTS.map(event => (
             <button
               key={event.id}
@@ -75,10 +91,10 @@ export default function EventTypeSelect({ value, onChange }: Props) {
                 onChange(event.id)
                 setOpen(false)
               }}
-              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50"
+              className="flex w-full items-center gap-3 px-4 py-3 hover:bg-gray-50"
             >
               <div
-                className={`h-6 w-6 rounded-md flex items-center justify-center text-white ${event.color}`}
+                className={`flex h-6 w-6 items-center justify-center rounded-md ${event.color}`}
               >
                 {event.icon}
               </div>
@@ -86,7 +102,7 @@ export default function EventTypeSelect({ value, onChange }: Props) {
             </button>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -26,6 +26,51 @@ function buildYearSeasonDates(year: number) {
   }
 }
 
+function metadataName(user: User) {
+  const meta = user.user_metadata as Record<string, unknown> | undefined
+  if (!meta) return ""
+
+  const fromDirect =
+    (typeof meta.full_name === "string" && meta.full_name.trim()) ||
+    (typeof meta.name === "string" && meta.name.trim()) ||
+    (typeof meta.display_name === "string" && meta.display_name.trim()) ||
+    ""
+
+  if (fromDirect) return fromDirect
+
+  const first =
+    (typeof meta.first_name === "string" && meta.first_name.trim()) ||
+    (typeof meta.given_name === "string" && meta.given_name.trim()) ||
+    ""
+  const last =
+    (typeof meta.last_name === "string" && meta.last_name.trim()) ||
+    (typeof meta.family_name === "string" && meta.family_name.trim()) ||
+    ""
+
+  return `${first} ${last}`.trim()
+}
+
+async function ensureProfileName(user: User) {
+  const candidate = metadataName(user)
+
+  const { data: profile, error: selectError } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if (selectError) throw selectError
+
+  const existing = (profile?.full_name ?? "").trim()
+  if (existing) return
+
+  const { error: upsertError } = await supabase.from("profiles").upsert({
+    user_id: user.id,
+    full_name: candidate
+  })
+  if (upsertError) throw upsertError
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -111,6 +156,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setCacheUserId(user.id)
         const cached = readSetsCache(user.id)
+
+        await ensureProfileName(user)
 
         if (cached && !setsHydrated) {
           replaceAll(cached.sets)
