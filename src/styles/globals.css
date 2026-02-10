@@ -18,14 +18,14 @@ body {
   overflow-x: hidden;
 }
 
-/* Keep iOS date inputs inside their grid cell (Safari has large intrinsic width). */
+/* Keep iOS date inputs stable on physical iPhone Safari. */
 input[type="date"].ios-date-fix {
-  width: 100%;
-  max-width: 30rem;
-  min-width: 0;
   display: block;
+  width: 100%;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-width: 0;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 input[type="date"].ios-date-fix::-webkit-date-and-time-value {

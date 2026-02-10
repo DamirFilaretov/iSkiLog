@@ -470,8 +470,8 @@ export default function Insights() {
               </div>
 
               {exportRange === "custom" ? (
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <div className="min-w-0 overflow-hidden">
+                <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
+                  <div className="min-w-0">
                     <label className="text-xs text-slate-500">Start date</label>
                     <input
                       type="date"
@@ -480,10 +480,10 @@ export default function Insights() {
                         setCustomStart(e.target.value)
                         setExportError(null)
                       }}
-                      className="ios-date-fix mt-2 w-full max-w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
+                      className="ios-date-fix mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
                     />
                   </div>
-                  <div className="min-w-0 overflow-hidden">
+                  <div className="min-w-0">
                     <label className="text-xs text-slate-500">End date</label>
                     <input
                       type="date"
@@ -492,7 +492,7 @@ export default function Insights() {
                         setCustomEnd(e.target.value)
                         setExportError(null)
                       }}
-                      className="ios-date-fix mt-2 w-full max-w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
+                      className="ios-date-fix mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-base"
                     />
                   </div>
                 </div>
