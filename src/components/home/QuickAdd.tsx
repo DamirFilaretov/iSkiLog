@@ -1,4 +1,4 @@
-import { TrendingUp, Calendar, Target, Zap } from "lucide-react"
+import { Route, Shuffle, Rocket, Zap } from "lucide-react"
 import EventTile from "./EventTile"
 
 export default function QuickAdd() {
@@ -13,19 +13,19 @@ export default function QuickAdd() {
           event="slalom"
           label="Slalom"
           gradient="bg-gradient-to-br from-blue-600 to-cyan-500"
-          icon={<TrendingUp className="w-5 h-5 text-white" strokeWidth={2} />}
+          icon={<Route className="w-5 h-5 text-white" strokeWidth={2} />}
         />
         <EventTile
           event="tricks"
           label="Tricks"
           gradient="bg-gradient-to-br from-purple-600 to-pink-500"
-          icon={<Calendar className="w-5 h-5 text-white" strokeWidth={2} />}
+          icon={<Shuffle className="w-5 h-5 text-white" strokeWidth={2} />}
         />
         <EventTile
           event="jump"
           label="Jump"
           gradient="bg-gradient-to-br from-orange-500 to-yellow-400"
-          icon={<Target className="w-5 h-5 text-white" strokeWidth={2} />}
+          icon={<Rocket className="w-5 h-5 text-white" strokeWidth={2} />}
         />
         <EventTile
           event="other"

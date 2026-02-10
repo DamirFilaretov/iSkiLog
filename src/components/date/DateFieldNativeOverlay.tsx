@@ -1,5 +1,5 @@
 import { useId } from "react"
-import { CalendarDays } from "lucide-react"
+import { ArrowDownUp } from "lucide-react"
 
 type DateFieldVariant = "addSet" | "insight" | "export"
 
@@ -93,7 +93,7 @@ export default function DateFieldNativeOverlay({
           {displayText}
         </div>
         <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
-          <CalendarDays className="h-4 w-4" />
+          <ArrowDownUp className="h-4 w-4" />
         </span>
 
         <input
