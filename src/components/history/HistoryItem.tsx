@@ -104,11 +104,19 @@ export default function HistoryItem({
 }: Props) {
   const { preferences } = usePreferences()
   const navigate = useNavigate()
+  const setPath = `/set/${set.id}`
 
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/set/${set.id}`)}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(setPath)}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          navigate(setPath)
+        }
+      }}
       className="flex w-full items-start gap-4 rounded-2xl bg-white p-4 text-left shadow-sm transition active:scale-95"
     >
       <div
@@ -156,6 +164,6 @@ export default function HistoryItem({
           {set.notes.trim() ? set.notes : "No notes."}
         </p>
       </div>
-    </button>
+    </div>
   )
 }
