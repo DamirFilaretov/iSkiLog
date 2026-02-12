@@ -30,6 +30,13 @@ function isEventKey(v: string | null): v is EventKey {
   return v === "slalom" || v === "tricks" || v === "jump" || v === "other"
 }
 
+function isAllowedSlalomBuoysValue(value: number) {
+  if (!Number.isFinite(value)) return false
+  const fractional = ((value % 1) + 1) % 1
+  const rounded = Math.round(fractional * 100) / 100
+  return rounded === 0 || rounded === 0.25 || rounded === 0.5
+}
+
 export default function AddSet() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -225,7 +232,15 @@ export default function AddSet() {
 
   const buoysInvalid =
     event === "slalom" && slalomBuoys !== null && slalomBuoys > 6
-  const buoysError = buoysInvalid ? "Buoys cannot be more than 6." : ""
+  const buoysStepInvalid =
+    event === "slalom" &&
+    slalomBuoys !== null &&
+    !isAllowedSlalomBuoysValue(slalomBuoys)
+  const buoysError = buoysInvalid
+    ? "Buoys cannot be more than 6."
+    : buoysStepInvalid
+      ? "Only full buoys, .25, or .5 values are allowed."
+      : ""
 
   const requiredMissing = (() => {
     if (event === "slalom") {
@@ -244,7 +259,7 @@ export default function AddSet() {
   })()
 
   const canSave =
-    !dateIsInFuture && !isSubmitting && !buoysInvalid && !requiredMissing
+    !dateIsInFuture && !isSubmitting && !buoysInvalid && !buoysStepInvalid && !requiredMissing
 
   function buildSetObject(id: string, seasonId: string | null): SkiSet {
     if (event === "slalom") {
@@ -357,6 +372,11 @@ export default function AddSet() {
 
     if (buoysInvalid) {
       setError("Buoys cannot be more than 6.")
+      return
+    }
+
+    if (buoysStepInvalid) {
+      setError("Buoys must be a whole number, or end in .25 or .5.")
       return
     }
 
