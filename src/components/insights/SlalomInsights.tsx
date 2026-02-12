@@ -241,8 +241,8 @@ function SeriesChart({
 
   return (
     <div className="mt-3">
-      <div className="h-40 w-full rounded-2xl bg-slate-50 p-3">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-40 min-h-[10rem] w-full min-w-0 rounded-2xl bg-slate-50 p-3">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={120}>
           <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
             <CartesianGrid stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
