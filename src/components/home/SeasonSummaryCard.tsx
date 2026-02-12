@@ -7,7 +7,7 @@ export default function SeasonSummaryCard() {
   const totalText = ready ? String(getTotalSetsForActiveSeason()) : "Loading…"
 
   return (
-    <div className="bg-gradient-to-br from-blue-600 to-blue-500 rounded-3xl p-5 mb-4 shadow-lg shadow-blue-500/20">
+    <div className="bg-gradient-to-br from-blue-600 to-cyan-500 rounded-3xl p-5 mb-4 shadow-lg shadow-blue-500/20">
       <p className="text-blue-100 text-sm">
         Total sets this season
       </p>

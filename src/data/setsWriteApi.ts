@@ -32,7 +32,8 @@ export async function createSet(args: { set: SkiSet }): Promise<string> {
       set_id: setId,
       buoys: set.data.buoys ?? 0,
       rope_length: set.data.ropeLength ?? "",
-      speed: set.data.speed ? Number(set.data.speed) : null
+      speed: set.data.speed ? Number(set.data.speed) : null,
+      passes_count: set.data.passesCount ?? 0
     })
     if (error) throw error
   }

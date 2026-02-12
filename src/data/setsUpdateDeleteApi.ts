@@ -30,7 +30,8 @@ export async function updateSetInDb(args: { set: SkiSet; previousEvent: EventKey
       set_id: set.id,
       buoys: set.data.buoys ?? 0,
       rope_length: set.data.ropeLength ?? "",
-      speed: set.data.speed ? Number(set.data.speed) : null
+      speed: set.data.speed ? Number(set.data.speed) : null,
+      passes_count: set.data.passesCount ?? 0
     })
     if (error) throw error
   }

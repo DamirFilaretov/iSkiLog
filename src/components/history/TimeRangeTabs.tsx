@@ -28,12 +28,12 @@ export default function TimeRangeTabs({
 
   return (
     <div className="px-4 mt-4">
-      <div className="bg-white rounded-full p-1 flex gap-1 shadow-sm">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={onFavoritesToggle}
           className={[
-            "h-9 w-9 shrink-0 rounded-full flex items-center justify-center transition",
+            "h-11 w-11 shrink-0 rounded-full bg-white shadow-sm flex items-center justify-center transition",
             favoritesOnly ? "bg-amber-400 text-white" : "text-gray-500 hover:bg-gray-100"
           ].join(" ")}
           aria-label={favoritesOnly ? "Disable favourites filter" : "Enable favourites filter"}
@@ -45,22 +45,24 @@ export default function TimeRangeTabs({
           />
         </button>
 
-        {tabs.map(tab => {
-          const isActive = value === tab.key
+        <div className="flex-1 bg-white rounded-full p-1 flex gap-1 shadow-sm">
+          {tabs.map(tab => {
+            const isActive = value === tab.key
 
-          return (
-            <button
-              key={tab.key}
-              onClick={() => onChange(tab.key)}
-              className={[
-                "flex-1 rounded-full py-2 text-sm transition",
-                isActive ? "bg-blue-600 text-white" : "text-gray-700"
-              ].join(" ")}
-            >
-              {tab.label}
-            </button>
-          )
-        })}
+            return (
+              <button
+                key={tab.key}
+                onClick={() => onChange(tab.key)}
+                className={[
+                  "flex-1 rounded-full py-2 text-sm transition",
+                  isActive ? "bg-blue-600 text-white" : "text-gray-700"
+                ].join(" ")}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
