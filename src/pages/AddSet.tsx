@@ -56,6 +56,7 @@ export default function AddSet() {
   const [slalomBuoys, setSlalomBuoys] = useState<number | null>(null)
   const [slalomRopeLength, setSlalomRopeLength] = useState("")
   const [slalomSpeed, setSlalomSpeed] = useState("")
+  const [slalomPassesCount, setSlalomPassesCount] = useState<number | null>(6)
 
   const [tricksDuration, setTricksDuration] = useState<number | null>(null)
   const [tricksType, setTricksType] = useState<"hands" | "toes">("hands")
@@ -126,6 +127,7 @@ export default function AddSet() {
     if (editingSet.event === "slalom") {
       setSlalomBuoys(editingSet.data.buoys)
       setSlalomRopeLength(editingSet.data.ropeLength)
+      setSlalomPassesCount(editingSet.data.passesCount ?? 0)
       const speedValue = parseSpeedInput(editingSet.data.speed)
       if (speedValue === null) {
         setSlalomSpeed("")
@@ -227,7 +229,7 @@ export default function AddSet() {
 
   const requiredMissing = (() => {
     if (event === "slalom") {
-      return slalomBuoys === null || !slalomRopeLength || !slalomSpeed
+      return slalomBuoys === null || !slalomRopeLength || !slalomSpeed || slalomPassesCount === null
     }
     if (event === "tricks") {
       return tricksDuration === null
@@ -261,7 +263,8 @@ export default function AddSet() {
         data: {
           buoys: slalomBuoys,
           ropeLength: slalomRopeLength,
-          speed: normalizedSpeed
+          speed: normalizedSpeed,
+          passesCount: slalomPassesCount
         }
       }
     }
@@ -418,9 +421,11 @@ export default function AddSet() {
             buoys={slalomBuoys}
             ropeLength={slalomRopeLength}
             speed={slalomSpeed}
+            passesCount={slalomPassesCount}
             onBuoysChange={setSlalomBuoys}
             onRopeLengthChange={setSlalomRopeLength}
             onSpeedChange={setSlalomSpeed}
+            onPassesCountChange={setSlalomPassesCount}
             buoysError={buoysError}
           />
         )}

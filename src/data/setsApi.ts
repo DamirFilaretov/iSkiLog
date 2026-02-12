@@ -58,7 +58,8 @@ export async function fetchSets(): Promise<SkiSet[]> {
         data: {
           buoys: data?.buoys ?? null,
           ropeLength: data?.rope_length ?? "",
-          speed: data?.speed ?? ""
+          speed: data?.speed ?? "",
+          passesCount: data?.passes_count ?? 0
         }
       })
     }

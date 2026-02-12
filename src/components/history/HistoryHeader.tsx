@@ -7,7 +7,7 @@ export default function HistoryHeader() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/")}
             className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
           >
             ←

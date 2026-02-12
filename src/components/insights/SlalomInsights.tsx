@@ -322,6 +322,8 @@ export default function SlalomInsights({ sets }: Props) {
         preferences.ropeUnit
       )
     : "No sets yet"
+  const totalPassesText = hasSlalomSets ? String(stats.totalPasses) : "No sets yet"
+  const avgPassesPerSetText = hasSlalomSets ? trimNumber(stats.averagePassesPerSet) : "No sets yet"
 
   const trendText = series.length > 1 && series[series.length - 1].value >= series[0].value
     ? "Improving trend"
@@ -396,6 +398,20 @@ export default function SlalomInsights({ sets }: Props) {
           </div>
           <p className="mt-3 text-sm font-semibold text-slate-900 leading-tight">
             {averageResult}
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
+          <p className="text-xs text-slate-500">Total Passes</p>
+          <p className="mt-3 text-sm font-semibold text-slate-900 leading-tight">
+            {totalPassesText}
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
+          <p className="text-xs text-slate-500">Avg Passes / Set</p>
+          <p className="mt-3 text-sm font-semibold text-slate-900 leading-tight">
+            {avgPassesPerSetText}
           </p>
         </div>
       </div>

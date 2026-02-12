@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 import HistoryHeader from "../components/history/HistoryHeader"
 import TimeRangeTabs, { type RangeKey } from "../components/history/TimeRangeTabs"
 import HistoryItem from "../components/history/HistoryItem"
+import DateFieldNativeOverlay from "../components/date/DateFieldNativeOverlay"
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet } from "../types/sets"
 import { updateSetFavoriteInDb } from "../data/setsUpdateDeleteApi"
-
-function isRangeKey(value: string | null): value is RangeKey {
-  return value === "day" || value === "week" || value === "month" || value === "season" || value === "all"
-}
 
 function todayLocalIsoDate() {
   const now = new Date()
@@ -25,13 +22,24 @@ function isoToLocalDate(iso: string) {
   return new Date(y, (m ?? 1) - 1, d ?? 1)
 }
 
+function daysAgoIsoDate(days: number) {
+  const now = new Date()
+  now.setDate(now.getDate() - days)
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, "0")
+  const d = String(now.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
 /**
  * Filter sets based on selected range.
  * For day, week, month, season: input should already be season filtered.
  * For all: we ignore season filtering and show everything.
  */
-function filterByRange(range: RangeKey, sets: SkiSet[]) {
+function filterByRange(range: RangeKey | null, sets: SkiSet[], customStart: string, customEnd: string) {
   const todayIso = todayLocalIsoDate()
+
+  if (range === null) return sets
 
   if (range === "day") {
     return sets.filter(s => s.date === todayIso)
@@ -63,38 +71,36 @@ function filterByRange(range: RangeKey, sets: SkiSet[]) {
     return sets
   }
 
+  if (range === "custom") {
+    if (!customStart || !customEnd) return sets
+    if (customStart > customEnd) return []
+
+    return sets.filter(s => s.date >= customStart && s.date <= customEnd)
+  }
+
   return sets
 }
 
 export default function History() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
   const { sets, getActiveSeason, setsHydrated, setFavorite } = useSetsStore()
 
-  const initialRange = isRangeKey(searchParams.get("range"))
-    ? (searchParams.get("range") as RangeKey)
-    : "day"
-
-  const [range, setRange] = useState<RangeKey>(initialRange)
-  const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [range, setRange] = useState<RangeKey | null>(null)
+  const [customStart, setCustomStart] = useState(daysAgoIsoDate(30))
+  const [customEnd, setCustomEnd] = useState(todayLocalIsoDate())
+  const [favoritesOnly, setFavoritesOnly] = useState(true)
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
   const [togglingFavoriteIds, setTogglingFavoriteIds] = useState<Set<string>>(
     () => new Set()
   )
 
   useEffect(() => {
-    const param = searchParams.get("range")
-    if (isRangeKey(param) && param !== range) {
-      setRange(param)
-    }
-  }, [searchParams])
+    if (range !== "custom") return
+    if (customStart && customEnd) return
 
-  useEffect(() => {
-    if (searchParams.get("range") === range) return
-    const next = new URLSearchParams(searchParams)
-    next.set("range", range)
-    setSearchParams(next, { replace: true })
-  }, [range, searchParams, setSearchParams])
+    setCustomStart(daysAgoIsoDate(30))
+    setCustomEnd(todayLocalIsoDate())
+  }, [range, customStart, customEnd])
 
   const activeSeason = getActiveSeason()
 
@@ -108,12 +114,12 @@ export default function History() {
   }, [sets, activeSeason])
 
   const listToFilter = useMemo(() => {
-    if (range === "all") return sets
+    if (range === "all" || range === null) return sets
     return seasonOnlySets
   }, [range, sets, seasonOnlySets])
 
   const filteredAndSorted = useMemo(() => {
-    const filteredByRange = filterByRange(range, listToFilter)
+    const filteredByRange = filterByRange(range, listToFilter, customStart, customEnd)
     const filtered = favoritesOnly
       ? filteredByRange.filter(setItem => setItem.isFavorite)
       : filteredByRange
@@ -123,21 +129,18 @@ export default function History() {
       if (a.date < b.date) return 1
       return 0
     })
-  }, [range, listToFilter, favoritesOnly])
+  }, [range, listToFilter, favoritesOnly, customStart, customEnd])
 
-  const needsSeasonButMissing = range !== "all" && !activeSeason
-  const seasonHasNoSets = range !== "all" && activeSeason && seasonOnlySets.length === 0
+  const filtersInactive = !favoritesOnly && range === null
+  const customRangeInvalid = range === "custom" && customStart > customEnd
+
+  const needsSeasonButMissing = range !== null && range !== "all" && !activeSeason
+  const seasonHasNoSets = range !== null && range !== "all" && activeSeason && seasonOnlySets.length === 0
 
   const showLoading = !setsHydrated
 
   function handleToggleFavoritesFilter() {
-    setFavoritesOnly(prev => {
-      const next = !prev
-      if (next && range === "day") {
-        setRange("all")
-      }
-      return next
-    })
+    setFavoritesOnly(prev => !prev)
   }
 
   async function handleToggleFavorite(setItem: SkiSet, nextValue: boolean) {
@@ -177,8 +180,43 @@ export default function History() {
         favoritesOnly={favoritesOnly}
         onFavoritesToggle={handleToggleFavoritesFilter}
       />
+      {range === "custom" ? (
+        <div className="px-4 mt-3 flex flex-col gap-3 lg:grid lg:grid-cols-2">
+          <DateFieldNativeOverlay
+            value={customStart}
+            onChange={setCustomStart}
+            label="Start date"
+            placeholder="Select start date"
+            variant="insight"
+          />
+          <DateFieldNativeOverlay
+            value={customEnd}
+            onChange={setCustomEnd}
+            label="End date"
+            placeholder="Select end date"
+            variant="insight"
+          />
+        </div>
+      ) : null}
 
       <div className="mt-4 px-4 space-y-4 pb-6">
+        {filtersInactive ? (
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-900">Choose a filter to view history</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Select the star filter and a time range.
+            </p>
+          </div>
+        ) : null}
+
+        {customRangeInvalid && !filtersInactive ? (
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-red-600">
+              Start date must be before end date.
+            </p>
+          </div>
+        ) : null}
+
         {showLoading ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">Loading history</p>
@@ -186,7 +224,7 @@ export default function History() {
               Fetching your sets
             </p>
           </div>
-        ) : needsSeasonButMissing ? (
+        ) : filtersInactive ? null : needsSeasonButMissing ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">No active season</p>
             <p className="mt-1 text-sm text-gray-500">
@@ -214,7 +252,7 @@ export default function History() {
           </div>
         ) : null}
 
-        {showLoading || needsSeasonButMissing || seasonHasNoSets ? null : filteredAndSorted.length === 0 ? (
+        {showLoading || filtersInactive || needsSeasonButMissing || seasonHasNoSets || customRangeInvalid ? null : filteredAndSorted.length === 0 ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">
               {favoritesOnly ? "No favourite sets in this range" : "No sets in this range"}

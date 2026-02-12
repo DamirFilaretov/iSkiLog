@@ -133,7 +133,14 @@ export default function SetSummary() {
       ? [
           { label: "Buoys", value: skiSet.data.buoys === null ? "—" : String(skiSet.data.buoys) },
           { label: "Rope Length", value: formatRopeLength(skiSet.data.ropeLength, preferences.ropeUnit) },
-          { label: "Speed", value: formatSpeed(skiSet.data.speed, preferences.speedUnit) }
+          { label: "Speed", value: formatSpeed(skiSet.data.speed, preferences.speedUnit) },
+          {
+            label: "Passes",
+            value:
+              skiSet.data.passesCount === null || skiSet.data.passesCount === undefined
+                ? "--"
+                : String(skiSet.data.passesCount)
+          }
         ]
       : skiSet.event === "tricks"
         ? [

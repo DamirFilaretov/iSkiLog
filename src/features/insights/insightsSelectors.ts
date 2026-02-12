@@ -380,6 +380,8 @@ export type SlalomBestSet = {
 
 export type SlalomStats = {
   totalSets: number
+  totalPasses: number
+  averagePassesPerSet: number
   averageScore: number
   averageBuoys: number
   averageRope: number
@@ -422,6 +424,12 @@ export function getSlalomScore(ropeLength: string | null | undefined, buoys: num
 export function getSlalomStats(sets: SkiSet[]): SlalomStats {
   const slalom = sets.filter((s): s is SkiSet & { event: "slalom" } => s.event === "slalom")
   const totalSets = slalom.length
+  const totalPasses = slalom.reduce((sum, set) => {
+    const value = set.data.passesCount
+    if (value === null || value === undefined || !Number.isFinite(value)) return sum
+    return sum + Math.max(0, value)
+  }, 0)
+  const averagePassesPerSet = totalSets === 0 ? 0 : totalPasses / totalSets
 
   const scoreValues = slalom.map(s =>
     getSlalomScore(s.data.ropeLength ?? "", s.data.buoys ?? null)
@@ -463,6 +471,8 @@ export function getSlalomStats(sets: SkiSet[]): SlalomStats {
 
   return {
     totalSets,
+    totalPasses,
+    averagePassesPerSet,
     averageScore,
     averageBuoys,
     averageRope,

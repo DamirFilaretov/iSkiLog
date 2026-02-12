@@ -26,6 +26,7 @@ export type SlalomData = {
   buoys: number | null
   ropeLength: string
   speed: string
+  passesCount: number | null
 }
 
 export type TricksData = {
