@@ -128,7 +128,7 @@ export default function TricksLibrary() {
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/insights")}
+            onClick={() => navigate("/insights?event=tricks")}
             className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
             aria-label="Go back to insights"
           >

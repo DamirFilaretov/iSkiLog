@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 
@@ -84,12 +84,23 @@ function csvEscape(value: string) {
   return needsQuotes ? `"${escaped}"` : escaped
 }
 
+function parseSelectedEventParam(value: string | null): EventKey | "all" | null {
+  if (value === "all") return "all"
+  if (value === "slalom") return "slalom"
+  if (value === "tricks") return "tricks"
+  if (value === "jump") return "jump"
+  if (value === "other") return "other"
+  return null
+}
+
 export default function Insights() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const eventParam = parseSelectedEventParam(searchParams.get("event"))
 
   const { sets, setsHydrated, seasons, activeSeasonId } = useSetsStore()
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
-  const [selectedEvent, setSelectedEvent] = useState<EventKey | "all">("all")
+  const [selectedEvent, setSelectedEvent] = useState<EventKey | "all">(eventParam ?? "all")
   const [exportOpen, setExportOpen] = useState(false)
   const [exportRange, setExportRange] = useState<ExportRange>("season")
   const [exportFormat, setExportFormat] = useState<ExportFormat>("csv")
@@ -125,6 +136,11 @@ export default function Insights() {
       setSelectedSeasonId(activeSeasonId ?? sortedSeasons[0].id)
     }
   }, [sortedSeasons, selectedSeasonId, activeSeasonId])
+
+  useEffect(() => {
+    if (!eventParam) return
+    setSelectedEvent(eventParam)
+  }, [eventParam])
 
   const selectedSeason = useMemo(() => {
     if (!selectedSeasonId) return undefined
