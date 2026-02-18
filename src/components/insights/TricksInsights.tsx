@@ -4,6 +4,7 @@ import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import { useNavigate } from "react-router-dom"
 import { fetchLearnedTrickIds } from "../../data/tricksLearnedApi"
+import { TRICK_CATALOG } from "../../features/tricks/trickCatalog"
 
 type RangeKey = "week" | "month" | "season" | "custom"
 type TrickType = "hands" | "toes"
@@ -214,15 +215,19 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   const handsPercent = totalTypeCount === 0 ? 0 : Math.round((handsCount / totalTypeCount) * 100)
   const toesPercent = totalTypeCount === 0 ? 0 : Math.round((toesCount / totalTypeCount) * 100)
 
-  const learnedSkills = useMemo(
-    () => sourceSkills.filter(skill => skill.status === "learned"),
-    [sourceSkills]
-  )
-
   const inProgressOrToLearn = useMemo(
     () => sourceSkills.filter(skill => skill.status === "in_progress" || skill.status === "to_learn"),
     [sourceSkills]
   )
+
+  const learnedTricksFromCatalog = useMemo(() => {
+    if (!learnedTrickIds) return []
+
+    return TRICK_CATALOG.filter(item => learnedTrickIds.has(item.id))
+  }, [learnedTrickIds])
+
+  const learnedPreview = useMemo(() => learnedTricksFromCatalog.slice(0, 5), [learnedTricksFromCatalog])
+  const hasMoreLearnedTricks = learnedTricksFromCatalog.length > learnedPreview.length
 
   const learnedCountText =
     learnedTrickIds === null
@@ -358,32 +363,34 @@ export default function TricksInsights({ sets, dataSource }: Props) {
       </div>
 
       <div className="px-4">
-        <button
-          type="button"
-          onClick={() => navigate("/insights/tricks-library")}
-          className="w-full rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-sm font-medium text-fuchsia-700 shadow-sm"
-        >
-          Manage Learned Tricks
-        </button>
-      </div>
-
-      <div className="px-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm shadow-slate-200/70">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-900">Learned Tricks</p>
             <ListChecks className="h-4 w-4 text-emerald-600" />
           </div>
-          {learnedSkills.length === 0 ? (
+          {learnedLoadError ? (
+            <p className="mt-3 text-sm text-red-600">Unable to load learned tricks</p>
+          ) : learnedTricksFromCatalog.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">No learned tricks yet.</p>
           ) : (
             <ul className="mt-3 space-y-2">
-              {learnedSkills.map(skill => (
-                <li key={skill.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  {skill.name}
+              {learnedPreview.map(trick => (
+                <li key={trick.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  {trick.name}
                 </li>
               ))}
             </ul>
           )}
+
+          {hasMoreLearnedTricks ? (
+            <button
+              type="button"
+              onClick={() => navigate("/insights/tricks-library")}
+              className="mt-3 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+            >
+              See more
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -406,6 +413,16 @@ export default function TricksInsights({ sets, dataSource }: Props) {
             </ul>
           )}
         </div>
+      </div>
+
+      <div className="px-4">
+        <button
+          type="button"
+          onClick={() => navigate("/insights/tricks-library")}
+          className="w-full rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-sm font-medium text-fuchsia-700 shadow-sm"
+        >
+          Manage Learned Tricks
+        </button>
       </div>
     </div>
   )
