@@ -1,0 +1,58 @@
+﻿name: e2e
+
+on:
+  pull_request:
+  push:
+    branches: [main, testingsetup]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase
+        run: supabase start
+
+      - name: Prepare .env.test
+        run: |
+          cat > .env.test <<'EOF'
+          VITE_SUPABASE_URL=http://127.0.0.1:54321
+          VITE_SUPABASE_ANON_KEY=${{ secrets.E2E_SUPABASE_ANON_KEY }}
+          E2E_SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          E2E_TEST_EMAIL_DOMAIN=e2e.iskilog.test
+          E2E_BASE_URL=http://127.0.0.1:4173
+          EOF
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare test database
+        run: npm run e2e:db:prepare
+
+      - name: Run E2E
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results/playwright

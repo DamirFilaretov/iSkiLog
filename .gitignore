@@ -6,6 +6,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.npm-cache/
+
 
 # dependencies
 node_modules
@@ -13,6 +15,8 @@ node_modules
 # build output
 dist
 dist-ssr
+playwright-report
+test-results
 
 # env files
 .env
