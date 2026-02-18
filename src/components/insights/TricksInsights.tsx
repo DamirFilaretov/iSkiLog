@@ -205,12 +205,14 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   const inProgressPreview = useMemo(() => inProgressTricksFromCatalog.slice(0, 5), [inProgressTricksFromCatalog])
   const hasMoreInProgressTricks = inProgressTricksFromCatalog.length > inProgressPreview.length
 
+  const totalTrickCount = TRICK_CATALOG.length
+
   const learnedCountText =
     learnedTrickIds === null
       ? selectionLoadError
-        ? "--"
-        : "..."
-      : String(learnedTrickIds.size)
+        ? `--/${totalTrickCount}`
+        : `.../${totalTrickCount}`
+      : `${learnedTrickIds.size}/${totalTrickCount}`
 
   return (
     <div className="space-y-4">
@@ -285,7 +287,13 @@ export default function TricksInsights({ sets, dataSource }: Props) {
           <p className="mt-3 text-2xl font-semibold text-slate-900 leading-tight">
             {learnedCountText}
           </p>
-          <p className="mt-1 text-xs text-slate-500">From Tricks Library</p>
+          <button
+            type="button"
+            onClick={() => navigate("/insights/tricks-library")}
+            className="mt-1 text-xs text-blue-600 underline underline-offset-2"
+          >
+            Trick Library
+          </button>
         </div>
       </div>
 
