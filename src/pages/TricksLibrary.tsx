@@ -2,16 +2,24 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { ArrowLeft, Check, Search } from "lucide-react"
 
-import { fetchLearnedTrickIds, setTrickLearned } from "../data/tricksLearnedApi"
+import {
+  fetchInProgressTrickIds,
+  fetchLearnedTrickIds,
+  setTrickInProgress,
+  setTrickLearned
+} from "../data/tricksLearnedApi"
 import { applyToggleResponse, setLearnedState } from "../features/tricks/learnedToggle"
 import { searchTricks } from "../features/tricks/trickCatalog"
+
+type ToggleTarget = "learned" | "in_progress"
 
 export default function TricksLibrary() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [learnedIds, setLearnedIds] = useState<Set<string>>(() => new Set())
-  const [savingIds, setSavingIds] = useState<Set<string>>(() => new Set())
+  const [inProgressIds, setInProgressIds] = useState<Set<string>>(() => new Set())
+  const [savingKeys, setSavingKeys] = useState<Set<string>>(() => new Set())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -32,13 +40,17 @@ export default function TricksLibrary() {
       setLoadError(null)
 
       try {
-        const ids = await fetchLearnedTrickIds()
+        const [learned, inProgress] = await Promise.all([
+          fetchLearnedTrickIds(),
+          fetchInProgressTrickIds()
+        ])
         if (!active) return
-        setLearnedIds(ids)
+        setLearnedIds(learned)
+        setInProgressIds(inProgress)
       } catch (err) {
-        console.error("Failed to load learned tricks", err)
+        console.error("Failed to load trick selections", err)
         if (!active) return
-        setLoadError("Unable to load learned tricks")
+        setLoadError("Unable to load trick selections")
       } finally {
         if (active) setLoading(false)
       }
@@ -64,60 +76,100 @@ export default function TricksLibrary() {
     setSearchParams(nextParams, { replace: true })
   }
 
-  async function handleToggle(trickId: string) {
+  async function handleToggle(trickId: string, target: ToggleTarget) {
     if (loading) return
-    if (savingIds.has(trickId)) return
+
+    const requestKey = `${trickId}:${target}`
+    if (savingKeys.has(requestKey)) return
 
     setSaveError(null)
 
-    const previousLearned = learnedIds.has(trickId)
-    const nextLearned = !previousLearned
+    const isLearnedToggle = target === "learned"
+    const previousValue = isLearnedToggle
+      ? learnedIds.has(trickId)
+      : inProgressIds.has(trickId)
+    const nextValue = !previousValue
 
-    const requestVersion = (latestRequestVersionRef.current[trickId] ?? 0) + 1
-    latestRequestVersionRef.current[trickId] = requestVersion
+    const requestVersion = (latestRequestVersionRef.current[requestKey] ?? 0) + 1
+    latestRequestVersionRef.current[requestKey] = requestVersion
 
-    setSavingIds(prev => {
+    setSavingKeys(prev => {
       const next = new Set(prev)
-      next.add(trickId)
+      next.add(requestKey)
       return next
     })
 
-    setLearnedIds(prev => setLearnedState(prev, trickId, nextLearned))
+    if (isLearnedToggle) {
+      setLearnedIds(prev => setLearnedState(prev, trickId, nextValue))
+    } else {
+      setInProgressIds(prev => setLearnedState(prev, trickId, nextValue))
+    }
 
     try {
-      await setTrickLearned({ trickId, learned: nextLearned })
-      const latestVersion = latestRequestVersionRef.current[trickId] ?? 0
-      setLearnedIds(prev => {
-        return applyToggleResponse({
-          current: prev,
-          trickId,
-          latestVersion,
-          responseVersion: requestVersion,
-          succeeded: true,
-          previousLearned
+      if (isLearnedToggle) {
+        await setTrickLearned({ trickId, learned: nextValue })
+      } else {
+        await setTrickInProgress({ trickId, inProgress: nextValue })
+      }
+
+      const latestVersion = latestRequestVersionRef.current[requestKey] ?? 0
+      if (isLearnedToggle) {
+        setLearnedIds(prev => {
+          return applyToggleResponse({
+            current: prev,
+            trickId,
+            latestVersion,
+            responseVersion: requestVersion,
+            succeeded: true,
+            previousLearned: previousValue
+          })
         })
-      })
+      } else {
+        setInProgressIds(prev => {
+          return applyToggleResponse({
+            current: prev,
+            trickId,
+            latestVersion,
+            responseVersion: requestVersion,
+            succeeded: true,
+            previousLearned: previousValue
+          })
+        })
+      }
     } catch (err) {
-      console.error("Failed to save learned trick", err)
-      setSaveError("Unable to save learned trick. Please try again.")
-      const latestVersion = latestRequestVersionRef.current[trickId] ?? 0
-      setLearnedIds(prev => {
-        return applyToggleResponse({
-          current: prev,
-          trickId,
-          latestVersion,
-          responseVersion: requestVersion,
-          succeeded: false,
-          previousLearned
+      console.error("Failed to save trick selection", err)
+      setSaveError("Unable to save trick selection. Please try again.")
+      const latestVersion = latestRequestVersionRef.current[requestKey] ?? 0
+      if (isLearnedToggle) {
+        setLearnedIds(prev => {
+          return applyToggleResponse({
+            current: prev,
+            trickId,
+            latestVersion,
+            responseVersion: requestVersion,
+            succeeded: false,
+            previousLearned: previousValue
+          })
         })
-      })
+      } else {
+        setInProgressIds(prev => {
+          return applyToggleResponse({
+            current: prev,
+            trickId,
+            latestVersion,
+            responseVersion: requestVersion,
+            succeeded: false,
+            previousLearned: previousValue
+          })
+        })
+      }
     } finally {
-      const latestVersion = latestRequestVersionRef.current[trickId] ?? 0
+      const latestVersion = latestRequestVersionRef.current[requestKey] ?? 0
       if (latestVersion !== requestVersion) return
 
-      setSavingIds(prev => {
+      setSavingKeys(prev => {
         const next = new Set(prev)
-        next.delete(trickId)
+        next.delete(requestKey)
         return next
       })
     }
@@ -137,7 +189,7 @@ export default function TricksLibrary() {
 
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Tricks Library</h1>
-            <p className="text-sm text-slate-500">Select the tricks you already learned</p>
+            <p className="text-sm text-slate-500">Mark tricks as learned or in progress</p>
           </div>
         </div>
       </div>
@@ -158,7 +210,7 @@ export default function TricksLibrary() {
       {loadError ? (
         <div className="px-4 mt-4">
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Unable to load learned tricks
+            {loadError}
           </div>
         </div>
       ) : null}
@@ -173,9 +225,10 @@ export default function TricksLibrary() {
 
       <div className="px-4 mt-4">
         <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
-          <div className="grid grid-cols-[1fr_4.5rem_auto] gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-500">
+          <div className="grid grid-cols-[1fr_4.5rem_auto_auto] gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-500">
             <span>Trick code</span>
             <span className="text-left">Points</span>
+            <span className="text-right">In Progress</span>
             <span className="text-right">Learned</span>
           </div>
 
@@ -185,31 +238,52 @@ export default function TricksLibrary() {
             <div className="px-4 py-6 text-sm text-slate-500">No tricks found for your search.</div>
           ) : (
             filteredTricks.map(trick => {
-              const checked = learnedIds.has(trick.id)
-              const saving = savingIds.has(trick.id)
-
               return (
                 <div
                   key={trick.id}
-                  className="grid grid-cols-[1fr_4.5rem_auto] gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                  className="grid grid-cols-[1fr_4.5rem_auto_auto] gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0"
                 >
                   <span className="text-sm text-slate-900">{trick.name}</span>
                   <span className="text-sm text-slate-700 text-left">
                     {trick.points2.toLocaleString()}
                   </span>
                   <div className="flex justify-end">
+                    {(() => {
+                      const checked = inProgressIds.has(trick.id)
+                      const saving = savingKeys.has(`${trick.id}:in_progress`)
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(trick.id, "in_progress")}
+                          disabled={saving || loading}
+                          className={[
+                            "h-7 w-7 rounded-full border flex items-center justify-center transition",
+                            checked
+                              ? "border-orange-500 bg-orange-500 text-white"
+                              : "border-slate-300 bg-white text-transparent",
+                            saving ? "opacity-60 cursor-not-allowed" : ""
+                          ].join(" ")}
+                          aria-label={checked ? `Unmark ${trick.name} as in progress` : `Mark ${trick.name} as in progress`}
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                      )
+                    })()}
+                  </div>
+                  <div className="flex justify-end">
                     <button
                       type="button"
-                      onClick={() => handleToggle(trick.id)}
-                      disabled={saving || loading}
+                      onClick={() => handleToggle(trick.id, "learned")}
+                      disabled={savingKeys.has(`${trick.id}:learned`) || loading}
                       className={[
                         "h-7 w-7 rounded-full border flex items-center justify-center transition",
-                        checked
+                        learnedIds.has(trick.id)
                           ? "border-emerald-500 bg-emerald-500 text-white"
                           : "border-slate-300 bg-white text-transparent",
-                        saving ? "opacity-60 cursor-not-allowed" : ""
+                        savingKeys.has(`${trick.id}:learned`) ? "opacity-60 cursor-not-allowed" : ""
                       ].join(" ")}
-                      aria-label={checked ? `Unmark ${trick.name}` : `Mark ${trick.name} as learned`}
+                      aria-label={learnedIds.has(trick.id) ? `Unmark ${trick.name}` : `Mark ${trick.name} as learned`}
                     >
                       <Check className="h-4 w-4" />
                     </button>

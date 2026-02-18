@@ -3,13 +3,11 @@ import { Clock3, Trophy, Hand, Footprints, ListChecks, Sparkles } from "lucide-r
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import { useNavigate } from "react-router-dom"
-import { fetchLearnedTrickIds } from "../../data/tricksLearnedApi"
+import { fetchInProgressTrickIds, fetchLearnedTrickIds } from "../../data/tricksLearnedApi"
 import { TRICK_CATALOG } from "../../features/tricks/trickCatalog"
 
 type RangeKey = "week" | "month" | "season" | "custom"
 type TrickType = "hands" | "toes"
-type SkillStatus = "learned" | "in_progress" | "to_learn"
-
 type TrickSession = {
   id: string
   date: string
@@ -17,16 +15,8 @@ type TrickSession = {
   trickType: TrickType
 }
 
-type TrickSkill = {
-  id: string
-  name: string
-  status: SkillStatus
-  learnedAt?: string
-}
-
 type TricksInsightDataSource = {
   sessions: TrickSession[]
-  skills: TrickSkill[]
 }
 
 type Props = {
@@ -60,24 +50,6 @@ function clampRange(start: Date, end: Date) {
   normalizedStart.setHours(0, 0, 0, 0)
   normalizedEnd.setHours(23, 59, 59, 999)
   return { start: normalizedStart, end: normalizedEnd }
-}
-
-function dateDaysAgo(days: number) {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  return toLocalIso(d)
-}
-
-function mockSkills(): TrickSkill[] {
-  return [
-    { id: "s1", name: "Wake 180", status: "learned" },
-    { id: "s2", name: "Back to Front", status: "learned", learnedAt: dateDaysAgo(7) },
-    { id: "s7", name: "Body Over", status: "learned", learnedAt: dateDaysAgo(12) },
-    { id: "s3", name: "Toe Wake 180", status: "in_progress" },
-    { id: "s4", name: "Surface 360", status: "in_progress" },
-    { id: "s5", name: "Line Backroll", status: "to_learn" },
-    { id: "s6", name: "Toe Back to Front", status: "to_learn" }
-  ]
 }
 
 function sessionsFromSets(sets: SkiSet[]): TrickSession[] {
@@ -140,16 +112,13 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
   const [learnedTrickIds, setLearnedTrickIds] = useState<Set<string> | null>(null)
-  const [learnedLoadError, setLearnedLoadError] = useState<string | null>(null)
+  const [inProgressTrickIds, setInProgressTrickIds] = useState<Set<string> | null>(null)
+  const [selectionLoadError, setSelectionLoadError] = useState<string | null>(null)
 
-  // Backend-ready boundary: metrics come from real sets by default, skills remain mocked for now.
+  // Metrics come from real sets by default.
   const sourceSessions = useMemo(
     () => dataSource?.sessions ?? sessionsFromSets(sets),
     [dataSource?.sessions, sets]
-  )
-  const sourceSkills = useMemo(
-    () => dataSource?.skills ?? mockSkills(),
-    [dataSource?.skills]
   )
 
   useEffect(() => {
@@ -165,21 +134,25 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   useEffect(() => {
     let active = true
 
-    async function loadLearnedTricks() {
-      setLearnedLoadError(null)
+    async function loadTrickSelections() {
+      setSelectionLoadError(null)
 
       try {
-        const ids = await fetchLearnedTrickIds()
+        const [learnedIds, inProgressIds] = await Promise.all([
+          fetchLearnedTrickIds(),
+          fetchInProgressTrickIds()
+        ])
         if (!active) return
-        setLearnedTrickIds(ids)
+        setLearnedTrickIds(learnedIds)
+        setInProgressTrickIds(inProgressIds)
       } catch (err) {
-        console.error("Failed to load learned tricks for insights", err)
+        console.error("Failed to load trick selections for insights", err)
         if (!active) return
-        setLearnedLoadError("Unable to load learned tricks")
+        setSelectionLoadError("Unable to load trick selections")
       }
     }
 
-    loadLearnedTricks()
+    loadTrickSelections()
 
     return () => {
       active = false
@@ -215,23 +188,26 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   const handsPercent = totalTypeCount === 0 ? 0 : Math.round((handsCount / totalTypeCount) * 100)
   const toesPercent = totalTypeCount === 0 ? 0 : Math.round((toesCount / totalTypeCount) * 100)
 
-  const inProgressOrToLearn = useMemo(
-    () => sourceSkills.filter(skill => skill.status === "in_progress" || skill.status === "to_learn"),
-    [sourceSkills]
-  )
-
   const learnedTricksFromCatalog = useMemo(() => {
     if (!learnedTrickIds) return []
 
     return TRICK_CATALOG.filter(item => learnedTrickIds.has(item.id))
   }, [learnedTrickIds])
 
+  const inProgressTricksFromCatalog = useMemo(() => {
+    if (!inProgressTrickIds) return []
+
+    return TRICK_CATALOG.filter(item => inProgressTrickIds.has(item.id))
+  }, [inProgressTrickIds])
+
   const learnedPreview = useMemo(() => learnedTricksFromCatalog.slice(0, 5), [learnedTricksFromCatalog])
   const hasMoreLearnedTricks = learnedTricksFromCatalog.length > learnedPreview.length
+  const inProgressPreview = useMemo(() => inProgressTricksFromCatalog.slice(0, 5), [inProgressTricksFromCatalog])
+  const hasMoreInProgressTricks = inProgressTricksFromCatalog.length > inProgressPreview.length
 
   const learnedCountText =
     learnedTrickIds === null
-      ? learnedLoadError
+      ? selectionLoadError
         ? "--"
         : "..."
       : String(learnedTrickIds.size)
@@ -313,10 +289,10 @@ export default function TricksInsights({ sets, dataSource }: Props) {
         </div>
       </div>
 
-      {learnedLoadError ? (
+      {selectionLoadError ? (
         <div className="px-4">
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Unable to load learned tricks
+            Unable to load trick selections
           </div>
         </div>
       ) : null}
@@ -368,8 +344,8 @@ export default function TricksInsights({ sets, dataSource }: Props) {
             <p className="text-sm font-semibold text-slate-900">Learned Tricks</p>
             <ListChecks className="h-4 w-4 text-emerald-600" />
           </div>
-          {learnedLoadError ? (
-            <p className="mt-3 text-sm text-red-600">Unable to load learned tricks</p>
+          {selectionLoadError ? (
+            <p className="mt-3 text-sm text-red-600">Unable to load trick selections</p>
           ) : learnedTricksFromCatalog.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">No learned tricks yet.</p>
           ) : (
@@ -397,21 +373,32 @@ export default function TricksInsights({ sets, dataSource }: Props) {
       <div className="px-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm shadow-slate-200/70">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-900">In Progress / To Learn</p>
+            <p className="text-sm font-semibold text-slate-900">In Progress</p>
             <Sparkles className="h-4 w-4 text-orange-500" />
           </div>
-          {inProgressOrToLearn.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">No pending tricks.</p>
+          {selectionLoadError ? (
+            <p className="mt-3 text-sm text-red-600">Unable to load trick selections</p>
+          ) : inProgressTricksFromCatalog.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">No in-progress tricks yet.</p>
           ) : (
             <ul className="mt-3 space-y-2">
-              {inProgressOrToLearn.map(skill => (
-                <li key={skill.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  {skill.status === "in_progress" ? "In Progress: " : "To Learn: "}
-                  {skill.name}
+              {inProgressPreview.map(trick => (
+                <li key={trick.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  {trick.name}
                 </li>
               ))}
             </ul>
           )}
+
+          {hasMoreInProgressTricks ? (
+            <button
+              type="button"
+              onClick={() => navigate("/insights/tricks-library")}
+              className="mt-3 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+            >
+              See more
+            </button>
+          ) : null}
         </div>
       </div>
 

@@ -47,6 +47,13 @@ create table if not exists public.user_learned_tricks (
   primary key (user_id, trick_id)
 );
 
+create table if not exists public.user_in_progress_tricks (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  trick_id text not null,
+  updated_at timestamptz not null default timezone('utc', now()),
+  primary key (user_id, trick_id)
+);
+
 create table if not exists public.jump_sets (
   set_id uuid primary key references public.sets(id) on delete cascade,
   subevent text null,
@@ -90,6 +97,7 @@ alter table public.sets enable row level security;
 alter table public.slalom_sets enable row level security;
 alter table public.tricks_sets enable row level security;
 alter table public.user_learned_tricks enable row level security;
+alter table public.user_in_progress_tricks enable row level security;
 alter table public.jump_sets enable row level security;
 alter table public.other_sets enable row level security;
 
@@ -138,10 +146,21 @@ create policy tricks_delete on public.tricks_sets for delete to authenticated us
 
 drop policy if exists learned_tricks_select on public.user_learned_tricks;
 drop policy if exists learned_tricks_insert on public.user_learned_tricks;
+drop policy if exists learned_tricks_update on public.user_learned_tricks;
 drop policy if exists learned_tricks_delete on public.user_learned_tricks;
 create policy learned_tricks_select on public.user_learned_tricks for select to authenticated using (auth.uid() = user_id);
 create policy learned_tricks_insert on public.user_learned_tricks for insert to authenticated with check (auth.uid() = user_id);
+create policy learned_tricks_update on public.user_learned_tricks for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy learned_tricks_delete on public.user_learned_tricks for delete to authenticated using (auth.uid() = user_id);
+
+drop policy if exists in_progress_tricks_select on public.user_in_progress_tricks;
+drop policy if exists in_progress_tricks_insert on public.user_in_progress_tricks;
+drop policy if exists in_progress_tricks_update on public.user_in_progress_tricks;
+drop policy if exists in_progress_tricks_delete on public.user_in_progress_tricks;
+create policy in_progress_tricks_select on public.user_in_progress_tricks for select to authenticated using (auth.uid() = user_id);
+create policy in_progress_tricks_insert on public.user_in_progress_tricks for insert to authenticated with check (auth.uid() = user_id);
+create policy in_progress_tricks_update on public.user_in_progress_tricks for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy in_progress_tricks_delete on public.user_in_progress_tricks for delete to authenticated using (auth.uid() = user_id);
 
 drop policy if exists jump_select on public.jump_sets;
 drop policy if exists jump_insert on public.jump_sets;
