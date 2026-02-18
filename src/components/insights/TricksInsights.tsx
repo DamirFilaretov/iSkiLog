@@ -305,13 +305,6 @@ export default function TricksInsights({ sets, dataSource }: Props) {
             {learnedCountText}
           </p>
           <p className="mt-1 text-xs text-slate-500">From Tricks Library</p>
-          <button
-            type="button"
-            onClick={() => navigate("/insights/tricks-library")}
-            className="mt-3 rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-medium text-fuchsia-700"
-          >
-            Manage Learned Tricks
-          </button>
         </div>
       </div>
 
@@ -362,6 +355,16 @@ export default function TricksInsights({ sets, dataSource }: Props) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="px-4">
+        <button
+          type="button"
+          onClick={() => navigate("/insights/tricks-library")}
+          className="w-full rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-sm font-medium text-fuchsia-700 shadow-sm"
+        >
+          Manage Learned Tricks
+        </button>
       </div>
 
       <div className="px-4">

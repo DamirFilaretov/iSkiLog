@@ -143,13 +143,13 @@ export default function TricksLibrary() {
       </div>
 
       <div className="px-4">
-        <label className="text-xs text-slate-500">Search trick</label>
+        <label className="text-xs text-slate-500">Search trick code</label>
         <div className="mt-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-sm">
           <Search className="h-4 w-4 text-slate-400" />
           <input
             value={query}
             onChange={event => updateQuery(event.target.value)}
-            placeholder="Search by trick name"
+            placeholder="Search by trick code"
             className="w-full bg-transparent text-sm text-slate-900 outline-none"
           />
         </div>
@@ -173,9 +173,9 @@ export default function TricksLibrary() {
 
       <div className="px-4 mt-4">
         <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-500">
-            <span>Trick name</span>
-            <span className="text-right">Points 2</span>
+          <div className="grid grid-cols-[1fr_4.5rem_auto] gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-500">
+            <span>Trick code</span>
+            <span className="text-left">Points</span>
             <span className="text-right">Learned</span>
           </div>
 
@@ -191,10 +191,10 @@ export default function TricksLibrary() {
               return (
                 <div
                   key={trick.id}
-                  className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                  className="grid grid-cols-[1fr_4.5rem_auto] gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0"
                 >
                   <span className="text-sm text-slate-900">{trick.name}</span>
-                  <span className="text-sm text-slate-700 text-right">
+                  <span className="text-sm text-slate-700 text-left">
                     {trick.points2.toLocaleString()}
                   </span>
                   <div className="flex justify-end">
@@ -223,4 +223,3 @@ export default function TricksLibrary() {
     </div>
   )
 }
-
