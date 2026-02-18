@@ -9,9 +9,8 @@ describe("trickCatalog", () => {
   })
 
   it("filters tricks by case-insensitive search", () => {
-    const results = searchTricks("wflip")
+    const results = searchTricks("bfl")
     expect(results.length).toBeGreaterThan(0)
-    expect(results.every(item => item.name.toLowerCase().includes("wflip"))).toBe(true)
+    expect(results.every(item => item.name.toLowerCase().includes("bfl"))).toBe(true)
   })
 })
-

@@ -60,16 +60,16 @@ const CATALOG: TrickCatalogItem[] = [
   { id: "trick_053", name: "TWLBB", points2: 480 },
   { id: "trick_054", name: "TWL5B", points2: 600 },
   { id: "trick_055", name: "TWL5F", points2: 700 },
-  { id: "trick_056", name: "WflipF", points2: 800 },
-  { id: "trick_057", name: "WflipB", points2: 500 },
-  { id: "trick_058", name: "WDflipB", points2: 1000 },
-  { id: "trick_059", name: "WflipBFF", points2: 800 },
-  { id: "trick_060", name: "WflipBBB", points2: 800 },
-  { id: "trick_061", name: "WflipBFB", points2: 750 },
-  { id: "trick_062", name: "WflipBLB", points2: 800 },
-  { id: "trick_063", name: "WflipBBF", points2: 550 },
-  { id: "trick_064", name: "WflipB5F", points2: 850 },
-  { id: "trick_065", name: "WflipB5B", points2: 900 },
+  { id: "trick_056", name: "FFL", points2: 800 },
+  { id: "trick_057", name: "BFL", points2: 500 },
+  { id: "trick_058", name: "BDFL", points2: 1000 },
+  { id: "trick_059", name: "BFLO", points2: 800 },
+  { id: "trick_060", name: "BFLBB", points2: 800 },
+  { id: "trick_061", name: "BFLB", points2: 750 },
+  { id: "trick_062", name: "BFLLB", points2: 800 },
+  { id: "trick_063", name: "BFLF", points2: 550 },
+  { id: "trick_064", name: "BFL5F", points2: 850 },
+  { id: "trick_065", name: "BFL5B", points2: 900 },
   { id: "trick_066", name: "FFLB", points2: 850 },
   { id: "trick_067", name: "SLB", points2: 350 },
   { id: "trick_068", name: "SLF", points2: 400 },
@@ -90,4 +90,3 @@ export function searchTricks(query: string) {
   if (!normalized) return TRICK_CATALOG
   return TRICK_CATALOG.filter(trick => trick.name.toLowerCase().includes(normalized))
 }
-
