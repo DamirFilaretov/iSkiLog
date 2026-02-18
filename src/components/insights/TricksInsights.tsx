@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react"
 import { Clock3, Trophy, Hand, Footprints, ListChecks, Sparkles } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
+import { useNavigate } from "react-router-dom"
+import { fetchLearnedTrickIds } from "../../data/tricksLearnedApi"
 
 type RangeKey = "week" | "month" | "season" | "custom"
 type TrickType = "hands" | "toes"
@@ -132,9 +134,12 @@ function filterSessionsByRange(
 }
 
 export default function TricksInsights({ sets, dataSource }: Props) {
+  const navigate = useNavigate()
   const [range, setRange] = useState<RangeKey>("week")
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
+  const [learnedTrickIds, setLearnedTrickIds] = useState<Set<string> | null>(null)
+  const [learnedLoadError, setLearnedLoadError] = useState<string | null>(null)
 
   // Backend-ready boundary: metrics come from real sets by default, skills remain mocked for now.
   const sourceSessions = useMemo(
@@ -155,6 +160,30 @@ export default function TricksInsights({ sets, dataSource }: Props) {
     setCustomStart(toLocalIso(start))
     setCustomEnd(end)
   }, [range, customStart, customEnd])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadLearnedTricks() {
+      setLearnedLoadError(null)
+
+      try {
+        const ids = await fetchLearnedTrickIds()
+        if (!active) return
+        setLearnedTrickIds(ids)
+      } catch (err) {
+        console.error("Failed to load learned tricks for insights", err)
+        if (!active) return
+        setLearnedLoadError("Unable to load learned tricks")
+      }
+    }
+
+    loadLearnedTricks()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const filteredSessions = useMemo(
     () => filterSessionsByRange(sourceSessions, range, customStart, customEnd),
@@ -195,16 +224,12 @@ export default function TricksInsights({ sets, dataSource }: Props) {
     [sourceSkills]
   )
 
-  const learnedThisMonth = useMemo(() => {
-    const now = new Date()
-    const month = now.getMonth()
-    const year = now.getFullYear()
-    return learnedSkills.filter(skill => {
-      if (!skill.learnedAt) return false
-      const d = isoToDate(skill.learnedAt)
-      return d.getMonth() === month && d.getFullYear() === year
-    }).length
-  }, [learnedSkills])
+  const learnedCountText =
+    learnedTrickIds === null
+      ? learnedLoadError
+        ? "--"
+        : "..."
+      : String(learnedTrickIds.size)
 
   return (
     <div className="space-y-4">
@@ -277,11 +302,26 @@ export default function TricksInsights({ sets, dataSource }: Props) {
             <p className="text-xs text-slate-500">Learned</p>
           </div>
           <p className="mt-3 text-2xl font-semibold text-slate-900 leading-tight">
-            {learnedSkills.length}
+            {learnedCountText}
           </p>
-          <p className="mt-1 text-xs text-emerald-600">+{learnedThisMonth} this month</p>
+          <p className="mt-1 text-xs text-slate-500">From Tricks Library</p>
+          <button
+            type="button"
+            onClick={() => navigate("/insights/tricks-library")}
+            className="mt-3 rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-medium text-fuchsia-700"
+          >
+            Manage Learned Tricks
+          </button>
         </div>
       </div>
+
+      {learnedLoadError ? (
+        <div className="px-4">
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Unable to load learned tricks
+          </div>
+        </div>
+      ) : null}
 
       <div className="px-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm shadow-slate-200/70">

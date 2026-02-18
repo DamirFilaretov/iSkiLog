@@ -11,6 +11,7 @@ import Settings from "../pages/Settings"
 import ProfileSettings from "../pages/ProfileSettings"
 import SeasonSettings from "../pages/SeasonSettings"
 import Insights from "../pages/Insights"
+import TricksLibrary from "../pages/TricksLibrary"
 import About from "../pages/About"
 import PrivacySecurity from "../pages/PrivacySecurity"
 import Welcome from "../pages/Welcome"
@@ -132,6 +133,7 @@ function AppContent() {
         <Route element={<TabLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/insights" element={<Insights />} />
+          <Route path="/insights/tricks-library" element={<TricksLibrary />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
 
