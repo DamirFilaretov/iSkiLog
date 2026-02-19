@@ -84,10 +84,10 @@ function filterByRange(range: RangeKey | null, sets: SkiSet[], customStart: stri
 export default function History() {
   const navigate = useNavigate()
   const { sets, getActiveSeason, setsHydrated, setFavorite } = useSetsStore()
-  const [range, setRange] = useState<RangeKey | null>(null)
+  const [range, setRange] = useState<RangeKey | null>("day")
   const [customStart, setCustomStart] = useState(daysAgoIsoDate(30))
   const [customEnd, setCustomEnd] = useState(todayLocalIsoDate())
-  const [favoritesOnly, setFavoritesOnly] = useState(true)
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
   const [togglingFavoriteIds, setTogglingFavoriteIds] = useState<Set<string>>(
     () => new Set()

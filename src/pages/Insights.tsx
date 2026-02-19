@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 
 import { useSetsStore } from "../store/setsStore"
 import type { EventKey } from "../types/sets"
@@ -28,7 +30,7 @@ import {
 
 type ExportRange = "season" | "month" | "week" | "custom"
 
-type ExportFormat = "csv" | "excel"
+type ExportFormat = "csv" | "pdf"
 
 type ResolvedRange =
   | { ok: true; start: string; end: string; label: string }
@@ -37,6 +39,26 @@ type ResolvedRange =
 type ExportCsvResult =
   | { ok: true; csv: string; filename: string }
   | { ok: false; error: string }
+
+type ExportPayloadResult =
+  | {
+      ok: true
+      payload: {
+        rangeLabel: string
+        start: string
+        end: string
+        totalSets: number
+        trainingDays: number
+        mostPracticedEventLabel: string
+        breakdownWithPercent: { event: string; count: number; percent: number }[]
+      }
+    }
+  | { ok: false; error: string }
+
+function titleCase(value: string) {
+  if (!value) return value
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
 
 function toLocalIsoDate(date: Date) {
   const y = date.getFullYear()
@@ -62,12 +84,23 @@ function csvEscape(value: string) {
   return needsQuotes ? `"${escaped}"` : escaped
 }
 
+function parseSelectedEventParam(value: string | null): EventKey | "all" | null {
+  if (value === "all") return "all"
+  if (value === "slalom") return "slalom"
+  if (value === "tricks") return "tricks"
+  if (value === "jump") return "jump"
+  if (value === "other") return "other"
+  return null
+}
+
 export default function Insights() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const eventParam = parseSelectedEventParam(searchParams.get("event"))
 
   const { sets, setsHydrated, seasons, activeSeasonId } = useSetsStore()
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
-  const [selectedEvent, setSelectedEvent] = useState<EventKey | "all">("all")
+  const [selectedEvent, setSelectedEvent] = useState<EventKey | "all">(eventParam ?? "all")
   const [exportOpen, setExportOpen] = useState(false)
   const [exportRange, setExportRange] = useState<ExportRange>("season")
   const [exportFormat, setExportFormat] = useState<ExportFormat>("csv")
@@ -103,6 +136,11 @@ export default function Insights() {
       setSelectedSeasonId(activeSeasonId ?? sortedSeasons[0].id)
     }
   }, [sortedSeasons, selectedSeasonId, activeSeasonId])
+
+  useEffect(() => {
+    if (!eventParam) return
+    setSelectedEvent(eventParam)
+  }, [eventParam])
 
   const selectedSeason = useMemo(() => {
     if (!selectedSeasonId) return undefined
@@ -222,6 +260,52 @@ export default function Insights() {
   }
 
   function buildExportCsv(): ExportCsvResult {
+    const exportData = buildExportPayload()
+    if (!exportData.ok) return { ok: false, error: exportData.error }
+
+    const { payload } = exportData
+
+    const formatLabel = "CSV"
+    const lines: string[] = []
+
+    lines.push("iSkiLog Export")
+    lines.push(`Range,${csvEscape(payload.rangeLabel)}`)
+    lines.push(`Start Date,${payload.start}`)
+    lines.push(`End Date,${payload.end}`)
+    lines.push(`Format,${formatLabel}`)
+    lines.push(`Total Sets,${payload.totalSets}`)
+    lines.push(`Total Training Days,${payload.trainingDays}`)
+    lines.push(
+      `Most Practiced,${csvEscape(
+        payload.mostPracticedEventLabel
+      )}`
+    )
+
+    lines.push("")
+    lines.push("Breakdown Summary")
+    payload.breakdownWithPercent.forEach(item => {
+      lines.push(
+        `${csvEscape(item.event)} Sets,${item.count}`
+      )
+    })
+
+    lines.push("")
+    lines.push("Breakdown")
+    lines.push("Event,Count,Percentage")
+
+    payload.breakdownWithPercent.forEach(item => {
+      lines.push(
+        `${csvEscape(item.event)},${item.count},${item.percent.toFixed(1)}%`
+      )
+    })
+
+    const csv = lines.join("\n")
+    const filename = `iSkiLog_${payload.start}_to_${payload.end}.csv`
+
+    return { ok: true, csv, filename }
+  }
+
+  function buildExportPayload(): ExportPayloadResult {
     const range = resolveExportRange()
     if (!range.ok) return { ok: false, error: range.error }
 
@@ -238,52 +322,134 @@ export default function Insights() {
     const breakdown = getEventBreakdown(filtered)
     const mostPracticedEvent = getMostPracticedEvent(filtered)
     const breakdownWithPercent = breakdown.map(item => {
-      const percent =
-        totalSets === 0 ? 0 : (item.count / totalSets) * 100
-      return { ...item, percent }
+      const percent = totalSets === 0 ? 0 : (item.count / totalSets) * 100
+      return {
+        event: titleCase(item.event),
+        count: item.count,
+        percent
+      }
     })
 
-    const formatLabel = exportFormat === "excel" ? "Excel (CSV)" : "CSV"
-    const lines: string[] = []
+    return {
+      ok: true,
+      payload: {
+        rangeLabel: range.label,
+        start: range.start,
+        end: range.end,
+        totalSets,
+        trainingDays,
+        mostPracticedEventLabel: `${titleCase(mostPracticedEvent.event)} (${mostPracticedEvent.count} sets)`,
+        breakdownWithPercent
+      }
+    }
+  }
 
-    lines.push("iSkiLog Export")
-    lines.push(`Range,${csvEscape(range.label)}`)
-    lines.push(`Start Date,${range.start}`)
-    lines.push(`End Date,${range.end}`)
-    lines.push(`Format,${formatLabel}`)
-    lines.push(`Total Sets,${totalSets}`)
-    lines.push(`Total Training Days,${trainingDays}`)
-    lines.push(
-      `Most Practiced,${csvEscape(
-        `${mostPracticedEvent.event} (${mostPracticedEvent.count} sets)`
-      )}`
-    )
+  function handleExportPdf() {
+    const exportData = buildExportPayload()
+    if (!exportData.ok) {
+      setExportError(exportData.error ?? "Unable to export.")
+      return
+    }
 
-    lines.push("")
-    lines.push("Breakdown Summary")
-    breakdownWithPercent.forEach(item => {
-      lines.push(
-        `${csvEscape(item.event)} Sets,${item.count}`
-      )
+    const { payload } = exportData
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" })
+    const pageWidth = doc.internal.pageSize.getWidth()
+
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(18)
+    doc.setTextColor(15, 23, 42)
+    doc.text("Training Summary Report", 14, 20)
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    doc.setTextColor(71, 85, 105)
+    doc.text("iSkiLog", pageWidth - 14, 10, { align: "right" })
+    doc.text(`${payload.rangeLabel} | ${payload.start} to ${payload.end}`, 14, 27)
+
+    autoTable(doc, {
+      startY: 34,
+      head: [["Metric", "Value"]],
+      body: [
+        ["Total Sets", String(payload.totalSets)],
+        ["Training Days", String(payload.trainingDays)],
+        ["Most Practiced", payload.mostPracticedEventLabel]
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [37, 99, 235] },
+      styles: { font: "helvetica", fontSize: 10 }
     })
 
-    lines.push("")
-    lines.push("Breakdown")
-    lines.push("Event,Count,Percentage")
+    const afterMetricsY =
+      (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70
 
-    breakdownWithPercent.forEach(item => {
-      lines.push(
-        `${csvEscape(item.event)},${item.count},${item.percent.toFixed(1)}%`
-      )
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(12)
+    doc.setTextColor(15, 23, 42)
+    doc.text("Event Breakdown Chart", 14, afterMetricsY + 10)
+
+    const chartStartY = afterMetricsY + 16
+    const labelX = 14
+    const barX = 52
+    const barMaxWidth = pageWidth - 70
+    const barHeight = 5
+
+    const colorByEvent: Record<string, [number, number, number]> = {
+      Slalom: [37, 99, 235],
+      Tricks: [147, 51, 234],
+      Jump: [249, 115, 22],
+      Other: [16, 185, 129]
+    }
+
+    payload.breakdownWithPercent.forEach((item, idx) => {
+      const y = chartStartY + idx * 10
+      const width = Math.max((item.percent / 100) * barMaxWidth, item.count > 0 ? 2 : 0)
+      const color = colorByEvent[item.event] ?? [100, 116, 139]
+
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(10)
+      doc.setTextColor(51, 65, 85)
+      doc.text(item.event, labelX, y + 4)
+
+      doc.setFillColor(226, 232, 240)
+      doc.roundedRect(barX, y, barMaxWidth, barHeight, 1.5, 1.5, "F")
+
+      if (width > 0) {
+        doc.setFillColor(color[0], color[1], color[2])
+        doc.roundedRect(barX, y, width, barHeight, 1.5, 1.5, "F")
+      }
+
+      doc.setFontSize(9)
+      doc.setTextColor(71, 85, 105)
+      doc.text(`${item.count} (${item.percent.toFixed(1)}%)`, pageWidth - 14, y + 4, { align: "right" })
     })
 
-    const csv = lines.join("\n")
-    const filename = `iSkiLog_${range.start}_to_${range.end}.csv`
+    const tableStartY = chartStartY + payload.breakdownWithPercent.length * 10 + 8
 
-    return { ok: true, csv, filename }
+    autoTable(doc, {
+      startY: tableStartY,
+      head: [["Event", "Count", "Percentage"]],
+      body: payload.breakdownWithPercent.map(item => [
+        item.event,
+        String(item.count),
+        `${item.percent.toFixed(1)}%`
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [15, 23, 42] },
+      styles: { font: "helvetica", fontSize: 10 }
+    })
+
+    doc.save(`iSkiLog_${payload.start}_to_${payload.end}.pdf`)
+    setExportOpen(false)
+    setExportError(null)
   }
 
   function handleExport() {
+    if (exportFormat === "pdf") {
+      handleExportPdf()
+      return
+    }
+
     const result = buildExportCsv()
     if (!result.ok) {
       setExportError(result.error ?? "Unable to export.")
@@ -420,7 +586,7 @@ export default function Insights() {
               <div>
                 <p className="text-sm font-medium text-slate-900">Export season details</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Download summary stats for the active season
+                  Export summary stats for the active season
                 </p>
               </div>
               <button
@@ -430,7 +596,7 @@ export default function Insights() {
                 }}
                 className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white"
               >
-                Export CSV
+                Download Report
               </button>
             </div>
           </div>
@@ -503,7 +669,7 @@ export default function Insights() {
                   className="mt-2 w-full rounded-2xl bg-slate-100 px-4 py-3 text-sm"
                 >
                   <option value="csv">CSV</option>
-                  <option value="excel">Excel (CSV)</option>
+                  <option value="pdf">PDF</option>
                 </select>
               </div>
             </div>

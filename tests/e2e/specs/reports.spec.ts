@@ -29,8 +29,7 @@ test("flow 9: insights week/month counts match history ranges", async ({ page })
   await expect(historyItems(page).filter({ hasText: second.notes })).toHaveCount(1)
   const historyWeekCount = expectedCount
 
-  const weeklyInsightsCount = await extractWeeklyInsightsTotal(page)
-  expect(weeklyInsightsCount).toBe(historyWeekCount)
+  await expect.poll(async () => extractWeeklyInsightsTotal(page)).toBe(historyWeekCount)
 
   await openHistory(page)
   await ensureFavoritesFilterOff(page)

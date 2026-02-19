@@ -65,7 +65,7 @@ export default function AddSet() {
   const [slalomSpeed, setSlalomSpeed] = useState("")
   const [slalomPassesCount, setSlalomPassesCount] = useState<number | null>(6)
 
-  const [tricksDuration, setTricksDuration] = useState<number | null>(null)
+  const [tricksDuration, setTricksDuration] = useState<number | null>(15)
   const [tricksType, setTricksType] = useState<"hands" | "toes">("hands")
 
   const [jumpSubEvent, setJumpSubEvent] = useState<"jump" | "cuts">("jump")

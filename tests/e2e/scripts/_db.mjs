@@ -46,6 +46,8 @@ export async function cleanupTestData() {
     await client.query("delete from public.jump_sets using public.sets where jump_sets.set_id = sets.id and sets.user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
     await client.query("delete from public.tricks_sets using public.sets where tricks_sets.set_id = sets.id and sets.user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
     await client.query("delete from public.slalom_sets using public.sets where slalom_sets.set_id = sets.id and sets.user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    await client.query("delete from public.user_learned_tricks where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    await client.query("delete from public.user_in_progress_tricks where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
     await client.query("delete from public.sets where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
     await client.query("delete from public.seasons where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
     await client.query("delete from public.profiles where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])

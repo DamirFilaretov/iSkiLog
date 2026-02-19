@@ -126,7 +126,14 @@ export async function ensureFavoritesFilterOff(page: Page) {
 }
 
 export async function selectHistoryRange(page: Page, range: "Day" | "Week" | "Month" | "Season" | "Custom") {
-  await page.getByRole("button", { name: new RegExp(`^${range}$`) }).click()
+  const tab = page.getByRole("button", { name: new RegExp(`^${range}$`) })
+  await tab.click()
+
+  const needsFilterPrompt = page.getByText("Choose a filter to view history")
+  if (await needsFilterPrompt.isVisible().catch(() => false)) {
+    // Tabs toggle off when clicked while active; click again to keep target range selected.
+    await tab.click()
+  }
 }
 
 export function historyItems(page: Page) {
@@ -155,7 +162,7 @@ export async function extractCurrentMonthCsvTotal(page: Page) {
   await page.goto("/insights")
   await expect(page.getByRole("heading", { name: "Insights" })).toBeVisible()
 
-  await page.getByRole("button", { name: "Export CSV" }).click()
+  await page.getByRole("button", { name: /Download Report|Export Report|Export CSV/i }).click()
   const exportModal = page
     .locator("div.fixed.inset-0.z-50")
     .filter({ has: page.getByRole("heading", { name: "Export Season Details" }) })
