@@ -13,6 +13,108 @@ import { searchTricks } from "../features/tricks/trickCatalog"
 
 type ToggleTarget = "learned" | "in_progress"
 
+const SURFACE_TRICK_CODES = new Set([
+  "S",
+  "B",
+  "F",
+  "O",
+  "BB",
+  "5B",
+  "5F",
+  "7F",
+  "7B",
+  "LB",
+  "LF"
+])
+
+const SURFACE_TOES_TRICK_CODES = new Set([
+  "TS",
+  "TB",
+  "TF",
+  "TO",
+  "TBB",
+  "T5B",
+  "T7F",
+  "T5F"
+])
+
+const WAKE_TRICK_CODES = new Set([
+  "WB",
+  "WF",
+  "WO",
+  "WBB",
+  "W5B",
+  "W5F",
+  "W7F",
+  "W7B",
+  "W9B",
+  "W9F"
+])
+
+const WAKE_TOES_TRICK_CODES = new Set([
+  "TWB",
+  "TWF",
+  "TWO",
+  "TWBB",
+  "TW5B",
+  "TW7F",
+  "TW5F"
+])
+
+const TOE_WAKE_LINES_CODES = new Set([
+  "TW7B",
+  "TWLB",
+  "TWLF",
+  "TWLO",
+  "TWLBB",
+  "TWL5B",
+  "TWL5F"
+])
+
+const STEPOVER_TRICK_CODES = new Set([
+  "WLB",
+  "WLF",
+  "WLO",
+  "WLBB",
+  "WL5B",
+  "WL5LB",
+  "WL7F",
+  "WL9B",
+  "WL5F",
+  "WL5LF",
+  "WL7B",
+  "WL9F"
+])
+
+const FLIP_TRICK_CODES = new Set([
+  "FFL",
+  "BFL",
+  "BDFL",
+  "BFLO",
+  "BFLBB",
+  "BFLB",
+  "BFLLB",
+  "BFLF",
+  "BFL5F",
+  "BFL5B",
+  "FFLB"
+])
+
+const SKILINE_TRICK_CODES = new Set([
+  "SLB",
+  "SLF",
+  "SLO",
+  "SLBB",
+  "SL5B",
+  "SL5F",
+  "SL7B",
+  "SL7F"
+])
+
+function sectionCode(trickCode: string) {
+  return trickCode.startsWith("R") ? trickCode.slice(1) : trickCode
+}
+
 export default function TricksLibrary() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -31,6 +133,42 @@ export default function TricksLibrary() {
   const filteredTricks = useMemo(() => {
     return searchTricks(query)
   }, [query])
+
+  const trickSections = useMemo(() => {
+    const surfaceTricks = filteredTricks.filter(trick => SURFACE_TRICK_CODES.has(sectionCode(trick.name)))
+    const surfaceToesTricks = filteredTricks.filter(trick => SURFACE_TOES_TRICK_CODES.has(sectionCode(trick.name)))
+    const wakeTricks = filteredTricks.filter(trick => WAKE_TRICK_CODES.has(sectionCode(trick.name)))
+    const wakeToesTricks = filteredTricks.filter(trick => WAKE_TOES_TRICK_CODES.has(sectionCode(trick.name)))
+    const toeWakeLinesTricks = filteredTricks.filter(trick => TOE_WAKE_LINES_CODES.has(sectionCode(trick.name)))
+    const stepoverTricks = filteredTricks.filter(trick => STEPOVER_TRICK_CODES.has(sectionCode(trick.name)))
+    const flipTricks = filteredTricks.filter(trick => FLIP_TRICK_CODES.has(sectionCode(trick.name)))
+    const skilineTricks = filteredTricks.filter(trick => SKILINE_TRICK_CODES.has(sectionCode(trick.name)))
+    const otherTricks = filteredTricks.filter(trick => {
+      const code = sectionCode(trick.name)
+      return (
+        !SURFACE_TRICK_CODES.has(code) &&
+        !SURFACE_TOES_TRICK_CODES.has(code) &&
+        !WAKE_TRICK_CODES.has(code) &&
+        !WAKE_TOES_TRICK_CODES.has(code) &&
+        !TOE_WAKE_LINES_CODES.has(code) &&
+        !STEPOVER_TRICK_CODES.has(code) &&
+        !FLIP_TRICK_CODES.has(code) &&
+        !SKILINE_TRICK_CODES.has(code)
+      )
+    })
+
+    return [
+      { title: "Surface tricks", tricks: surfaceTricks },
+      { title: "Surface Toes Tricks", tricks: surfaceToesTricks },
+      { title: "Wake tricks", tricks: wakeTricks },
+      { title: "Toes Wake Tricks", tricks: wakeToesTricks },
+      { title: "Toes Wake Lines", tricks: toeWakeLinesTricks },
+      { title: "Stepovers", tricks: stepoverTricks },
+      { title: "Flips", tricks: flipTricks },
+      { title: "Ski Lines *", tricks: skilineTricks },
+      { title: "Other tricks", tricks: otherTricks }
+    ].filter(section => section.tricks.length > 0)
+  }, [filteredTricks])
 
   useEffect(() => {
     let active = true
@@ -224,75 +362,87 @@ export default function TricksLibrary() {
       ) : null}
 
       <div className="px-4 mt-4">
-        <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
-          <div className="grid grid-cols-[1fr_4.5rem_auto_auto] gap-3 border-b border-slate-100 px-4 py-3 text-xs text-slate-500">
-            <span>Trick code</span>
-            <span className="text-left">Points</span>
-            <span className="text-right">In Progress</span>
-            <span className="text-right">Learned</span>
-          </div>
-
-          {loading ? (
+        {loading ? (
+          <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
             <div className="px-4 py-6 text-sm text-slate-500">Loading tricks...</div>
-          ) : filteredTricks.length === 0 ? (
+          </div>
+        ) : filteredTricks.length === 0 ? (
+          <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
             <div className="px-4 py-6 text-sm text-slate-500">No tricks found for your search.</div>
-          ) : (
-            filteredTricks.map(trick => {
-              return (
-                <div
-                  key={trick.id}
-                  className="grid grid-cols-[1fr_4.5rem_auto_auto] gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0"
-                >
-                  <span className="text-sm text-slate-900">{trick.name}</span>
-                  <span className="text-sm text-slate-700 text-left">
-                    {trick.points2.toLocaleString()}
-                  </span>
-                  <div className="flex justify-end">
-                    {(() => {
-                      const checked = inProgressIds.has(trick.id)
-                      const saving = savingKeys.has(`${trick.id}:in_progress`)
+          </div>
+        ) : (
+          trickSections.map((section, sectionIndex) => (
+            <div key={section.title} className={sectionIndex > 0 ? "mt-4" : ""}>
+              <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+                <div className="border-b border-slate-100 px-4 py-2.5">
+                  <p className="text-[15px] font-bold text-slate-700">
+                    {section.title}
+                  </p>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <span className="justify-self-start">Trick code</span>
+                  <span className="justify-self-start">Points</span>
+                  <span className="text-center">In Progress</span>
+                  <span className="text-right">Learned</span>
+                </div>
+                {section.tricks.map(trick => {
+                  return (
+                    <div
+                      key={trick.id}
+                      className="grid grid-cols-4 items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                    >
+                      <span className="justify-self-start text-sm text-slate-900">{trick.name}</span>
+                      <span className="justify-self-start text-sm text-slate-700">
+                        {trick.points2.toLocaleString()}
+                      </span>
+                      <div className="flex justify-center">
+                        {(() => {
+                          const checked = inProgressIds.has(trick.id)
+                          const saving = savingKeys.has(`${trick.id}:in_progress`)
 
-                      return (
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleToggle(trick.id, "in_progress")}
+                              disabled={saving || loading}
+                              className={[
+                                "h-7 w-7 rounded-full border flex items-center justify-center transition",
+                                checked
+                                  ? "border-orange-500 bg-orange-500 text-white"
+                                  : "border-slate-300 bg-white text-transparent",
+                                saving ? "opacity-60 cursor-not-allowed" : ""
+                              ].join(" ")}
+                              aria-label={checked ? `Unmark ${trick.name} as in progress` : `Mark ${trick.name} as in progress`}
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                          )
+                        })()}
+                      </div>
+                      <div className="flex justify-end">
                         <button
                           type="button"
-                          onClick={() => handleToggle(trick.id, "in_progress")}
-                          disabled={saving || loading}
+                          onClick={() => handleToggle(trick.id, "learned")}
+                          disabled={savingKeys.has(`${trick.id}:learned`) || loading}
                           className={[
                             "h-7 w-7 rounded-full border flex items-center justify-center transition",
-                            checked
-                              ? "border-orange-500 bg-orange-500 text-white"
+                            learnedIds.has(trick.id)
+                              ? "border-emerald-500 bg-emerald-500 text-white"
                               : "border-slate-300 bg-white text-transparent",
-                            saving ? "opacity-60 cursor-not-allowed" : ""
+                            savingKeys.has(`${trick.id}:learned`) ? "opacity-60 cursor-not-allowed" : ""
                           ].join(" ")}
-                          aria-label={checked ? `Unmark ${trick.name} as in progress` : `Mark ${trick.name} as in progress`}
+                          aria-label={learnedIds.has(trick.id) ? `Unmark ${trick.name}` : `Mark ${trick.name} as learned`}
                         >
                           <Check className="h-4 w-4" />
                         </button>
-                      )
-                    })()}
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(trick.id, "learned")}
-                      disabled={savingKeys.has(`${trick.id}:learned`) || loading}
-                      className={[
-                        "h-7 w-7 rounded-full border flex items-center justify-center transition",
-                        learnedIds.has(trick.id)
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-slate-300 bg-white text-transparent",
-                        savingKeys.has(`${trick.id}:learned`) ? "opacity-60 cursor-not-allowed" : ""
-                      ].join(" ")}
-                      aria-label={learnedIds.has(trick.id) ? `Unmark ${trick.name}` : `Mark ${trick.name} as learned`}
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )

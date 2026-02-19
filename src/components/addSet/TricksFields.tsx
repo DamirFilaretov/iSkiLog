@@ -30,7 +30,7 @@ export default function TricksFields({
     <div className="space-y-4">
       {/* Duration */}
       <div>
-        <label className="block text-sm text-gray-500 mb-1">Duration</label>
+        <label className="block text-sm text-gray-500 mb-1">Duration (minutes)</label>
 
         <input
           type="text"

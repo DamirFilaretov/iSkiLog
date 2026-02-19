@@ -81,8 +81,22 @@ const CATALOG: TrickCatalogItem[] = [
   { id: "trick_074", name: "SL7F", points2: 800 }
 ]
 
-export const TRICK_CATALOG = [...CATALOG].sort((a, b) => {
-  return a.name.localeCompare(b.name)
+const R_CATALOG: TrickCatalogItem[] = CATALOG.map((trick, index) => ({
+  id: `trick_r_${String(index + 1).padStart(3, "0")}`,
+  name: `R${trick.name}`,
+  points2: trick.points2
+}))
+
+export const TRICK_CATALOG = [...CATALOG, ...R_CATALOG].sort((a, b) => {
+  if (a.points2 !== b.points2) return a.points2 - b.points2
+  const aBase = a.name.startsWith("R") ? a.name.slice(1) : a.name
+  const bBase = b.name.startsWith("R") ? b.name.slice(1) : b.name
+  const baseCompare = aBase.localeCompare(bBase)
+  if (baseCompare !== 0) return baseCompare
+
+  const aIsR = a.name.startsWith("R") ? 1 : 0
+  const bIsR = b.name.startsWith("R") ? 1 : 0
+  return aIsR - bIsR
 })
 
 export function searchTricks(query: string) {

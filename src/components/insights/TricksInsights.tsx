@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Clock3, Trophy, Hand, Footprints, ListChecks, Sparkles } from "lucide-react"
+import { Clock3, Trophy, Hand, Footprints, ListChecks, Sparkles, ExternalLink } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import { useNavigate } from "react-router-dom"
@@ -210,9 +210,9 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   const learnedCountText =
     learnedTrickIds === null
       ? selectionLoadError
-        ? `--/${totalTrickCount}`
-        : `.../${totalTrickCount}`
-      : `${learnedTrickIds.size}/${totalTrickCount}`
+        ? `-- of ${totalTrickCount}`
+        : `... of ${totalTrickCount}`
+      : `${learnedTrickIds.size} of ${totalTrickCount}`
 
   return (
     <div className="space-y-4">
@@ -290,9 +290,10 @@ export default function TricksInsights({ sets, dataSource }: Props) {
           <button
             type="button"
             onClick={() => navigate("/insights/tricks-library")}
-            className="mt-1 text-xs text-blue-600 underline underline-offset-2"
+            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-slate-600 transition hover:text-slate-900"
           >
             Trick Library
+            <ExternalLink className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -359,8 +360,12 @@ export default function TricksInsights({ sets, dataSource }: Props) {
           ) : (
             <ul className="mt-3 space-y-2">
               {learnedPreview.map(trick => (
-                <li key={trick.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  {trick.name}
+                <li
+                  key={trick.id}
+                  className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                >
+                  <span>{trick.name}</span>
+                  <span className="font-semibold text-slate-900">{trick.points2}</span>
                 </li>
               ))}
             </ul>
@@ -391,8 +396,12 @@ export default function TricksInsights({ sets, dataSource }: Props) {
           ) : (
             <ul className="mt-3 space-y-2">
               {inProgressPreview.map(trick => (
-                <li key={trick.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                  {trick.name}
+                <li
+                  key={trick.id}
+                  className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                >
+                  <span>{trick.name}</span>
+                  <span className="font-semibold text-slate-900">{trick.points2}</span>
                 </li>
               ))}
             </ul>
