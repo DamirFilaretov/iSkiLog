@@ -15,6 +15,7 @@ export const TOURNAMENT_SPEED_STEPS = [
 ] as const
 
 export type TournamentSpeedStep = (typeof TOURNAMENT_SPEED_STEPS)[number]
+const SPEED_STEP_MPH_TOLERANCE = 0.051
 
 function parseSpeedMph(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") return null
@@ -32,18 +33,45 @@ export function nextTournamentSpeedStepByKph(kph: number): TournamentSpeedStep {
   return TOURNAMENT_SPEED_STEPS[TOURNAMENT_SPEED_STEPS.length - 1]
 }
 
+export function nearestTournamentSpeedStepByKph(kph: number): TournamentSpeedStep {
+  let best: TournamentSpeedStep = TOURNAMENT_SPEED_STEPS[0]
+  let bestDiff = Math.abs(kph - best.kph)
+
+  for (const step of TOURNAMENT_SPEED_STEPS.slice(1)) {
+    const diff = Math.abs(kph - step.kph)
+    if (diff < bestDiff || (diff === bestDiff && step.kph > best.kph)) {
+      best = step
+      bestDiff = diff
+    }
+  }
+
+  return best
+}
+
+function normalizeSetSpeedStep(speedMph: number): TournamentSpeedStep {
+  const directMphStep = TOURNAMENT_SPEED_STEPS.find(
+    step => Math.abs(step.mph - speedMph) <= SPEED_STEP_MPH_TOLERANCE
+  )
+
+  if (directMphStep) {
+    return directMphStep
+  }
+
+  return nextTournamentSpeedStepByKph(speedMph * 1.60934)
+}
+
 export function getAverageTournamentSpeedStep(sets: SkiSet[]): TournamentSpeedStep | null {
   const slalomSets = sets.filter((set): set is SkiSet & { event: "slalom" } => set.event === "slalom")
 
   const normalizedSteps = slalomSets
     .map(set => parseSpeedMph(set.data.speed))
     .filter((speed): speed is number => speed !== null && speed > 0)
-    .map(speedMph => nextTournamentSpeedStepByKph(speedMph * 1.60934))
+    .map(speedMph => normalizeSetSpeedStep(speedMph))
 
   if (normalizedSteps.length === 0) return null
 
   const averageKph =
     normalizedSteps.reduce((sum, step) => sum + step.kph, 0) / normalizedSteps.length
 
-  return nextTournamentSpeedStepByKph(averageKph)
+  return nearestTournamentSpeedStepByKph(averageKph)
 }

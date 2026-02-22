@@ -28,6 +28,8 @@ type Props = {
 
 const ROPE_LENGTHS = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
 const ROPE_OFF = ["15off", "22off", "28off", "32off", "35off", "38off", "39.5off", "41off", "43off"]
+const SCORE_PASS_SIZE = 6
+const SCORE_EPSILON = 1e-9
 
 function todayLocalIso() {
   const now = new Date()
@@ -140,19 +142,36 @@ function formatSpeedDisplay(speed: number | string, unit: "kmh" | "mph") {
   return `${valueText}mph`
 }
 
+function decodeScoreToRopeAndBuoys(score: number) {
+  if (!Number.isFinite(score) || score <= 0) return null
+
+  const maxRopeIndex = ROPE_LENGTHS.length - 1
+  const ropeIndex = Math.min(
+    Math.max(Math.floor((score - SCORE_EPSILON) / SCORE_PASS_SIZE), 0),
+    maxRopeIndex
+  )
+  const rawBuoys = score - ropeIndex * SCORE_PASS_SIZE
+  const buoys = roundBuoys(Math.min(Math.max(rawBuoys, 0), SCORE_PASS_SIZE))
+
+  return {
+    buoys,
+    ropeMeters: ROPE_LENGTHS[ropeIndex]
+  }
+}
+
 function formatAvgResult(
-  buoys: number,
-  ropeMeters: number,
+  score: number,
   speed: number | null,
   speedUnit: "kmh" | "mph",
   ropeUnit: "meters" | "feet"
 ) {
-  if (!Number.isFinite(buoys) || buoys <= 0 || !Number.isFinite(ropeMeters) || ropeMeters <= 0) {
+  const decoded = decodeScoreToRopeAndBuoys(score)
+  if (!decoded) {
     return "--"
   }
 
-  const buoysText = trimNumber(roundBuoys(buoys))
-  const ropeText = formatRopeDisplay(ropeMeters, ropeUnit)
+  const buoysText = trimNumber(decoded.buoys)
+  const ropeText = formatRopeDisplay(decoded.ropeMeters, ropeUnit)
   const speedText = speed === null ? "--" : formatSpeedDisplay(speed, speedUnit)
 
   if (speedText === "--") {
@@ -176,13 +195,9 @@ function formatBestSet(
 }
 
 function formatChartLabel(score: number) {
-  if (!Number.isFinite(score) || score <= 0) return ""
-  const ropeIndex = Math.min(
-    Math.max(Math.floor(score / 6), 0),
-    ROPE_LENGTHS.length - 1
-  )
-  const buoys = roundBuoys(score - ropeIndex * 6)
-  return trimNumber(buoys)
+  const decoded = decodeScoreToRopeAndBuoys(score)
+  if (!decoded) return ""
+  return trimNumber(decoded.buoys)
 }
 
 type ChartPoint = {
@@ -303,8 +318,7 @@ export default function SlalomInsights({ sets }: Props) {
     : "No sets yet"
   const averageResult = hasSlalomSets
       ? formatAvgResult(
-        stats.averageBuoys,
-        stats.averageRope,
+        stats.averageScore,
         averageTournamentSpeed?.mph ?? null,
         preferences.speedUnit,
         preferences.ropeUnit
