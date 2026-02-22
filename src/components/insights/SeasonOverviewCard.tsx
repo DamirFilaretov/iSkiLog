@@ -41,7 +41,7 @@ export default function SeasonOverviewCard({
     <div className="px-4">
       <div className={`rounded-3xl p-5 shadow-lg ${tone.card}`}>
         <div className="flex items-center justify-between gap-4">
-          <p className={`${tone.muted} text-lg font-semibold`}>
+          <p className="text-white text-lg font-semibold">
             {label}
           </p>
 

@@ -99,8 +99,10 @@ test("tasks: delete task", async ({ page }) => {
   const title = `task-delete-${Date.now()}`
   await addTask(page, { title })
 
-  page.once("dialog", dialog => dialog.accept())
   await taskRowByTitle(page, title).getByRole("button", { name: "Delete task" }).click()
+  const deleteModal = page.getByTestId("task-delete-modal")
+  await expect(deleteModal.getByText("Delete this task?")).toBeVisible()
+  await deleteModal.getByRole("button", { name: /^Delete$/ }).click()
 
   await expect(taskRowByTitle(page, title)).toHaveCount(0)
 })
