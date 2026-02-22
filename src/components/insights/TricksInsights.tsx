@@ -3,8 +3,14 @@ import { Clock3, Trophy, Hand, Footprints, ListChecks, Sparkles, ExternalLink } 
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import { useNavigate } from "react-router-dom"
-import { fetchInProgressTrickIds, fetchLearnedTrickIds } from "../../data/tricksLearnedApi"
+import {
+  fetchInProgressTrickIds,
+  fetchLearnedTrickIds,
+  readCachedInProgressTrickIds,
+  readCachedLearnedTrickIds
+} from "../../data/tricksLearnedApi"
 import { TRICK_CATALOG } from "../../features/tricks/trickCatalog"
+import { useAuth } from "../../auth/AuthProvider"
 
 type RangeKey = "week" | "month" | "season" | "custom"
 type TrickType = "hands" | "toes"
@@ -108,11 +114,18 @@ function filterSessionsByRange(
 
 export default function TricksInsights({ sets, dataSource }: Props) {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [range, setRange] = useState<RangeKey>("week")
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
-  const [learnedTrickIds, setLearnedTrickIds] = useState<Set<string> | null>(null)
-  const [inProgressTrickIds, setInProgressTrickIds] = useState<Set<string> | null>(null)
+  const [learnedTrickIds, setLearnedTrickIds] = useState<Set<string> | null>(() => {
+    if (!user) return null
+    return readCachedLearnedTrickIds(user.id)
+  })
+  const [inProgressTrickIds, setInProgressTrickIds] = useState<Set<string> | null>(() => {
+    if (!user) return null
+    return readCachedInProgressTrickIds(user.id)
+  })
   const [selectionLoadError, setSelectionLoadError] = useState<string | null>(null)
 
   // Metrics come from real sets by default.
@@ -133,6 +146,19 @@ export default function TricksInsights({ sets, dataSource }: Props) {
 
   useEffect(() => {
     let active = true
+
+    if (!user) {
+      setLearnedTrickIds(null)
+      setInProgressTrickIds(null)
+      setSelectionLoadError(null)
+      return () => {
+        active = false
+      }
+    }
+
+    // Show cached values instantly while background refresh runs.
+    setLearnedTrickIds(readCachedLearnedTrickIds(user.id))
+    setInProgressTrickIds(readCachedInProgressTrickIds(user.id))
 
     async function loadTrickSelections() {
       setSelectionLoadError(null)
@@ -157,7 +183,7 @@ export default function TricksInsights({ sets, dataSource }: Props) {
     return () => {
       active = false
     }
-  }, [])
+  }, [user])
 
   const filteredSessions = useMemo(
     () => filterSessionsByRange(sourceSessions, range, customStart, customEnd),

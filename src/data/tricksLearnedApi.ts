@@ -1,5 +1,38 @@
 import { supabase } from "../lib/supabaseClient"
 
+const LEARNED_CACHE_PREFIX = "iskilog:learned-tricks:"
+const IN_PROGRESS_CACHE_PREFIX = "iskilog:in-progress-tricks:"
+
+function readCachedIds(key: string): Set<string> | null {
+  if (typeof window === "undefined") return null
+
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as string[]
+    if (!Array.isArray(parsed)) return null
+
+    const ids = parsed.filter(value => typeof value === "string" && value.length > 0)
+    return new Set(ids)
+  } catch {
+    return null
+  }
+}
+
+function writeCachedIds(key: string, ids: Set<string>) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(key, JSON.stringify(Array.from(ids)))
+}
+
+function learnedCacheKey(userId: string) {
+  return `${LEARNED_CACHE_PREFIX}${userId}`
+}
+
+function inProgressCacheKey(userId: string) {
+  return `${IN_PROGRESS_CACHE_PREFIX}${userId}`
+}
+
 async function requireUserId() {
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError) throw userError
@@ -10,7 +43,16 @@ async function requireUserId() {
   return userId
 }
 
+export function readCachedLearnedTrickIds(userId: string): Set<string> | null {
+  return readCachedIds(learnedCacheKey(userId))
+}
+
+export function readCachedInProgressTrickIds(userId: string): Set<string> | null {
+  return readCachedIds(inProgressCacheKey(userId))
+}
+
 export async function fetchLearnedTrickIds(): Promise<Set<string>> {
+  const userId = await requireUserId()
   const { data, error } = await supabase
     .from("user_learned_tricks")
     .select("trick_id")
@@ -21,7 +63,9 @@ export async function fetchLearnedTrickIds(): Promise<Set<string>> {
     .map(row => row.trick_id as string | null)
     .filter((value): value is string => typeof value === "string" && value.length > 0)
 
-  return new Set(ids)
+  const result = new Set(ids)
+  writeCachedIds(learnedCacheKey(userId), result)
+  return result
 }
 
 export async function setTrickLearned(args: {
@@ -40,6 +84,10 @@ export async function setTrickLearned(args: {
       { onConflict: "user_id,trick_id" }
     )
     if (error) throw error
+    const cacheKey = learnedCacheKey(userId)
+    const next = readCachedIds(cacheKey) ?? new Set<string>()
+    next.add(args.trickId)
+    writeCachedIds(cacheKey, next)
     return
   }
 
@@ -50,9 +98,14 @@ export async function setTrickLearned(args: {
     .eq("trick_id", args.trickId)
 
   if (error) throw error
+  const cacheKey = learnedCacheKey(userId)
+  const next = readCachedIds(cacheKey) ?? new Set<string>()
+  next.delete(args.trickId)
+  writeCachedIds(cacheKey, next)
 }
 
 export async function fetchInProgressTrickIds(): Promise<Set<string>> {
+  const userId = await requireUserId()
   const { data, error } = await supabase
     .from("user_in_progress_tricks")
     .select("trick_id")
@@ -63,7 +116,9 @@ export async function fetchInProgressTrickIds(): Promise<Set<string>> {
     .map(row => row.trick_id as string | null)
     .filter((value): value is string => typeof value === "string" && value.length > 0)
 
-  return new Set(ids)
+  const result = new Set(ids)
+  writeCachedIds(inProgressCacheKey(userId), result)
+  return result
 }
 
 export async function setTrickInProgress(args: {
@@ -82,6 +137,10 @@ export async function setTrickInProgress(args: {
       { onConflict: "user_id,trick_id" }
     )
     if (error) throw error
+    const cacheKey = inProgressCacheKey(userId)
+    const next = readCachedIds(cacheKey) ?? new Set<string>()
+    next.add(args.trickId)
+    writeCachedIds(cacheKey, next)
     return
   }
 
@@ -92,4 +151,8 @@ export async function setTrickInProgress(args: {
     .eq("trick_id", args.trickId)
 
   if (error) throw error
+  const cacheKey = inProgressCacheKey(userId)
+  const next = readCachedIds(cacheKey) ?? new Set<string>()
+  next.delete(args.trickId)
+  writeCachedIds(cacheKey, next)
 }

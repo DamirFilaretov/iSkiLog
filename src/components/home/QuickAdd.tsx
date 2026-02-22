@@ -3,12 +3,12 @@ import EventTile from "./EventTile"
 
 export default function QuickAdd() {
   return (
-    <div className="mb-2.5">
+    <div>
       <h2 className="text-slate-900 text-lg mb-2.5">
         Quick Add
       </h2>
 
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-4 gap-3">
         <EventTile
           event="slalom"
           label="Slalom"

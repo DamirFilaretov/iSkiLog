@@ -34,12 +34,6 @@ export async function fetchSets(): Promise<SkiSet[]> {
     const seasonId = (s.season_id as string | null) ?? null
     const isFavorite = (s.is_favorite as boolean | null) ?? false
 
-    // Prefer updated_at, fall back to created_at if it exists, otherwise undefined.
-    const touchedAt =
-      (s.updated_at as string | undefined) ??
-      (s.created_at as string | undefined) ??
-      undefined
-
     if (s.event_type === "slalom") {
       const { data } = await supabase
         .from("slalom_sets")
@@ -54,7 +48,6 @@ export async function fetchSets(): Promise<SkiSet[]> {
         seasonId,
         isFavorite,
         notes: s.notes ?? "",
-        touchedAt,
         data: {
           buoys: data?.buoys ?? null,
           ropeLength: data?.rope_length ?? "",
@@ -78,7 +71,6 @@ export async function fetchSets(): Promise<SkiSet[]> {
         seasonId,
         isFavorite,
         notes: s.notes ?? "",
-        touchedAt,
         data: {
           duration: data?.duration_minutes ?? null,
           trickType: data?.trick_type ?? "hands"
@@ -100,7 +92,6 @@ export async function fetchSets(): Promise<SkiSet[]> {
         seasonId,
         isFavorite,
         notes: s.notes ?? "",
-        touchedAt,
         data: {
           subEvent: (data?.subevent as "jump" | "cuts" | undefined) ?? "jump",
           attempts: data?.attempts ?? null,
@@ -127,7 +118,6 @@ export async function fetchSets(): Promise<SkiSet[]> {
         seasonId,
         isFavorite,
         notes: s.notes ?? "",
-        touchedAt,
         data: {
           name: data?.name ?? ""
         }

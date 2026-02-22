@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Check, Pencil, Plus, Trash2 } from "lucide-react"
 import type { TaskItem } from "../../types/tasks"
+import { useAuth } from "../../auth/AuthProvider"
 import {
   createTask,
   deleteTask,
@@ -12,6 +13,26 @@ import { formatTaskDueLabel, isOverdue, todayIsoDate } from "../../features/task
 import { sortTasks } from "../../features/tasks/taskSort"
 import TaskModal from "./TaskModal"
 
+const DEFAULT_TASK_TITLES = [
+  "Choose your preferences in Profile page",
+  "Check out Tricks Library",
+  "Add your first training set"
+]
+
+function seedKey(userId: string) {
+  return `iskilog:tasks-default-seeded:${userId}`
+}
+
+function hasSeededDefaults(userId: string) {
+  if (typeof window === "undefined") return false
+  return window.localStorage.getItem(seedKey(userId)) === "true"
+}
+
+function markSeededDefaults(userId: string) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(seedKey(userId), "true")
+}
+
 function nowIso() {
   return new Date().toISOString()
 }
@@ -22,6 +43,7 @@ type ModalState =
   | { open: true; mode: "edit"; task: TaskItem }
 
 export default function TasksBlock() {
+  const { user } = useAuth()
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -44,7 +66,31 @@ export default function TasksBlock() {
       try {
         const nextTasks = await fetchTasks()
         if (!active) return
-        setTasks(nextTasks)
+
+        let resolvedTasks = nextTasks
+        const userId = user?.id ?? null
+        const shouldSeedDefaults =
+          userId !== null &&
+          nextTasks.length === 0 &&
+          !hasSeededDefaults(userId)
+
+        if (shouldSeedDefaults) {
+          const createdDefaults: TaskItem[] = []
+          for (const title of DEFAULT_TASK_TITLES) {
+            const created = await createTask({
+              title,
+              dueDate: null
+            })
+            createdDefaults.push(created)
+          }
+          resolvedTasks = createdDefaults
+          markSeededDefaults(userId)
+        } else if (userId && nextTasks.length > 0 && !hasSeededDefaults(userId)) {
+          // Existing users with any tasks should be considered already initialized.
+          markSeededDefaults(userId)
+        }
+
+        setTasks(resolvedTasks)
       } catch (err) {
         console.error("Failed to load tasks", err)
         if (!active) return
@@ -59,7 +105,7 @@ export default function TasksBlock() {
     return () => {
       active = false
     }
-  }, [])
+  }, [user])
 
   const sortedTasks = useMemo(() => sortTasks(tasks, today), [tasks, today])
   const openTasks = useMemo(() => sortedTasks.filter(task => !task.isDone), [sortedTasks])
@@ -226,7 +272,7 @@ export default function TasksBlock() {
             onClick={() => openEditModal(task)}
             disabled={disabled}
             aria-label="Edit task"
-            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-60"
+            className="rounded-lg p-1.5 text-blue-600 transition hover:bg-slate-100 hover:text-blue-700 disabled:opacity-60"
           >
             <Pencil className="h-4 w-4" />
           </button>
@@ -235,7 +281,7 @@ export default function TasksBlock() {
             onClick={() => requestDelete(task)}
             disabled={disabled}
             aria-label="Delete task"
-            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-60"
+            className="rounded-lg p-1.5 text-red-500 transition hover:bg-slate-100 hover:text-red-600 disabled:opacity-60"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -245,7 +291,7 @@ export default function TasksBlock() {
   }
 
   return (
-    <div className="mt-6 mb-2" data-testid="tasks-block">
+    <div data-testid="tasks-block">
       <div className="mb-2.5 flex items-center justify-between">
         <h2 className="text-slate-900 text-lg">Tasks</h2>
         <button
@@ -273,7 +319,9 @@ export default function TasksBlock() {
         {loading ? (
           <div className="px-4 py-6 text-sm text-slate-500">Loading tasks...</div>
         ) : tasks.length === 0 ? (
-          <div className="px-4 py-6 text-sm text-slate-500">No tasks yet. Add your first task.</div>
+          <div className="flex min-h-[112px] items-center px-4 py-4 text-lg font-medium text-slate-500">
+            No tasks yet. Add your first task.
+          </div>
         ) : (
           <>
             <div data-testid="tasks-open">{openTasks.map(renderTaskRow)}</div>
