@@ -8,7 +8,7 @@ export default function QuickAdd() {
         Quick Add
       </h2>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-4 gap-3 mb-4">
         <EventTile
           event="slalom"
           label="Slalom"

@@ -29,6 +29,8 @@ export default function TasksBlock() {
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(() => new Set())
   const [modalState, setModalState] = useState<ModalState>({ open: false })
   const [modalSaving, setModalSaving] = useState(false)
+  const [deleteConfirmTask, setDeleteConfirmTask] = useState<TaskItem | null>(null)
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
 
   const today = useMemo(() => todayIsoDate(), [])
 
@@ -140,23 +142,32 @@ export default function TasksBlock() {
     }
   }
 
-  async function handleDelete(task: TaskItem) {
+  function requestDelete(task: TaskItem) {
     if (pendingTaskIds.has(task.id)) return
 
-    const confirmed = window.confirm("Delete this task?")
-    if (!confirmed) return
+    setSaveError(null)
+    setDeleteConfirmTask(task)
+  }
 
+  async function handleConfirmDelete() {
+    const task = deleteConfirmTask
+    if (!task) return
+    if (pendingTaskIds.has(task.id)) return
+
+    setDeleteSubmitting(true)
     setSaveError(null)
     setPending(task.id, true)
 
     try {
       await deleteTask(task.id)
       setTasks(prev => prev.filter(item => item.id !== task.id))
+      setDeleteConfirmTask(null)
     } catch (err) {
       console.error("Failed to delete task", err)
       setSaveError("Unable to delete task. Please try again.")
     } finally {
       setPending(task.id, false)
+      setDeleteSubmitting(false)
     }
   }
 
@@ -221,7 +232,7 @@ export default function TasksBlock() {
           </button>
           <button
             type="button"
-            onClick={() => void handleDelete(task)}
+            onClick={() => requestDelete(task)}
             disabled={disabled}
             aria-label="Delete task"
             className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-60"
@@ -281,6 +292,45 @@ export default function TasksBlock() {
           onCancel={closeModal}
           onSubmit={handleSubmitModal}
         />
+      ) : null}
+
+      {deleteConfirmTask ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6" data-testid="task-delete-modal">
+          <button
+            type="button"
+            aria-label="Close delete confirmation"
+            onClick={() => {
+              if (deleteSubmitting) return
+              setDeleteConfirmTask(null)
+            }}
+            className="absolute inset-0 bg-black/40"
+          />
+
+          <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-base font-semibold text-gray-900">Delete this task?</h3>
+            <p className="mt-1 text-sm text-gray-500">This action cannot be undone.</p>
+
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                disabled={deleteSubmitting}
+                onClick={() => setDeleteConfirmTask(null)}
+                className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-900 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={deleteSubmitting}
+                onClick={() => void handleConfirmDelete()}
+                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {deleteSubmitting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   )
