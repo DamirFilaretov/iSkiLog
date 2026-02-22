@@ -55,7 +55,8 @@ export async function fetchLearnedTrickIds(): Promise<Set<string>> {
   const userId = await requireUserId()
   const { data, error } = await supabase
     .from("user_learned_tricks")
-    .select("trick_id")
+    .select("trick_id, learned_at")
+    .order("learned_at", { ascending: false })
 
   if (error) throw error
 
@@ -86,8 +87,8 @@ export async function setTrickLearned(args: {
     if (error) throw error
     const cacheKey = learnedCacheKey(userId)
     const next = readCachedIds(cacheKey) ?? new Set<string>()
-    next.add(args.trickId)
-    writeCachedIds(cacheKey, next)
+    const ordered = [args.trickId, ...Array.from(next).filter(id => id !== args.trickId)]
+    writeCachedIds(cacheKey, new Set(ordered))
     return
   }
 
@@ -108,7 +109,8 @@ export async function fetchInProgressTrickIds(): Promise<Set<string>> {
   const userId = await requireUserId()
   const { data, error } = await supabase
     .from("user_in_progress_tricks")
-    .select("trick_id")
+    .select("trick_id, updated_at")
+    .order("updated_at", { ascending: false })
 
   if (error) throw error
 
@@ -139,8 +141,8 @@ export async function setTrickInProgress(args: {
     if (error) throw error
     const cacheKey = inProgressCacheKey(userId)
     const next = readCachedIds(cacheKey) ?? new Set<string>()
-    next.add(args.trickId)
-    writeCachedIds(cacheKey, next)
+    const ordered = [args.trickId, ...Array.from(next).filter(id => id !== args.trickId)]
+    writeCachedIds(cacheKey, new Set(ordered))
     return
   }
 

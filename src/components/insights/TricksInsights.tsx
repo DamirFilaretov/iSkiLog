@@ -213,18 +213,26 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   const totalTypeCount = handsCount + toesCount
   const handsPercent = totalTypeCount === 0 ? 0 : Math.round((handsCount / totalTypeCount) * 100)
   const toesPercent = totalTypeCount === 0 ? 0 : Math.round((toesCount / totalTypeCount) * 100)
+  const trickById = useMemo(
+    () => new Map(TRICK_CATALOG.map(trick => [trick.id, trick])),
+    []
+  )
 
   const learnedTricksFromCatalog = useMemo(() => {
     if (!learnedTrickIds) return []
 
-    return TRICK_CATALOG.filter(item => learnedTrickIds.has(item.id))
-  }, [learnedTrickIds])
+    return Array.from(learnedTrickIds)
+      .map(trickId => trickById.get(trickId))
+      .filter((trick): trick is (typeof TRICK_CATALOG)[number] => Boolean(trick))
+  }, [learnedTrickIds, trickById])
 
   const inProgressTricksFromCatalog = useMemo(() => {
     if (!inProgressTrickIds) return []
 
-    return TRICK_CATALOG.filter(item => inProgressTrickIds.has(item.id))
-  }, [inProgressTrickIds])
+    return Array.from(inProgressTrickIds)
+      .map(trickId => trickById.get(trickId))
+      .filter((trick): trick is (typeof TRICK_CATALOG)[number] => Boolean(trick))
+  }, [inProgressTrickIds, trickById])
 
   const learnedPreview = useMemo(() => learnedTricksFromCatalog.slice(0, 5), [learnedTricksFromCatalog])
   const hasMoreLearnedTricks = learnedTricksFromCatalog.length > learnedPreview.length

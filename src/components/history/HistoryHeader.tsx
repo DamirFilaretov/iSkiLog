@@ -3,7 +3,7 @@ export default function HistoryHeader() {
   const navigate = useNavigate()
 
   return (
-    <div className="px-4 pt-6 pb-4 bg-gray-100 rounded-b-3xl">
+    <div className="px-4 pt-6 pb-4 bg-slate-50 rounded-b-3xl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
