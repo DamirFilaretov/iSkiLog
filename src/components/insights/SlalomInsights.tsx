@@ -18,6 +18,7 @@ import {
   getSlalomStats,
   type SlalomSeriesPoint
 } from "../../features/insights/insightsSelectors"
+import { getAverageTournamentSpeedStep } from "../../features/insights/slalomSpeedSteps"
 
 type RangeKey = "week" | "month" | "season" | "custom"
 
@@ -27,6 +28,8 @@ type Props = {
 
 const ROPE_LENGTHS = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
 const ROPE_OFF = ["15off", "22off", "28off", "32off", "35off", "38off", "39.5off", "41off", "43off"]
+const SCORE_PASS_SIZE = 6
+const SCORE_EPSILON = 1e-9
 
 function todayLocalIso() {
   const now = new Date()
@@ -129,42 +132,50 @@ function formatSpeedDisplay(speed: number | string, unit: "kmh" | "mph") {
   const numeric = typeof speed === "number" ? speed : Number.parseFloat(speed)
   if (!Number.isFinite(numeric) || numeric <= 0) return "--"
   const converted = unit === "kmh" ? numeric * 1.60934 : numeric
-  const value = Math.round(converted)
-  return unit === "kmh" ? `${value}kph` : `${value}mph`
+  if (unit === "kmh") {
+    return `${Math.round(converted)}kph`
+  }
+  const roundedToTenth = Math.round(converted * 10) / 10
+  const valueText = Number.isInteger(roundedToTenth)
+    ? roundedToTenth.toFixed(0)
+    : roundedToTenth.toFixed(1)
+  return `${valueText}mph`
 }
 
-function describeAvgResultRule(score: number, speed: number) {
+function decodeScoreToRopeAndBuoys(score: number) {
+  if (!Number.isFinite(score) || score <= 0) return null
+
+  const maxRopeIndex = ROPE_LENGTHS.length - 1
   const ropeIndex = Math.min(
-    Math.max(Math.floor(score / 6), 0),
-    ROPE_LENGTHS.length - 1
+    Math.max(Math.floor((score - SCORE_EPSILON) / SCORE_PASS_SIZE), 0),
+    maxRopeIndex
   )
-  const buoys = score - ropeIndex * 6
-  const rope = ROPE_LENGTHS[ropeIndex]
-  const speedText = Number.isFinite(speed) && speed > 0 ? Math.round(speed) : "�"
-  return `avgScore=${score.toFixed(2)} => ropeIndex=floor(score/6)=${ropeIndex}, buoys=score-${ropeIndex}*6=${buoys.toFixed(2)}, rope=${rope}m, speed=round(${speed.toFixed(2)})=${speedText}`
+  const rawBuoys = score - ropeIndex * SCORE_PASS_SIZE
+  const buoys = roundBuoys(Math.min(Math.max(rawBuoys, 0), SCORE_PASS_SIZE))
+
+  return {
+    buoys,
+    ropeMeters: ROPE_LENGTHS[ropeIndex]
+  }
 }
 
 function formatAvgResult(
   score: number,
-  speed: number,
+  speed: number | null,
   speedUnit: "kmh" | "mph",
   ropeUnit: "meters" | "feet"
 ) {
-  if (!Number.isFinite(score) || score <= 0) {
-    return "�"
+  const decoded = decodeScoreToRopeAndBuoys(score)
+  if (!decoded) {
+    return "--"
   }
 
-  const ropeIndex = Math.min(
-    Math.max(Math.floor(score / 6), 0),
-    ROPE_LENGTHS.length - 1
-  )
-  const buoys = roundBuoys(score - ropeIndex * 6)
-  const buoysText = trimNumber(buoys)
-  const ropeText = formatRopeDisplay(ROPE_LENGTHS[ropeIndex], ropeUnit)
-  const speedText = formatSpeedDisplay(speed, speedUnit)
+  const buoysText = trimNumber(decoded.buoys)
+  const ropeText = formatRopeDisplay(decoded.ropeMeters, ropeUnit)
+  const speedText = speed === null ? "--" : formatSpeedDisplay(speed, speedUnit)
 
-  if (speedText === "�") {
-    return `${buoysText}/� @ ${ropeText}`
+  if (speedText === "--") {
+    return `${buoysText}/-- @ ${ropeText}`
   }
 
   return `${buoysText}/${speedText} @ ${ropeText}`
@@ -184,13 +195,9 @@ function formatBestSet(
 }
 
 function formatChartLabel(score: number) {
-  if (!Number.isFinite(score) || score <= 0) return ""
-  const ropeIndex = Math.min(
-    Math.max(Math.floor(score / 6), 0),
-    ROPE_LENGTHS.length - 1
-  )
-  const buoys = roundBuoys(score - ropeIndex * 6)
-  return trimNumber(buoys)
+  const decoded = decodeScoreToRopeAndBuoys(score)
+  if (!decoded) return ""
+  return trimNumber(decoded.buoys)
 }
 
 type ChartPoint = {
@@ -296,28 +303,23 @@ export default function SlalomInsights({ sets }: Props) {
   )
 
   const stats = useMemo(() => getSlalomStats(filteredSets), [filteredSets])
+  const averageTournamentSpeed = useMemo(
+    () => getAverageTournamentSpeedStep(filteredSets),
+    [filteredSets]
+  )
   const series = useMemo(
     () => getSlalomSeries(filteredSets, range, customStart, customEnd),
     [filteredSets, range, customStart, customEnd]
   )
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return
-    if (!Number.isFinite(stats.averageScore) || stats.averageScore <= 0) return
-    console.debug(
-      "[Slalom Avg Result]",
-      describeAvgResultRule(stats.averageScore, stats.averageSpeed)
-    )
-  }, [stats.averageScore, stats.averageSpeed])
 
   const hasSlalomSets = stats.totalSets > 0
   const bestResult = hasSlalomSets
     ? formatBestSet(stats.bestSet, preferences.speedUnit, preferences.ropeUnit)
     : "No sets yet"
   const averageResult = hasSlalomSets
-    ? formatAvgResult(
+      ? formatAvgResult(
         stats.averageScore,
-        stats.averageSpeed,
+        averageTournamentSpeed?.mph ?? null,
         preferences.speedUnit,
         preferences.ropeUnit
       )
@@ -435,6 +437,7 @@ export default function SlalomInsights({ sets }: Props) {
     </div>
   )
 }
+
 
 
 

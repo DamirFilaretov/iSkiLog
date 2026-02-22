@@ -9,7 +9,7 @@ import {
   setTrickLearned
 } from "../data/tricksLearnedApi"
 import { applyToggleResponse, setLearnedState } from "../features/tricks/learnedToggle"
-import { searchTricks } from "../features/tricks/trickCatalog"
+import { searchTricks, TRICK_CATALOG } from "../features/tricks/trickCatalog"
 
 type ToggleTarget = "learned" | "in_progress"
 
@@ -22,9 +22,7 @@ const SURFACE_TRICK_CODES = new Set([
   "5B",
   "5F",
   "7F",
-  "7B",
-  "LB",
-  "LF"
+  "7B"
 ])
 
 const SURFACE_TOES_TRICK_CODES = new Set([
@@ -72,6 +70,8 @@ const TOE_WAKE_LINES_CODES = new Set([
 ])
 
 const STEPOVER_TRICK_CODES = new Set([
+  "LB",
+  "LF",
   "WLB",
   "WLF",
   "WLO",
@@ -115,9 +115,19 @@ function sectionCode(trickCode: string) {
   return trickCode.startsWith("R") ? trickCode.slice(1) : trickCode
 }
 
+function isToesTrickCode(trickName: string) {
+  const code = sectionCode(trickName)
+  return (
+    SURFACE_TOES_TRICK_CODES.has(code) ||
+    WAKE_TOES_TRICK_CODES.has(code) ||
+    TOE_WAKE_LINES_CODES.has(code)
+  )
+}
+
 export default function TricksLibrary() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const [disciplineFilter, setDisciplineFilter] = useState<"hands" | "toes">("hands")
 
   const [learnedIds, setLearnedIds] = useState<Set<string>>(() => new Set())
   const [inProgressIds, setInProgressIds] = useState<Set<string>>(() => new Set())
@@ -169,6 +179,29 @@ export default function TricksLibrary() {
       { title: "Other tricks", tricks: otherTricks }
     ].filter(section => section.tricks.length > 0)
   }, [filteredTricks])
+
+  const visibleSections = useMemo(() => {
+    if (disciplineFilter === "hands") {
+      return trickSections.filter(section => !section.title.toLowerCase().includes("toes"))
+    }
+    return trickSections.filter(section => section.title.toLowerCase().includes("toes"))
+  }, [trickSections, disciplineFilter])
+
+  const disciplineTotals = useMemo(() => {
+    const relevantCatalog =
+      disciplineFilter === "toes"
+        ? TRICK_CATALOG.filter(trick => isToesTrickCode(trick.name))
+        : TRICK_CATALOG.filter(trick => !isToesTrickCode(trick.name))
+
+    const learnedCount = relevantCatalog.reduce((sum, trick) => {
+      return sum + (learnedIds.has(trick.id) ? 1 : 0)
+    }, 0)
+
+    return {
+      learned: learnedCount,
+      total: relevantCatalog.length
+    }
+  }, [disciplineFilter, learnedIds])
 
   useEffect(() => {
     let active = true
@@ -314,7 +347,7 @@ export default function TricksLibrary() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-8">
+    <div className="min-h-screen bg-slate-50 pb-28">
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3">
           <button
@@ -334,15 +367,31 @@ export default function TricksLibrary() {
 
       <div className="px-4">
         <label className="text-xs text-slate-500">Search trick code</label>
-        <div className="mt-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-sm">
-          <Search className="h-4 w-4 text-slate-400" />
-          <input
-            value={query}
-            onChange={event => updateQuery(event.target.value)}
-            placeholder="Search by trick code"
-            className="w-full bg-transparent text-sm text-slate-900 outline-none"
-          />
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-sm">
+            <Search className="h-4 w-4 text-slate-400" />
+            <input
+              value={query}
+              onChange={event => updateQuery(event.target.value)}
+              placeholder="Search by trick code"
+              className="w-full bg-transparent text-sm text-slate-900 outline-none"
+            />
+          </div>
+          <div className="rounded-2xl bg-white px-3 py-2 shadow-sm">
+            <select
+              value={disciplineFilter}
+              onChange={event => setDisciplineFilter(event.target.value as "hands" | "toes")}
+              aria-label="Filter by hands or toes"
+              className="bg-transparent text-sm font-medium text-slate-700 outline-none"
+            >
+              <option value="hands">Hands</option>
+              <option value="toes">Toes</option>
+            </select>
+          </div>
         </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Learned in {disciplineFilter}: {loading ? "..." : disciplineTotals.learned} of {disciplineTotals.total}
+        </p>
       </div>
 
       {loadError ? (
@@ -370,8 +419,12 @@ export default function TricksLibrary() {
           <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
             <div className="px-4 py-6 text-sm text-slate-500">No tricks found for your search.</div>
           </div>
+        ) : visibleSections.length === 0 ? (
+          <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+            <div className="px-4 py-6 text-sm text-slate-500">No tricks found for this filter.</div>
+          </div>
         ) : (
-          trickSections.map((section, sectionIndex) => (
+          visibleSections.map((section, sectionIndex) => (
             <div key={section.title} className={sectionIndex > 0 ? "mt-4" : ""}>
               <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
                 <div className="border-b border-slate-100 px-4 py-2.5">

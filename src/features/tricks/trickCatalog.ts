@@ -87,7 +87,38 @@ const R_CATALOG: TrickCatalogItem[] = CATALOG.map((trick, index) => ({
   points2: trick.points2
 }))
 
-export const TRICK_CATALOG = [...CATALOG, ...R_CATALOG].sort((a, b) => {
+const REMOVED_TRICK_CODES = new Set([
+  "RLB",
+  "RLF",
+  "RTWLB",
+  "RTWLF",
+  "TW7B",
+  "RTW7B",
+  "RTWL5F",
+  "RWLB",
+  "RWLF",
+  "RWLO",
+  "RWL5B",
+  "RWL5F",
+  "RWL5LB",
+  "RWL5LF",
+  "RWL7B",
+  "RWL7F",
+  "RWL9B",
+  "RWL9F",
+  "RSLB",
+  "RSLBB",
+  "SLF",
+  "RSLF",
+  "RSL5B",
+  "RSL5F",
+  "RSL7B",
+  "RSL7F"
+])
+
+export const TRICK_CATALOG = [...CATALOG, ...R_CATALOG]
+  .filter(item => !REMOVED_TRICK_CODES.has(item.name))
+  .sort((a, b) => {
   if (a.points2 !== b.points2) return a.points2 - b.points2
   const aBase = a.name.startsWith("R") ? a.name.slice(1) : a.name
   const bBase = b.name.startsWith("R") ? b.name.slice(1) : b.name
