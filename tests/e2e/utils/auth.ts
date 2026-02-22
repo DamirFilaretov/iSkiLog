@@ -78,7 +78,7 @@ export async function signUpThenLogin(page: Page, args: { emailDomain: string; p
 
 export async function expectHomeLoaded(page: Page) {
   await expect(page.getByRole("heading", { name: "iSkiLog" })).toBeVisible()
-  await expect(page.getByText(/No sets logged yet|Total sets this season/)).toBeVisible()
+  await expect(page.getByText(/No sets logged yet|Season Total:|total training sets/i)).toBeVisible()
 }
 
 export async function logoutUser(page: Page) {

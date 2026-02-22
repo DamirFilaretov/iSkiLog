@@ -54,6 +54,17 @@ create table if not exists public.user_in_progress_tricks (
   primary key (user_id, trick_id)
 );
 
+create table if not exists public.user_tasks (
+  id uuid primary key default extensions.gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null check (char_length(trim(title)) between 1 and 140),
+  due_date date null,
+  is_done boolean not null default false,
+  completed_at timestamptz null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 create table if not exists public.jump_sets (
   set_id uuid primary key references public.sets(id) on delete cascade,
   subevent text null,
@@ -74,6 +85,10 @@ create index if not exists idx_seasons_user_id on public.seasons (user_id);
 create index if not exists idx_sets_user_id on public.sets (user_id);
 create index if not exists idx_sets_date on public.sets (date desc);
 create index if not exists idx_sets_updated_at on public.sets (updated_at desc);
+create index if not exists idx_user_tasks_user_id on public.user_tasks (user_id);
+create index if not exists idx_user_tasks_due_date on public.user_tasks (due_date);
+create index if not exists idx_user_tasks_done_due on public.user_tasks (is_done, due_date);
+create index if not exists idx_user_tasks_updated_at on public.user_tasks (updated_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -91,6 +106,12 @@ before update on public.sets
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists trg_user_tasks_updated_at on public.user_tasks;
+create trigger trg_user_tasks_updated_at
+before update on public.user_tasks
+for each row
+execute function public.set_updated_at();
+
 alter table public.profiles enable row level security;
 alter table public.seasons enable row level security;
 alter table public.sets enable row level security;
@@ -98,6 +119,7 @@ alter table public.slalom_sets enable row level security;
 alter table public.tricks_sets enable row level security;
 alter table public.user_learned_tricks enable row level security;
 alter table public.user_in_progress_tricks enable row level security;
+alter table public.user_tasks enable row level security;
 alter table public.jump_sets enable row level security;
 alter table public.other_sets enable row level security;
 
@@ -161,6 +183,15 @@ create policy in_progress_tricks_select on public.user_in_progress_tricks for se
 create policy in_progress_tricks_insert on public.user_in_progress_tricks for insert to authenticated with check (auth.uid() = user_id);
 create policy in_progress_tricks_update on public.user_in_progress_tricks for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy in_progress_tricks_delete on public.user_in_progress_tricks for delete to authenticated using (auth.uid() = user_id);
+
+drop policy if exists user_tasks_select on public.user_tasks;
+drop policy if exists user_tasks_insert on public.user_tasks;
+drop policy if exists user_tasks_update on public.user_tasks;
+drop policy if exists user_tasks_delete on public.user_tasks;
+create policy user_tasks_select on public.user_tasks for select to authenticated using (auth.uid() = user_id);
+create policy user_tasks_insert on public.user_tasks for insert to authenticated with check (auth.uid() = user_id);
+create policy user_tasks_update on public.user_tasks for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy user_tasks_delete on public.user_tasks for delete to authenticated using (auth.uid() = user_id);
 
 drop policy if exists jump_select on public.jump_sets;
 drop policy if exists jump_insert on public.jump_sets;

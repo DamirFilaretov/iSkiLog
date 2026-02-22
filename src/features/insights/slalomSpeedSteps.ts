@@ -57,7 +57,7 @@ function normalizeSetSpeedStep(speedMph: number): TournamentSpeedStep {
     return directMphStep
   }
 
-  return nextTournamentSpeedStepByKph(speedMph * 1.60934)
+  return nearestTournamentSpeedStepByKph(speedMph * 1.60934)
 }
 
 export function getAverageTournamentSpeedStep(sets: SkiSet[]): TournamentSpeedStep | null {

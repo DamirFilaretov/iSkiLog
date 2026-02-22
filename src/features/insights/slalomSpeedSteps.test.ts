@@ -94,4 +94,13 @@ describe("slalom speed steps", () => {
     ])
     expect(result).toEqual({ kph: 55, mph: 34.2 })
   })
+
+  it("rounds final average to nearest step (52,52,55 -> 52)", () => {
+    const result = getAverageTournamentSpeedStep([
+      slalomSet("32.3", "14", "s-1"), // 52
+      slalomSet("32.3", "14", "s-2"), // 52
+      slalomSet("34.2", "14", "s-3") // 55
+    ])
+    expect(result).toEqual({ kph: 52, mph: 32.3 })
+  })
 })
