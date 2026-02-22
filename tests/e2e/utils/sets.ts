@@ -80,11 +80,8 @@ export async function addOtherSet(page: Page, args?: { notes?: string; date?: st
 }
 
 export async function getHomeSeasonTotal(page: Page) {
-  const card = page
-    .getByText("Total sets this season")
-    .locator("xpath=ancestor::div[1]")
-    .first()
-  const valueLocator = card.locator("p").nth(1)
+  const card = page.getByText(/Season Total:|total training sets/i).first().locator("xpath=ancestor::div[contains(@class,'rounded')]").first()
+  const valueLocator = card.locator("p").last()
   await expect(valueLocator).not.toHaveText(/Loading/i, { timeout: 15_000 })
   const valueText = (await valueLocator.textContent())?.trim() ?? ""
   const value = Number(valueText)
