@@ -1,16 +1,14 @@
 import type { EventKey } from "../../types/sets"
 
 type Props = {
-  seasonTitle: string
+  label: string
   totalSets: number
-  subtitle?: string
   event: EventKey | "all"
 }
 
 export default function SeasonOverviewCard({
-  seasonTitle,
+  label,
   totalSets,
-  subtitle = "Total training sets",
   event
 }: Props) {
   const tone =
@@ -42,17 +40,15 @@ export default function SeasonOverviewCard({
   return (
     <div className="px-4">
       <div className={`rounded-3xl p-5 shadow-lg ${tone.card}`}>
-        <p className={`${tone.muted} text-sm`}>
-          {seasonTitle}
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <p className={`${tone.muted} text-lg font-semibold`}>
+            {label}
+          </p>
 
-        <p className="mt-2 text-white text-4xl font-semibold tracking-tight">
-          {totalSets}
-        </p>
-
-        <p className={`${tone.muted} text-xs`}>
-          {subtitle}
-        </p>
+          <p className="text-white text-3xl font-semibold tracking-tight">
+            {totalSets}
+          </p>
+        </div>
       </div>
     </div>
   )

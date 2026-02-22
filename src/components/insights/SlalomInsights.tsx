@@ -30,6 +30,7 @@ const ROPE_LENGTHS = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
 const ROPE_OFF = ["15off", "22off", "28off", "32off", "35off", "38off", "39.5off", "41off", "43off"]
 const SCORE_PASS_SIZE = 6
 const SCORE_EPSILON = 1e-9
+const CHART_ROPE_SCORE_TICKS = ROPE_LENGTHS.map((_, index) => (index + 1) * SCORE_PASS_SIZE)
 
 function todayLocalIso() {
   const now = new Date()
@@ -194,10 +195,13 @@ function formatBestSet(
   return `${buoys}/${speed} @ ${rope}`
 }
 
-function formatChartLabel(score: number) {
+function formatChartRopeLabel(score: number, ropeUnit: "meters" | "feet") {
   const decoded = decodeScoreToRopeAndBuoys(score)
   if (!decoded) return ""
-  return trimNumber(decoded.buoys)
+  if (ropeUnit === "feet") {
+    return formatRopeDisplay(decoded.ropeMeters, ropeUnit)
+  }
+  return trimNumber(decoded.ropeMeters)
 }
 
 type ChartPoint = {
@@ -254,11 +258,13 @@ function SeriesChart({
             <CartesianGrid stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
             <YAxis
-              tickFormatter={value => formatChartLabel(Number(value))}
-              tick={{ fontSize: 10, fill: "#94a3b8" }}
+              tickFormatter={value => formatChartRopeLabel(Number(value), ropeUnit)}
+              ticks={CHART_ROPE_SCORE_TICKS}
+              reversed={false}
+              tick={{ fontSize: 9, fill: "#94a3b8" }}
               axisLine={false}
               tickLine={false}
-              width={28}
+              width={34}
             />
             <Tooltip content={renderTooltip} cursor={{ stroke: "rgba(37, 99, 235, 0.15)", strokeWidth: 2 }} />
             <Line

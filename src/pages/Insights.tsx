@@ -113,9 +113,9 @@ export default function Insights() {
     return `${year} Season`
   }
 
-  const getEventLabel = (event: EventKey | "all") => {
-    if (event === "all") return "Training"
-    return event.charAt(0).toUpperCase() + event.slice(1)
+  const getSeasonTotalLabel = (event: EventKey | "all", seasonYear: string) => {
+    if (event === "all") return `${seasonYear} total training sets`
+    return `${seasonYear} total ${event} sets`
   }
 
   const sortedSeasons = useMemo(() => {
@@ -201,14 +201,8 @@ export default function Insights() {
     [filteredSeasonSets]
   )
 
-  const seasonTitle = selectedSeason
-    ? `${selectedSeason.startDate.slice(0, 4)} ${getEventLabel(selectedEvent)} Training`
-    : ""
-
-  const seasonSubtitle =
-    selectedEvent === "all"
-      ? "Total training sets"
-      : `${getEventLabel(selectedEvent)} sets logged`
+  const seasonYear = selectedSeason?.startDate.slice(0, 4) ?? ""
+  const seasonTotalLabel = getSeasonTotalLabel(selectedEvent, seasonYear)
   const showSlalomInsights = selectedEvent === "slalom"
   const showTricksInsights = selectedEvent === "tricks"
   const showJumpInsights = selectedEvent === "jump"
@@ -526,9 +520,8 @@ export default function Insights() {
         </div>
 
         <SeasonOverviewCard
-          seasonTitle={seasonTitle}
+          label={seasonTotalLabel}
           totalSets={filteredSeasonSets.length}
-          subtitle={seasonSubtitle}
           event={selectedEvent}
         />
 
