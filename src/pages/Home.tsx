@@ -2,6 +2,7 @@ import HomeHeader from "../components/home/HomeHeader"
 import SeasonSummaryCard from "../components/home/SeasonSummaryCard"
 import QuickAdd from "../components/home/QuickAdd"
 import RecentPreview from "../components/home/RecentPreview"
+import TasksBlock from "../components/home/TasksBlock"
 import { useSetsStore } from "../store/setsStore"
 
 function HomeLoading() {
@@ -56,11 +57,13 @@ export default function Home() {
           </div>
 
           <QuickAdd />
+          <TasksBlock />
         </div>
       ) : (
         <>
           <SeasonSummaryCard />
           <QuickAdd />
+          <TasksBlock />
           <RecentPreview />
         </>
       )}
