@@ -15,11 +15,6 @@ export type SetBase = {
   isFavorite: boolean
 
   notes: string
-
-  // Timestamp of last user interaction with this set.
-  // Used for "Recent" ordering (last created OR last updated).
-  // Comes from DB updated_at or is set locally on create/update.
-  touchedAt?: string
 }
 
 export type SlalomData = {

@@ -1,7 +1,6 @@
 import HomeHeader from "../components/home/HomeHeader"
 import SeasonSummaryCard from "../components/home/SeasonSummaryCard"
 import QuickAdd from "../components/home/QuickAdd"
-import RecentPreview from "../components/home/RecentPreview"
 import TasksBlock from "../components/home/TasksBlock"
 import { useSetsStore } from "../store/setsStore"
 
@@ -26,6 +25,11 @@ function HomeLoading() {
           <div className="h-4 w-32 bg-slate-100 rounded" />
           <div className="mt-3 h-10 w-full bg-slate-100 rounded-2xl" />
         </div>
+
+        <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
+          <div className="h-4 w-24 bg-slate-100 rounded" />
+          <div className="mt-3 h-10 w-40 bg-slate-100 rounded-2xl" />
+        </div>
       </div>
     </div>
   )
@@ -48,7 +52,7 @@ export default function Home() {
       <HomeHeader />
 
       {showEmptySeason ? (
-        <div className="mt-4 space-y-4 pb-6">
+        <div className="mt-4 space-y-6 pb-6">
           <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
             <p className="text-sm font-medium text-slate-900">No sets logged yet</p>
             <p className="mt-1 text-sm text-slate-500">
@@ -60,12 +64,11 @@ export default function Home() {
           <TasksBlock />
         </div>
       ) : (
-        <>
+        <div className="mt-4 space-y-6 pb-6">
           <SeasonSummaryCard />
           <QuickAdd />
           <TasksBlock />
-          <RecentPreview />
-        </>
+        </div>
       )}
     </div>
   )

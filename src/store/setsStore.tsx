@@ -69,29 +69,17 @@ function writeSetsCache(userId: string, state: SetsState) {
   window.localStorage.setItem(cacheKey(userId), JSON.stringify(payload))
 }
 
-function stampTouchedAt(set: SkiSet): SkiSet {
-  // If touchedAt is already present (from DB), keep it.
-  // Otherwise stamp now so Recent is correct immediately.
-  if (set.touchedAt) return set
-  return { ...set, touchedAt: new Date().toISOString() }
-}
-
 function setsReducer(state: SetsState, action: SetsAction): SetsState {
   switch (action.type) {
     case "ADD_SET": {
-      const stamped = stampTouchedAt(action.payload)
-
       // New sets should always appear as most recent.
-      return { ...state, sets: [stamped, ...state.sets] }
+      return { ...state, sets: [action.payload, ...state.sets] }
     }
 
     case "UPDATE_SET": {
-      const stamped = stampTouchedAt(action.payload)
-
       // Updated sets should become most recent.
-      // This makes RecentPreview show the last set the user touched.
-      const withoutOld = state.sets.filter(s => s.id !== stamped.id)
-      return { ...state, sets: [stamped, ...withoutOld] }
+      const withoutOld = state.sets.filter(s => s.id !== action.payload.id)
+      return { ...state, sets: [action.payload, ...withoutOld] }
     }
 
     case "DELETE_SET": {
@@ -169,7 +157,6 @@ type SetsStore = {
   setCacheUserId: (userId: string | null) => void
 
   getSetById: (id: string) => SkiSet | undefined
-  getRecentSet: () => SkiSet | undefined
 
   getTotalSets: () => number
   getTotalSetsForActiveSeason: () => number
@@ -244,12 +231,6 @@ export function SetsProvider({ children }: { children: React.ReactNode }) {
 
       getSetById: (id: string) => {
         return state.sets.find(s => s.id === id)
-      },
-
-      getRecentSet: () => {
-        // With UPDATE_SET moving items to the front, this is now
-        // last created or last updated.
-        return state.sets[0]
       },
 
       getTotalSets: () => {
