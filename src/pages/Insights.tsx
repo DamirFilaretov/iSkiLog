@@ -112,8 +112,8 @@ export default function Insights() {
   }
 
   const getSeasonTotalLabel = (event: EventKey | "all", seasonYear: string) => {
-    if (event === "all") return `${seasonYear} total training sets:`
-    return `${seasonYear} total ${event} sets:`
+    if (event === "all") return `${seasonYear} training sets:`
+    return `${seasonYear} ${event} sets:`
   }
 
   const sortedSeasons = useMemo(() => {

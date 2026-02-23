@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Target, Trophy, TrendingUp, Plane, Flag } from "lucide-react"
+import { Trophy, TrendingUp, Plane, Flag } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import {
@@ -12,7 +12,6 @@ import {
 type RangeKey = InsightRangeKey
 
 type JumpInsightSource = {
-  totalSets: number
   bestDistanceMeters: number
   averageDistanceMeters: number
   avgDistanceDeltaVsLastMonthMeters: number
@@ -96,7 +95,6 @@ function buildJumpSourceFromSets(
   const cutPassSetCount = cutsOnly.filter(set => set.data.cutsType === "cut_pass").length
 
   return {
-    totalSets,
     bestDistanceMeters,
     averageDistanceMeters,
     avgDistanceDeltaVsLastMonthMeters,
@@ -174,52 +172,6 @@ export default function JumpInsights({ sets, dataSource }: Props) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 px-4">
-        <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
-            <Target className="h-4 w-4" />
-          </div>
-          <p className="mt-3 text-xs text-slate-500">Total Sets</p>
-          <p className="mt-1 text-3xl font-semibold text-slate-900">{source.totalSets}</p>
-          <p className="mt-1 text-xs text-indigo-400">Jump + Cuts</p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
-            <Trophy className="h-4 w-4" />
-          </div>
-          <p className="mt-3 text-xs text-slate-500">Best Distance</p>
-          <p className="mt-1 text-3xl font-semibold text-slate-900">
-            {source.bestDistanceMeters.toFixed(1)}m
-          </p>
-          <p className="mt-1 text-xs text-indigo-400">Personal record</p>
-        </div>
-      </div>
-
-      <div className="px-4">
-        <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
-                <TrendingUp className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Average Distance</p>
-                <p className="mt-1 text-3xl font-semibold text-slate-900">
-                  {source.averageDistanceMeters.toFixed(1)}m
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-emerald-600 text-right">
-              {source.avgDistanceDeltaVsLastMonthMeters > 0 ? "+" : ""}
-              {source.avgDistanceDeltaVsLastMonthMeters.toFixed(1)}m
-              <br />
-              vs last month
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div className="px-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm shadow-slate-200/70">
           <p className="text-sm font-semibold text-slate-900">Jump vs Cuts Ratio</p>
@@ -267,13 +219,11 @@ export default function JumpInsights({ sets, dataSource }: Props) {
             <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
               <p className="text-xs text-slate-500">Jumps Made</p>
               <p className="mt-1 text-3xl font-semibold text-slate-900">{source.totalJumped}</p>
-              <p className="mt-1 text-xs text-slate-500">Across jump sets</p>
             </div>
 
             <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
               <p className="text-xs text-slate-500">Total Passed</p>
               <p className="mt-1 text-3xl font-semibold text-slate-900">{source.totalPassed}</p>
-              <p className="mt-1 text-xs text-slate-500">Across jump sets</p>
             </div>
           </div>
         </div>
@@ -292,6 +242,35 @@ export default function JumpInsights({ sets, dataSource }: Props) {
               <p className="text-xs text-slate-500">Cut & Pass Sets</p>
               <p className="mt-1 text-3xl font-semibold text-slate-900">{source.cutPassSetCount}</p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70 min-h-[148px]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+              <Trophy className="h-4 w-4" />
+            </div>
+            <p className="mt-3 text-xs text-slate-500">Best Distance</p>
+            <p className="mt-1 text-3xl font-semibold text-slate-900">
+              {source.bestDistanceMeters.toFixed(1)}m
+            </p>
+            <p className="mt-1 text-xs text-indigo-400">Personal record</p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70 min-h-[148px]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <p className="mt-3 text-xs text-slate-500">Average Distance</p>
+            <p className="mt-1 text-3xl font-semibold text-slate-900 leading-none">
+              {source.averageDistanceMeters.toFixed(1)}m
+            </p>
+            <p className="mt-1 text-xs text-emerald-600">
+              {source.avgDistanceDeltaVsLastMonthMeters > 0 ? "+" : ""}
+              {source.avgDistanceDeltaVsLastMonthMeters.toFixed(1)}m vs last month
+            </p>
           </div>
         </div>
       </div>

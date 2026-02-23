@@ -1,11 +1,10 @@
 import { useState } from "react"
-import { ArrowLeft, Shield, Trash2 } from "lucide-react"
+import { ArrowLeft, Mail, Shield, Trash2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 export default function PrivacySecurity() {
   const navigate = useNavigate()
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [confirmChecked, setConfirmChecked] = useState(false)
+  const [noticeOpen, setNoticeOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 pt-6 pb-10">
@@ -44,7 +43,7 @@ export default function PrivacySecurity() {
           </p>
 
           <button
-            onClick={() => setConfirmOpen(true)}
+            onClick={() => setNoticeOpen(true)}
             className="mt-4 w-full rounded-full border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600"
           >
             Delete Account
@@ -52,14 +51,13 @@ export default function PrivacySecurity() {
         </div>
       </div>
 
-      {confirmOpen ? (
+      {noticeOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
           <button
             type="button"
-            aria-label="Close delete confirmation"
+            aria-label="Close account deletion notice"
             onClick={() => {
-              setConfirmOpen(false)
-              setConfirmChecked(false)
+              setNoticeOpen(false)
             }}
             className="absolute inset-0 bg-black/40"
           />
@@ -70,44 +68,37 @@ export default function PrivacySecurity() {
                 <Trash2 className="h-5 w-5 text-red-600" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-slate-900">Delete your account?</h3>
-                <p className="text-sm text-slate-500">This action cannot be undone.</p>
+                <h3 className="text-base font-semibold text-slate-900">Delete Account</h3>
+                <p className="text-sm text-slate-500">
+                  This function is not accessible right now.
+                </p>
               </div>
             </div>
 
+            <p className="mt-4 text-sm text-slate-600">
+              Contact support if you want to disable your account.
+            </p>
+
             <div className="mt-4 flex gap-3">
+              <a
+                href="mailto:damir.filaretov@gmail.com?subject=Account%20Disable%20Request"
+                className="flex-1 rounded-xl border border-blue-200 bg-blue-50 py-3 text-center text-sm font-semibold text-blue-700"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Contact Support
+                </span>
+              </a>
               <button
                 type="button"
                 onClick={() => {
-                  setConfirmOpen(false)
-                  setConfirmChecked(false)
+                  setNoticeOpen(false)
                 }}
                 className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-900"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmOpen(false)
-                  setConfirmChecked(false)
-                }}
-                disabled={!confirmChecked}
-                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Delete
+                Close
               </button>
             </div>
-
-            <label className="mt-4 flex items-start gap-3 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={confirmChecked}
-                onChange={e => setConfirmChecked(e.target.checked)}
-                className="mt-1"
-              />
-              I understand this action is permanent and cannot be undone.
-            </label>
           </div>
         </div>
       ) : null}
