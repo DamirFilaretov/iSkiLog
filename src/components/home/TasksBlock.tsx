@@ -6,8 +6,10 @@ import {
   createTask,
   deleteTask,
   fetchTasks,
+  readCachedTasks,
   setTaskDone,
-  updateTask
+  updateTask,
+  writeCachedTasks
 } from "../../data/tasksApi"
 import { formatTaskDueLabel, isOverdue, todayIsoDate } from "../../features/tasks/taskDate"
 import { sortTasks } from "../../features/tasks/taskSort"
@@ -60,15 +62,30 @@ export default function TasksBlock() {
     let active = true
 
     async function load() {
-      setLoading(true)
       setLoadError(null)
+      const userId = user?.id ?? null
+
+      if (!userId) {
+        setTasks([])
+        setLoading(false)
+        return
+      }
+
+      const cachedTasks = userId ? readCachedTasks(userId) : null
+
+      if (cachedTasks) {
+        setTasks(cachedTasks)
+        setLoading(false)
+      } else {
+        setTasks([])
+        setLoading(true)
+      }
 
       try {
         const nextTasks = await fetchTasks()
         if (!active) return
 
         let resolvedTasks = nextTasks
-        const userId = user?.id ?? null
         const shouldSeedDefaults =
           userId !== null &&
           nextTasks.length === 0 &&
@@ -106,6 +123,11 @@ export default function TasksBlock() {
       active = false
     }
   }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    writeCachedTasks(user.id, tasks)
+  }, [user, tasks])
 
   const sortedTasks = useMemo(() => sortTasks(tasks, today), [tasks, today])
   const openTasks = useMemo(() => sortedTasks.filter(task => !task.isDone), [sortedTasks])

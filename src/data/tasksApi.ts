@@ -1,6 +1,8 @@
 import { supabase } from "../lib/supabaseClient"
 import type { TaskItem } from "../types/tasks"
 
+const TASKS_CACHE_PREFIX = "iskilog:tasks:"
+
 type TaskRow = {
   id: string
   title: string
@@ -9,6 +11,10 @@ type TaskRow = {
   completed_at: string | null
   created_at: string
   updated_at: string
+}
+
+function tasksCacheKey(userId: string) {
+  return `${TASKS_CACHE_PREFIX}${userId}`
 }
 
 function mapRowToTask(row: TaskRow): TaskItem {
@@ -23,6 +29,43 @@ function mapRowToTask(row: TaskRow): TaskItem {
   }
 }
 
+function isTaskLike(value: unknown): value is TaskItem {
+  if (!value || typeof value !== "object") return false
+  const task = value as Partial<TaskItem>
+
+  return (
+    typeof task.id === "string" &&
+    typeof task.title === "string" &&
+    (typeof task.dueDate === "string" || task.dueDate === null) &&
+    typeof task.isDone === "boolean" &&
+    (typeof task.completedAt === "string" || task.completedAt === null) &&
+    typeof task.createdAt === "string" &&
+    typeof task.updatedAt === "string"
+  )
+}
+
+export function readCachedTasks(userId: string): TaskItem[] | null {
+  if (typeof window === "undefined") return null
+
+  try {
+    const raw = window.localStorage.getItem(tasksCacheKey(userId))
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return null
+
+    const tasks = parsed.filter(isTaskLike)
+    return tasks
+  } catch {
+    return null
+  }
+}
+
+export function writeCachedTasks(userId: string, tasks: TaskItem[]) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(tasksCacheKey(userId), JSON.stringify(tasks))
+}
+
 async function requireUserId() {
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError) throw userError
@@ -34,6 +77,8 @@ async function requireUserId() {
 }
 
 export async function fetchTasks(): Promise<TaskItem[]> {
+  const userId = await requireUserId()
+
   const { data, error } = await supabase
     .from("user_tasks")
     .select("id,title,due_date,is_done,completed_at,created_at,updated_at")
@@ -41,7 +86,9 @@ export async function fetchTasks(): Promise<TaskItem[]> {
   if (error) throw error
 
   const rows = (data ?? []) as TaskRow[]
-  return rows.map(mapRowToTask)
+  const tasks = rows.map(mapRowToTask)
+  writeCachedTasks(userId, tasks)
+  return tasks
 }
 
 export async function createTask(input: {
@@ -63,7 +110,10 @@ export async function createTask(input: {
     .single()
 
   if (error || !data) throw error
-  return mapRowToTask(data as TaskRow)
+  const createdTask = mapRowToTask(data as TaskRow)
+  const cached = readCachedTasks(userId) ?? []
+  writeCachedTasks(userId, [createdTask, ...cached])
+  return createdTask
 }
 
 export async function updateTask(input: {
@@ -85,7 +135,13 @@ export async function updateTask(input: {
     .single()
 
   if (error || !data) throw error
-  return mapRowToTask(data as TaskRow)
+  const updatedTask = mapRowToTask(data as TaskRow)
+  const cached = readCachedTasks(userId) ?? []
+  writeCachedTasks(
+    userId,
+    cached.map(task => (task.id === updatedTask.id ? updatedTask : task))
+  )
+  return updatedTask
 }
 
 export async function setTaskDone(input: {
@@ -104,6 +160,21 @@ export async function setTaskDone(input: {
     .eq("user_id", userId)
 
   if (error) throw error
+
+  const nowIso = new Date().toISOString()
+  const cached = readCachedTasks(userId) ?? []
+  writeCachedTasks(
+    userId,
+    cached.map(task => {
+      if (task.id !== input.id) return task
+      return {
+        ...task,
+        isDone: input.isDone,
+        completedAt: input.isDone ? nowIso : null,
+        updatedAt: nowIso
+      }
+    })
+  )
 }
 
 export async function deleteTask(id: string): Promise<void> {
@@ -116,4 +187,10 @@ export async function deleteTask(id: string): Promise<void> {
     .eq("user_id", userId)
 
   if (error) throw error
+
+  const cached = readCachedTasks(userId) ?? []
+  writeCachedTasks(
+    userId,
+    cached.filter(task => task.id !== id)
+  )
 }
