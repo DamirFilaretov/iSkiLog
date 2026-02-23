@@ -112,6 +112,34 @@ before update on public.user_tasks
 for each row
 execute function public.set_updated_at();
 
+drop function if exists public.set_active_season_atomic(uuid);
+create or replace function public.set_active_season_atomic(p_season_id uuid)
+returns void
+language plpgsql
+as $$
+declare
+  v_user_id uuid;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if not exists (
+    select 1
+    from public.seasons
+    where id = p_season_id
+      and user_id = v_user_id
+  ) then
+    raise exception 'Season not found or not owned by user';
+  end if;
+
+  update public.seasons
+  set is_active = (id = p_season_id)
+  where user_id = v_user_id;
+end;
+$$;
+
 drop function if exists public.create_set_with_subtype(
   uuid, boolean, text, date, text, numeric, text, numeric, integer, integer, text, text, integer,
   integer, integer, numeric, text, integer, text

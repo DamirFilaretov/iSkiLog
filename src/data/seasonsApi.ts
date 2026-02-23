@@ -84,26 +84,8 @@ export async function updateSeasonDates(args: {
  * Set exactly one active season for the user.
  */
 export async function setActiveSeason(seasonId: string): Promise<void> {
-  const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError) throw userError
-
-  const userId = userData.user?.id
-  if (!userId) throw new Error("Not authenticated")
-
-  // Clear active flag for all seasons
-  const { error: clearError } = await supabase
-    .from("seasons")
-    .update({ is_active: false })
-    .eq("user_id", userId)
-
-  if (clearError) throw clearError
-
-  // Set selected season as active
-  const { error: setError } = await supabase
-    .from("seasons")
-    .update({ is_active: true })
-    .eq("id", seasonId)
-    .eq("user_id", userId)
-
-  if (setError) throw setError
+  const { error } = await supabase.rpc("set_active_season_atomic", {
+    p_season_id: seasonId
+  })
+  if (error) throw error
 }
