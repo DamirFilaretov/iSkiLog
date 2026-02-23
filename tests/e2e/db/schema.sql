@@ -241,6 +241,15 @@ begin
     raise exception 'Not authenticated';
   end if;
 
+  if p_season_id is not null and not exists (
+    select 1
+    from public.seasons s
+    where s.id = p_season_id
+      and s.user_id = v_user_id
+  ) then
+    raise exception 'Season not found or not owned by user';
+  end if;
+
   if p_event_type not in ('slalom', 'tricks', 'jump', 'other') then
     raise exception 'Unsupported event type: %', p_event_type;
   end if;
@@ -342,6 +351,15 @@ begin
   v_user_id := auth.uid();
   if v_user_id is null then
     raise exception 'Not authenticated';
+  end if;
+
+  if p_season_id is not null and not exists (
+    select 1
+    from public.seasons s
+    where s.id = p_season_id
+      and s.user_id = v_user_id
+  ) then
+    raise exception 'Season not found or not owned by user';
   end if;
 
   if p_event_type not in ('slalom', 'tricks', 'jump', 'other') then
