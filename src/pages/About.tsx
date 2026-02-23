@@ -95,7 +95,7 @@ export default function About() {
               </div>
               <div className="flex-1 text-left">
                 <p className="text-slate-900 text-sm">Contact Support</p>
-                <p className="text-slate-500 text-xs">support@iskilog.com</p>
+                <p className="text-slate-500 text-xs">damir.filaretov@gmail.com</p>
               </div>
             </button>
           </div>

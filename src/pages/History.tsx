@@ -6,98 +6,27 @@ import TimeRangeTabs, { type RangeKey } from "../components/history/TimeRangeTab
 import HistoryItem from "../components/history/HistoryItem"
 import DateFieldNativeOverlay from "../components/date/DateFieldNativeOverlay"
 import { useSetsStore } from "../store/setsStore"
-import type { SkiSet } from "../types/sets"
-import { updateSetFavoriteInDb } from "../data/setsUpdateDeleteApi"
-
-function todayLocalIsoDate() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, "0")
-  const d = String(now.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-function isoToLocalDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number)
-  return new Date(y, (m ?? 1) - 1, d ?? 1)
-}
-
-function daysAgoIsoDate(days: number) {
-  const now = new Date()
-  now.setDate(now.getDate() - days)
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, "0")
-  const d = String(now.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-/**
- * Filter sets based on selected range.
- * For day, week, month, season: input should already be season filtered.
- * For all: we ignore season filtering and show everything.
- */
-function filterByRange(range: RangeKey | null, sets: SkiSet[], customStart: string, customEnd: string) {
-  const todayIso = todayLocalIsoDate()
-
-  if (range === null) return sets
-
-  if (range === "day") {
-    return sets.filter(s => s.date === todayIso)
-  }
-
-  if (range === "week") {
-    const today = isoToLocalDate(todayIso)
-    const start = new Date(today)
-    start.setDate(start.getDate() - 6)
-
-    return sets.filter(s => {
-      const d = isoToLocalDate(s.date)
-      return d >= start && d <= today
-    })
-  }
-
-  if (range === "month") {
-    const t = isoToLocalDate(todayIso)
-    const tMonth = t.getMonth()
-    const tYear = t.getFullYear()
-
-    return sets.filter(s => {
-      const d = isoToLocalDate(s.date)
-      return d.getMonth() === tMonth && d.getFullYear() === tYear
-    })
-  }
-
-  if (range === "season") {
-    return sets
-  }
-
-  if (range === "custom") {
-    if (!customStart || !customEnd) return sets
-    if (customStart > customEnd) return []
-
-    return sets.filter(s => s.date >= customStart && s.date <= customEnd)
-  }
-
-  return sets
-}
+import { useFavoriteToggle } from "../hooks/useFavoriteToggle"
+import {
+  daysAgoLocalIsoDate,
+  filterByDateRange,
+  todayLocalIsoDate
+} from "../features/dateRange/dateRange"
 
 export default function History() {
   const navigate = useNavigate()
-  const { sets, getActiveSeason, setsHydrated, setFavorite } = useSetsStore()
+  const { sets, getActiveSeason, setsHydrated } = useSetsStore()
   const [range, setRange] = useState<RangeKey | null>("day")
-  const [customStart, setCustomStart] = useState(daysAgoIsoDate(30))
+  const [customStart, setCustomStart] = useState(daysAgoLocalIsoDate(30))
   const [customEnd, setCustomEnd] = useState(todayLocalIsoDate())
   const [favoritesOnly, setFavoritesOnly] = useState(false)
-  const [favoriteError, setFavoriteError] = useState<string | null>(null)
-  const [togglingFavoriteIds, setTogglingFavoriteIds] = useState<Set<string>>(
-    () => new Set()
-  )
+  const { favoriteError, togglingFavoriteIds, handleToggleFavorite } = useFavoriteToggle()
 
   useEffect(() => {
     if (range !== "custom") return
     if (customStart && customEnd) return
 
-    setCustomStart(daysAgoIsoDate(30))
+    setCustomStart(daysAgoLocalIsoDate(30))
     setCustomEnd(todayLocalIsoDate())
   }, [range, customStart, customEnd])
   const activeSeason = getActiveSeason()
@@ -117,7 +46,10 @@ export default function History() {
   }, [range, sets, seasonOnlySets])
 
   const filteredAndSorted = useMemo(() => {
-    const filteredByRange = filterByRange(range, listToFilter, customStart, customEnd)
+    const filteredByRange = filterByDateRange(listToFilter, range, {
+      customStart,
+      customEnd
+    })
     const filtered = favoritesOnly
       ? filteredByRange.filter(setItem => setItem.isFavorite)
       : filteredByRange
@@ -139,34 +71,6 @@ export default function History() {
 
   function handleToggleFavoritesFilter() {
     setFavoritesOnly(prev => !prev)
-  }
-
-  async function handleToggleFavorite(setItem: SkiSet, nextValue: boolean) {
-    const id = setItem.id
-    if (togglingFavoriteIds.has(id)) return
-
-    setFavoriteError(null)
-    setTogglingFavoriteIds(prev => {
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
-
-    setFavorite(id, nextValue)
-
-    try {
-      await updateSetFavoriteInDb({ id, isFavorite: nextValue })
-    } catch (err) {
-      console.error("Failed to update favourite", err)
-      setFavorite(id, setItem.isFavorite)
-      setFavoriteError("Failed to update favourite set. Please try again.")
-    } finally {
-      setTogglingFavoriteIds(prev => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }
   }
 
   return (

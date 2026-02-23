@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabaseClient"
+import { clearAppLocalCaches } from "../lib/localCache"
 
 
 export default function Settings() {
@@ -8,6 +9,7 @@ export default function Settings() {
   async function handleLogout() {
     // Sign out from Supabase
     await supabase.auth.signOut()
+    clearAppLocalCaches()
 
     // Navigate back to auth screen
     // AppContent will auto-render <Auth /> when user becomes null

@@ -2,8 +2,14 @@ import { useEffect, useMemo, useState } from "react"
 import { Target, Clock3 } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
+import {
+  daysAgoLocalIsoDate,
+  filterByDateRange,
+  todayLocalIsoDate,
+  type InsightRangeKey
+} from "../../features/dateRange/dateRange"
 
-type RangeKey = "week" | "month" | "season" | "custom"
+type RangeKey = InsightRangeKey
 
 type OtherInsightSource = {
   totalSets: number
@@ -17,77 +23,6 @@ type Props = {
 
 type OtherSet = Extract<SkiSet, { event: "other" }>
 
-function todayLocalIso() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, "0")
-  const d = String(now.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-function isoToDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number)
-  return new Date(y, (m ?? 1) - 1, d ?? 1)
-}
-
-function toLocalIso(date: Date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-function clampRange(start: Date, end: Date) {
-  const normalizedStart = new Date(start)
-  const normalizedEnd = new Date(end)
-  normalizedStart.setHours(0, 0, 0, 0)
-  normalizedEnd.setHours(23, 59, 59, 999)
-  return { start: normalizedStart, end: normalizedEnd }
-}
-
-function filterSetsByRange<T extends SkiSet>(
-  sets: T[],
-  range: RangeKey,
-  customStart: string,
-  customEnd: string
-): T[] {
-  const now = new Date()
-
-  if (range === "season") return sets
-
-  if (range === "week") {
-    const end = new Date(now)
-    end.setHours(23, 59, 59, 999)
-    const start = new Date(now)
-    start.setDate(now.getDate() - 6)
-    const bounds = clampRange(start, end)
-    return sets.filter(set => {
-      const d = isoToDate(set.date)
-      return d >= bounds.start && d <= bounds.end
-    })
-  }
-
-  if (range === "month") {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    const bounds = clampRange(start, end)
-    return sets.filter(set => {
-      const d = isoToDate(set.date)
-      return d >= bounds.start && d <= bounds.end
-    })
-  }
-
-  if (!customStart || !customEnd) return sets
-
-  const start = isoToDate(customStart)
-  const end = isoToDate(customEnd)
-  const bounds = clampRange(start, end)
-  return sets.filter(set => {
-    const d = isoToDate(set.date)
-    return d >= bounds.start && d <= bounds.end
-  })
-}
-
 function buildOtherSourceFromSets(
   sets: SkiSet[],
   range: RangeKey,
@@ -95,7 +30,7 @@ function buildOtherSourceFromSets(
   customEnd: string
 ): OtherInsightSource {
   const otherSets = sets.filter((set): set is OtherSet => set.event === "other")
-  const selected = filterSetsByRange(otherSets, range, customStart, customEnd)
+  const selected = filterByDateRange(otherSets, range, { customStart, customEnd })
   const totalSets = selected.length
   const totalMinutes = selected.reduce((sum, set) => sum + (set.data.duration ?? 0), 0)
   const totalHours = totalMinutes / 60
@@ -111,11 +46,8 @@ export default function OtherInsights({ sets, dataSource }: Props) {
   useEffect(() => {
     if (range !== "custom") return
     if (customStart && customEnd) return
-    const end = todayLocalIso()
-    const start = new Date()
-    start.setDate(start.getDate() - 30)
-    setCustomStart(toLocalIso(start))
-    setCustomEnd(end)
+    setCustomStart(daysAgoLocalIsoDate(30))
+    setCustomEnd(todayLocalIsoDate())
   }, [range, customStart, customEnd])
 
   const source = useMemo<OtherInsightSource>(() => {

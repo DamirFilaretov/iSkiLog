@@ -11,8 +11,14 @@ import {
 } from "../../data/tricksLearnedApi"
 import { TRICK_CATALOG } from "../../features/tricks/trickCatalog"
 import { useAuth } from "../../auth/AuthProvider"
+import {
+  daysAgoLocalIsoDate,
+  filterByDateRange,
+  todayLocalIsoDate,
+  type InsightRangeKey
+} from "../../features/dateRange/dateRange"
 
-type RangeKey = "week" | "month" | "season" | "custom"
+type RangeKey = InsightRangeKey
 type TrickType = "hands" | "toes"
 type TrickSession = {
   id: string
@@ -30,34 +36,6 @@ type Props = {
   dataSource?: TricksInsightDataSource
 }
 
-function todayLocalIso() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, "0")
-  const d = String(now.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-function isoToDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number)
-  return new Date(y, (m ?? 1) - 1, d ?? 1)
-}
-
-function toLocalIso(date: Date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-function clampRange(start: Date, end: Date) {
-  const normalizedStart = new Date(start)
-  const normalizedEnd = new Date(end)
-  normalizedStart.setHours(0, 0, 0, 0)
-  normalizedEnd.setHours(23, 59, 59, 999)
-  return { start: normalizedStart, end: normalizedEnd }
-}
-
 function sessionsFromSets(sets: SkiSet[]): TrickSession[] {
   return sets
     .filter((set): set is SkiSet & { event: "tricks" } => set.event === "tricks")
@@ -67,49 +45,6 @@ function sessionsFromSets(sets: SkiSet[]): TrickSession[] {
       durationMinutes: set.data.duration ?? 0,
       trickType: set.data.trickType
     }))
-}
-
-function filterSessionsByRange(
-  sessions: TrickSession[],
-  range: RangeKey,
-  customStart: string,
-  customEnd: string
-) {
-  const now = new Date()
-
-  if (range === "season") return sessions
-
-  if (range === "week") {
-    const end = new Date(now)
-    end.setHours(23, 59, 59, 999)
-    const start = new Date(now)
-    start.setDate(now.getDate() - 6)
-    const bounds = clampRange(start, end)
-    return sessions.filter(session => {
-      const d = isoToDate(session.date)
-      return d >= bounds.start && d <= bounds.end
-    })
-  }
-
-  if (range === "month") {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    const bounds = clampRange(start, end)
-    return sessions.filter(session => {
-      const d = isoToDate(session.date)
-      return d >= bounds.start && d <= bounds.end
-    })
-  }
-
-  if (!customStart || !customEnd) return sessions
-
-  const start = isoToDate(customStart)
-  const end = isoToDate(customEnd)
-  const bounds = clampRange(start, end)
-  return sessions.filter(session => {
-    const d = isoToDate(session.date)
-    return d >= bounds.start && d <= bounds.end
-  })
 }
 
 export default function TricksInsights({ sets, dataSource }: Props) {
@@ -137,11 +72,8 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   useEffect(() => {
     if (range !== "custom") return
     if (customStart && customEnd) return
-    const end = todayLocalIso()
-    const start = new Date()
-    start.setDate(start.getDate() - 30)
-    setCustomStart(toLocalIso(start))
-    setCustomEnd(end)
+    setCustomStart(daysAgoLocalIsoDate(30))
+    setCustomEnd(todayLocalIsoDate())
   }, [range, customStart, customEnd])
 
   useEffect(() => {
@@ -186,7 +118,11 @@ export default function TricksInsights({ sets, dataSource }: Props) {
   }, [user])
 
   const filteredSessions = useMemo(
-    () => filterSessionsByRange(sourceSessions, range, customStart, customEnd),
+    () =>
+      filterByDateRange(sourceSessions, range, {
+        customStart,
+        customEnd
+      }),
     [sourceSessions, range, customStart, customEnd]
   )
 

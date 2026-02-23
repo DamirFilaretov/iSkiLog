@@ -6,6 +6,7 @@ import { fetchSets } from "../data/setsApi"
 import { fetchSeasons, createSeason, setActiveSeason, updateSeasonDates } from "../data/seasonsApi"
 import { useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
+import { clearAppLocalCaches } from "../lib/localCache"
 
 type HydrationStatus = "idle" | "loading" | "success" | "error"
 
@@ -138,8 +139,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(nextUser)
 
       const nextId = nextUser?.id ?? null
+      const previousId = lastUserIdRef.current
 
-      if (nextId !== lastUserIdRef.current) {
+      if (event === "SIGNED_OUT" || (previousId && !nextId)) {
+        clearAppLocalCaches()
+      }
+
+      if (nextId !== previousId) {
         // Only force re-hydration when the auth identity actually changes.
         if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
           setSetsHydrated(false)
