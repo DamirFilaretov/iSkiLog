@@ -28,6 +28,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const canLogin = useMemo(() => {
     return loginEmail.trim().length > 0 && loginPassword.length >= 6
@@ -36,6 +37,13 @@ export default function Auth() {
   function clearFeedback() {
     setError(null)
     setMessage(null)
+  }
+
+  function showToast(messageText: string) {
+    setToast(messageText)
+    window.setTimeout(() => {
+      setToast(prev => (prev === messageText ? null : prev))
+    }, 2600)
   }
 
   function switchTo(nextMode: AuthMode) {
@@ -175,20 +183,36 @@ export default function Auth() {
     setLoading(true)
 
     try {
-      await supabase.auth.signInWithOAuth({
+      const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/`
         }
       })
+      if (authError) {
+        setError(authError.message)
+        showToast("Google sign in failed. Please try again.")
+      }
     } catch {
       setError("Google sign in failed.")
+      showToast("Google sign in failed. Please try again.")
+    } finally {
       setLoading(false)
     }
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-slate-50 px-6 py-10">
+      {toast ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-4 z-50 w-[min(92vw,360px)] rounded-xl bg-slate-900/95 px-4 py-3 text-sm text-white shadow-xl"
+        >
+          {toast}
+        </div>
+      ) : null}
+
       <h1 className="mt-2 text-3xl font-semibold text-blue-600">
         iSkiLog
       </h1>
