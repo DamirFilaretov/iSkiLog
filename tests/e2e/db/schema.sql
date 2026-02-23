@@ -78,7 +78,8 @@ create table if not exists public.jump_sets (
 
 create table if not exists public.other_sets (
   set_id uuid primary key references public.sets(id) on delete cascade,
-  name text null
+  name text null,
+  duration_minutes integer null
 );
 
 create index if not exists idx_seasons_user_id on public.seasons (user_id);
@@ -134,7 +135,8 @@ returns table (
   jump_distance numeric,
   jump_cuts_type text,
   jump_cuts_count integer,
-  other_name text
+  other_name text,
+  other_duration_minutes integer
 )
 language sql
 stable
@@ -159,7 +161,8 @@ as $$
     jp.distance as jump_distance,
     jp.cuts_type as jump_cuts_type,
     jp.cuts_count as jump_cuts_count,
-    ot.name as other_name
+    ot.name as other_name,
+    ot.duration_minutes as other_duration_minutes
   from public.sets s
   left join public.slalom_sets sl on sl.set_id = s.id
   left join public.tricks_sets tr on tr.set_id = s.id
@@ -199,7 +202,7 @@ $$;
 
 drop function if exists public.create_set_with_subtype(
   uuid, boolean, text, date, text, numeric, text, numeric, integer, integer, text, text, integer,
-  integer, integer, numeric, text, integer, text
+  integer, integer, numeric, text, integer, text, integer
 );
 create or replace function public.create_set_with_subtype(
   p_season_id uuid,
@@ -220,7 +223,8 @@ create or replace function public.create_set_with_subtype(
   p_distance numeric default null,
   p_cuts_type text default null,
   p_cuts_count integer default null,
-  p_other_name text default null
+  p_other_name text default null,
+  p_other_duration_minutes integer default null
 )
 returns uuid
 language plpgsql
@@ -290,8 +294,8 @@ begin
       p_cuts_count
     );
   else
-    insert into public.other_sets (set_id, name)
-    values (v_set_id, coalesce(p_other_name, ''));
+    insert into public.other_sets (set_id, name, duration_minutes)
+    values (v_set_id, coalesce(p_other_name, ''), p_other_duration_minutes);
   end if;
 
   return v_set_id;
@@ -300,7 +304,7 @@ $$;
 
 drop function if exists public.update_set_with_subtype(
   uuid, uuid, boolean, text, date, text, numeric, text, numeric, integer, integer, text, text,
-  integer, integer, integer, numeric, text, integer, text, boolean
+  integer, integer, integer, numeric, text, integer, text, integer, boolean
 );
 create or replace function public.update_set_with_subtype(
   p_set_id uuid,
@@ -323,6 +327,7 @@ create or replace function public.update_set_with_subtype(
   p_cuts_type text default null,
   p_cuts_count integer default null,
   p_other_name text default null,
+  p_other_duration_minutes integer default null,
   p_event_changed boolean default false
 )
 returns void
@@ -407,10 +412,12 @@ begin
         cuts_type = excluded.cuts_type,
         cuts_count = excluded.cuts_count;
   else
-    insert into public.other_sets (set_id, name)
-    values (p_set_id, coalesce(p_other_name, ''))
+    insert into public.other_sets (set_id, name, duration_minutes)
+    values (p_set_id, coalesce(p_other_name, ''), p_other_duration_minutes)
     on conflict (set_id) do update
-      set name = excluded.name;
+      set
+        name = excluded.name,
+        duration_minutes = excluded.duration_minutes;
   end if;
 
   if p_event_changed then

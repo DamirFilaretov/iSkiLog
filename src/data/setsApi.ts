@@ -35,6 +35,7 @@ type HydratedSetRow = {
   jump_cuts_type: "cut_pass" | "open_cuts" | null
   jump_cuts_count: number | null
   other_name: string | null
+  other_duration_minutes: number | null
 }
 
 function mapHydratedRowToSet(row: HydratedSetRow): SkiSet {
@@ -90,7 +91,8 @@ function mapHydratedRowToSet(row: HydratedSetRow): SkiSet {
     ...base,
     event: "other",
     data: {
-      name: row.other_name ?? ""
+      name: row.other_name ?? "",
+      duration: row.other_duration_minutes ?? null
     }
   }
 }

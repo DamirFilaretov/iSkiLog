@@ -66,11 +66,15 @@ export async function addJumpSet(page: Page, args?: { notes?: string; date?: str
   return { notes, date }
 }
 
-export async function addOtherSet(page: Page, args?: { notes?: string; date?: string; name?: string }) {
+export async function addOtherSet(
+  page: Page,
+  args?: { notes?: string; date?: string; name?: string; duration?: string }
+) {
   const notes = args?.notes ?? `other-${Date.now()}`
   const date = args?.date ?? todayIso()
 
   await openAddByQuickTile(page, "Other")
+  await fillByLabel(page, "Duration", args?.duration ?? "30")
   await fillByLabel(page, "Name", args?.name ?? "Warmup")
   await page.locator("input[type='date']").first().fill(date)
   await fillByLabel(page, "Notes", notes)

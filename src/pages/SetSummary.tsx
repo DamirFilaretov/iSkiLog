@@ -188,7 +188,13 @@ export default function SetSummary() {
                   value: formatJumpDistance(skiSet.data.distance, preferences.ropeUnit)
                 }
               ]
-          : [{ label: "Name", value: skiSet.data.name || "—" }]
+          : [
+              {
+                label: "Duration",
+                value: skiSet.data.duration === null ? "—" : `${skiSet.data.duration} min`
+              },
+              { label: "Name", value: skiSet.data.name || "—" }
+            ]
 
   const details: { label: string; value: string }[] = [
     { label: "Event Type", value: eventLabel(skiSet) },
@@ -367,3 +373,4 @@ export default function SetSummary() {
     </div>
   )
 }
+

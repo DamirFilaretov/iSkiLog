@@ -15,6 +15,8 @@ type Props = {
   dataSource?: OtherInsightSource
 }
 
+type OtherSet = Extract<SkiSet, { event: "other" }>
+
 function todayLocalIso() {
   const now = new Date()
   const y = now.getFullYear()
@@ -43,12 +45,12 @@ function clampRange(start: Date, end: Date) {
   return { start: normalizedStart, end: normalizedEnd }
 }
 
-function filterSetsByRange(
-  sets: SkiSet[],
+function filterSetsByRange<T extends SkiSet>(
+  sets: T[],
   range: RangeKey,
   customStart: string,
   customEnd: string
-) {
+): T[] {
   const now = new Date()
 
   if (range === "season") return sets
@@ -92,13 +94,11 @@ function buildOtherSourceFromSets(
   customStart: string,
   customEnd: string
 ): OtherInsightSource {
-  const otherSets = sets.filter((set): set is SkiSet & { event: "other" } => set.event === "other")
+  const otherSets = sets.filter((set): set is OtherSet => set.event === "other")
   const selected = filterSetsByRange(otherSets, range, customStart, customEnd)
   const totalSets = selected.length
-
-  // Current backend has no duration for "other", so use a deterministic 1h per set placeholder.
-  // Keeping this centralized makes it easy to replace with real duration later.
-  const totalHours = totalSets * 1
+  const totalMinutes = selected.reduce((sum, set) => sum + (set.data.duration ?? 0), 0)
+  const totalHours = totalMinutes / 60
 
   return { totalSets, totalHours }
 }

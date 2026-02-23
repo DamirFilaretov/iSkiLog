@@ -20,6 +20,7 @@ type BaseSetSubtypeRpcPayload = {
   p_cuts_type: "cut_pass" | "open_cuts" | null
   p_cuts_count: number | null
   p_other_name: string | null
+  p_other_duration_minutes: number | null
 }
 
 export type CreateSetSubtypeRpcPayload = BaseSetSubtypeRpcPayload
@@ -55,7 +56,8 @@ export function buildCreateSetSubtypeRpcPayload(set: SkiSet): CreateSetSubtypeRp
     p_distance: null,
     p_cuts_type: null,
     p_cuts_count: null,
-    p_other_name: null
+    p_other_name: null,
+    p_other_duration_minutes: null
   }
 
   if (set.event === "slalom") {
@@ -91,7 +93,8 @@ export function buildCreateSetSubtypeRpcPayload(set: SkiSet): CreateSetSubtypeRp
 
   return {
     ...base,
-    p_other_name: set.data.name ?? ""
+    p_other_name: set.data.name ?? "",
+    p_other_duration_minutes: set.data.duration ?? null
   }
 }
 
