@@ -82,6 +82,9 @@ create table if not exists public.other_sets (
   duration_minutes integer null
 );
 
+alter table public.other_sets
+add column if not exists duration_minutes integer null;
+
 create index if not exists idx_seasons_user_id on public.seasons (user_id);
 create index if not exists idx_sets_user_id on public.sets (user_id);
 create index if not exists idx_sets_date on public.sets (date desc);
