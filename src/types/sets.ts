@@ -41,6 +41,7 @@ export type JumpData = {
 
 export type OtherData = {
   name: string
+  duration: number | null
 }
 
 export type SkiSet =

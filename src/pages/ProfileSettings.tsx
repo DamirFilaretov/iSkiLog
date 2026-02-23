@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import {
   ArrowLeft,
-  Camera,
   Mail,
   User,
   Lock,
@@ -151,17 +150,8 @@ export default function ProfileSettings() {
 
       <div className="px-5">
         <div className="flex flex-col items-center text-center">
-          <div className="relative">
-            <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <User className="h-10 w-10 text-white" />
-            </div>
-            <button
-              type="button"
-              className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
-              aria-label="Change profile photo"
-            >
-              <Camera className="h-4 w-4 text-slate-600" />
-            </button>
+          <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <User className="h-10 w-10 text-white" />
           </div>
 
           <h2 className="mt-4 text-lg font-semibold text-slate-900">{name}</h2>

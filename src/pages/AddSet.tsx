@@ -76,6 +76,7 @@ export default function AddSet() {
   const [cutsType, setCutsType] = useState<"cut_pass" | "open_cuts">("cut_pass")
   const [cutsCount, setCutsCount] = useState<number | null>(null)
   const [otherName, setOtherName] = useState("")
+  const [otherDuration, setOtherDuration] = useState<number | null>(15)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -169,6 +170,7 @@ export default function AddSet() {
 
     if (editingSet.event === "other") {
       setOtherName(editingSet.data.name)
+      setOtherDuration(editingSet.data.duration ?? 15)
     }
   }, [editingSet, preferences.ropeUnit])
 
@@ -255,7 +257,7 @@ export default function AddSet() {
       }
       return cutsCount === null || !cutsType
     }
-    return !otherName.trim()
+    return !otherName.trim() || otherDuration === null
   })()
 
   const canSave =
@@ -331,7 +333,8 @@ export default function AddSet() {
       isFavorite,
       notes,
       data: {
-        name: otherName
+        name: otherName,
+        duration: otherDuration
       }
     }
   }
@@ -479,7 +482,14 @@ export default function AddSet() {
           />
         )}
 
-        {event === "other" && <OtherFields name={otherName} onNameChange={setOtherName} />}
+        {event === "other" && (
+          <OtherFields
+            name={otherName}
+            duration={otherDuration}
+            onNameChange={setOtherName}
+            onDurationChange={setOtherDuration}
+          />
+        )}
 
         <BaseFields
           date={date}

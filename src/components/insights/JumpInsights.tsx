@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from "react"
-import { Target, Trophy, TrendingUp, Plane, Flag } from "lucide-react"
+import { Trophy, TrendingUp, Plane, Flag } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
+import {
+  daysAgoLocalIsoDate,
+  filterByDateRange,
+  type InsightRangeKey,
+  todayLocalIsoDate
+} from "../../features/dateRange/dateRange"
 
-type RangeKey = "week" | "month" | "season" | "custom"
+type RangeKey = InsightRangeKey
 
 type JumpInsightSource = {
-  totalSets: number
   bestDistanceMeters: number
   averageDistanceMeters: number
   avgDistanceDeltaVsLastMonthMeters: number
@@ -23,75 +28,9 @@ type Props = {
   dataSource?: JumpInsightSource
 }
 
-function todayLocalIso() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, "0")
-  const d = String(now.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
 function isoToDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number)
   return new Date(y, (m ?? 1) - 1, d ?? 1)
-}
-
-function toLocalIso(date: Date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-function clampRange(start: Date, end: Date) {
-  const normalizedStart = new Date(start)
-  const normalizedEnd = new Date(end)
-  normalizedStart.setHours(0, 0, 0, 0)
-  normalizedEnd.setHours(23, 59, 59, 999)
-  return { start: normalizedStart, end: normalizedEnd }
-}
-
-function filterSetsByRange(
-  sets: SkiSet[],
-  range: RangeKey,
-  customStart: string,
-  customEnd: string
-) {
-  const now = new Date()
-
-  if (range === "season") return sets
-
-  if (range === "week") {
-    const end = new Date(now)
-    end.setHours(23, 59, 59, 999)
-    const start = new Date(now)
-    start.setDate(now.getDate() - 6)
-    const bounds = clampRange(start, end)
-    return sets.filter(set => {
-      const d = isoToDate(set.date)
-      return d >= bounds.start && d <= bounds.end
-    })
-  }
-
-  if (range === "month") {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    const bounds = clampRange(start, end)
-    return sets.filter(set => {
-      const d = isoToDate(set.date)
-      return d >= bounds.start && d <= bounds.end
-    })
-  }
-
-  if (!customStart || !customEnd) return sets
-
-  const start = isoToDate(customStart)
-  const end = isoToDate(customEnd)
-  const bounds = clampRange(start, end)
-  return sets.filter(set => {
-    const d = isoToDate(set.date)
-    return d >= bounds.start && d <= bounds.end
-  })
 }
 
 function average(values: number[]) {
@@ -106,7 +45,7 @@ function buildJumpSourceFromSets(
   customEnd: string
 ): JumpInsightSource {
   const jumpSets = sets.filter((set): set is SkiSet & { event: "jump" } => set.event === "jump")
-  const selected = filterSetsByRange(jumpSets, range, customStart, customEnd).filter(
+  const selected = filterByDateRange(jumpSets, range, { customStart, customEnd }).filter(
     (set): set is SkiSet & { event: "jump" } => set.event === "jump"
   )
 
@@ -156,7 +95,6 @@ function buildJumpSourceFromSets(
   const cutPassSetCount = cutsOnly.filter(set => set.data.cutsType === "cut_pass").length
 
   return {
-    totalSets,
     bestDistanceMeters,
     averageDistanceMeters,
     avgDistanceDeltaVsLastMonthMeters,
@@ -177,11 +115,8 @@ export default function JumpInsights({ sets, dataSource }: Props) {
   useEffect(() => {
     if (range !== "custom") return
     if (customStart && customEnd) return
-    const end = todayLocalIso()
-    const start = new Date()
-    start.setDate(start.getDate() - 30)
-    setCustomStart(toLocalIso(start))
-    setCustomEnd(end)
+    setCustomStart(daysAgoLocalIsoDate(30))
+    setCustomEnd(todayLocalIsoDate())
   }, [range, customStart, customEnd])
 
   // Default source is computed from real jump sets. dataSource stays as an override hook.
@@ -237,52 +172,6 @@ export default function JumpInsights({ sets, dataSource }: Props) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 px-4">
-        <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
-            <Target className="h-4 w-4" />
-          </div>
-          <p className="mt-3 text-xs text-slate-500">Total Sets</p>
-          <p className="mt-1 text-3xl font-semibold text-slate-900">{source.totalSets}</p>
-          <p className="mt-1 text-xs text-indigo-400">Jump + Cuts</p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
-            <Trophy className="h-4 w-4" />
-          </div>
-          <p className="mt-3 text-xs text-slate-500">Best Distance</p>
-          <p className="mt-1 text-3xl font-semibold text-slate-900">
-            {source.bestDistanceMeters.toFixed(1)}m
-          </p>
-          <p className="mt-1 text-xs text-indigo-400">Personal record</p>
-        </div>
-      </div>
-
-      <div className="px-4">
-        <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
-                <TrendingUp className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Average Distance</p>
-                <p className="mt-1 text-3xl font-semibold text-slate-900">
-                  {source.averageDistanceMeters.toFixed(1)}m
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-emerald-600 text-right">
-              {source.avgDistanceDeltaVsLastMonthMeters > 0 ? "+" : ""}
-              {source.avgDistanceDeltaVsLastMonthMeters.toFixed(1)}m
-              <br />
-              vs last month
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div className="px-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm shadow-slate-200/70">
           <p className="text-sm font-semibold text-slate-900">Jump vs Cuts Ratio</p>
@@ -330,13 +219,11 @@ export default function JumpInsights({ sets, dataSource }: Props) {
             <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
               <p className="text-xs text-slate-500">Jumps Made</p>
               <p className="mt-1 text-3xl font-semibold text-slate-900">{source.totalJumped}</p>
-              <p className="mt-1 text-xs text-slate-500">Across jump sets</p>
             </div>
 
             <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
               <p className="text-xs text-slate-500">Total Passed</p>
               <p className="mt-1 text-3xl font-semibold text-slate-900">{source.totalPassed}</p>
-              <p className="mt-1 text-xs text-slate-500">Across jump sets</p>
             </div>
           </div>
         </div>
@@ -355,6 +242,35 @@ export default function JumpInsights({ sets, dataSource }: Props) {
               <p className="text-xs text-slate-500">Cut & Pass Sets</p>
               <p className="mt-1 text-3xl font-semibold text-slate-900">{source.cutPassSetCount}</p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70 min-h-[148px]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+              <Trophy className="h-4 w-4" />
+            </div>
+            <p className="mt-3 text-xs text-slate-500">Best Distance</p>
+            <p className="mt-1 text-3xl font-semibold text-slate-900">
+              {source.bestDistanceMeters.toFixed(1)}m
+            </p>
+            <p className="mt-1 text-xs text-indigo-400">Personal record</p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-4 shadow-sm shadow-slate-200/70 min-h-[148px]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <p className="mt-3 text-xs text-slate-500">Average Distance</p>
+            <p className="mt-1 text-3xl font-semibold text-slate-900 leading-none">
+              {source.averageDistanceMeters.toFixed(1)}m
+            </p>
+            <p className="mt-1 text-xs text-emerald-600">
+              {source.avgDistanceDeltaVsLastMonthMeters > 0 ? "+" : ""}
+              {source.avgDistanceDeltaVsLastMonthMeters.toFixed(1)}m vs last month
+            </p>
           </div>
         </div>
       </div>

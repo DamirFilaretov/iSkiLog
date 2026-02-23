@@ -1,19 +1,14 @@
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 
 import HistoryItem from "../components/history/HistoryItem"
 import { useSetsStore } from "../store/setsStore"
-import type { SkiSet } from "../types/sets"
-import { updateSetFavoriteInDb } from "../data/setsUpdateDeleteApi"
+import { useFavoriteToggle } from "../hooks/useFavoriteToggle"
 
 export default function HistoryAll() {
   const navigate = useNavigate()
-  const { sets, setsHydrated, setFavorite } = useSetsStore()
-
-  const [favoriteError, setFavoriteError] = useState<string | null>(null)
-  const [togglingFavoriteIds, setTogglingFavoriteIds] = useState<Set<string>>(
-    () => new Set()
-  )
+  const { sets, setsHydrated } = useSetsStore()
+  const { favoriteError, togglingFavoriteIds, handleToggleFavorite } = useFavoriteToggle()
 
   const sortedSets = useMemo(() => {
     return [...sets].sort((a, b) => {
@@ -22,34 +17,6 @@ export default function HistoryAll() {
       return 0
     })
   }, [sets])
-
-  async function handleToggleFavorite(setItem: SkiSet, nextValue: boolean) {
-    const id = setItem.id
-    if (togglingFavoriteIds.has(id)) return
-
-    setFavoriteError(null)
-    setTogglingFavoriteIds(prev => {
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
-
-    setFavorite(id, nextValue)
-
-    try {
-      await updateSetFavoriteInDb({ id, isFavorite: nextValue })
-    } catch (err) {
-      console.error("Failed to update favourite", err)
-      setFavorite(id, setItem.isFavorite)
-      setFavoriteError("Failed to update favourite set. Please try again.")
-    } finally {
-      setTogglingFavoriteIds(prev => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gray-100">

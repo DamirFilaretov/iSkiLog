@@ -78,8 +78,12 @@ create table if not exists public.jump_sets (
 
 create table if not exists public.other_sets (
   set_id uuid primary key references public.sets(id) on delete cascade,
-  name text null
+  name text null,
+  duration_minutes integer null
 );
+
+alter table public.other_sets
+add column if not exists duration_minutes integer null;
 
 create index if not exists idx_seasons_user_id on public.seasons (user_id);
 create index if not exists idx_sets_user_id on public.sets (user_id);
@@ -111,6 +115,348 @@ create trigger trg_user_tasks_updated_at
 before update on public.user_tasks
 for each row
 execute function public.set_updated_at();
+
+drop function if exists public.fetch_sets_hydrated();
+create or replace function public.fetch_sets_hydrated()
+returns table (
+  set_id uuid,
+  event_type text,
+  date date,
+  season_id uuid,
+  is_favorite boolean,
+  notes text,
+  buoys numeric,
+  rope_length text,
+  speed numeric,
+  passes_count integer,
+  duration_minutes integer,
+  trick_type text,
+  jump_subevent text,
+  jump_attempts integer,
+  jump_passed integer,
+  jump_made integer,
+  jump_distance numeric,
+  jump_cuts_type text,
+  jump_cuts_count integer,
+  other_name text,
+  other_duration_minutes integer
+)
+language sql
+stable
+as $$
+  select
+    s.id as set_id,
+    s.event_type::text as event_type,
+    s.date,
+    s.season_id,
+    s.is_favorite,
+    s.notes,
+    sl.buoys,
+    sl.rope_length,
+    sl.speed,
+    sl.passes_count,
+    tr.duration_minutes,
+    tr.trick_type,
+    jp.subevent as jump_subevent,
+    jp.attempts as jump_attempts,
+    jp.passed as jump_passed,
+    jp.made as jump_made,
+    jp.distance as jump_distance,
+    jp.cuts_type as jump_cuts_type,
+    jp.cuts_count as jump_cuts_count,
+    ot.name as other_name,
+    ot.duration_minutes as other_duration_minutes
+  from public.sets s
+  left join public.slalom_sets sl on sl.set_id = s.id
+  left join public.tricks_sets tr on tr.set_id = s.id
+  left join public.jump_sets jp on jp.set_id = s.id
+  left join public.other_sets ot on ot.set_id = s.id
+  where s.user_id = auth.uid()
+  order by s.updated_at desc nulls last, s.date desc, s.created_at desc;
+$$;
+
+drop function if exists public.set_active_season_atomic(uuid);
+create or replace function public.set_active_season_atomic(p_season_id uuid)
+returns void
+language plpgsql
+as $$
+declare
+  v_user_id uuid;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if not exists (
+    select 1
+    from public.seasons
+    where id = p_season_id
+      and user_id = v_user_id
+  ) then
+    raise exception 'Season not found or not owned by user';
+  end if;
+
+  update public.seasons
+  set is_active = (id = p_season_id)
+  where user_id = v_user_id;
+end;
+$$;
+
+drop function if exists public.create_set_with_subtype(
+  uuid, boolean, text, date, text, numeric, text, numeric, integer, integer, text, text, integer,
+  integer, integer, numeric, text, integer, text, integer
+);
+create or replace function public.create_set_with_subtype(
+  p_season_id uuid,
+  p_is_favorite boolean,
+  p_event_type text,
+  p_date date,
+  p_notes text,
+  p_buoys numeric default null,
+  p_rope_length text default null,
+  p_speed numeric default null,
+  p_passes_count integer default null,
+  p_duration_minutes integer default null,
+  p_trick_type text default null,
+  p_subevent text default null,
+  p_attempts integer default null,
+  p_passed integer default null,
+  p_made integer default null,
+  p_distance numeric default null,
+  p_cuts_type text default null,
+  p_cuts_count integer default null,
+  p_other_name text default null,
+  p_other_duration_minutes integer default null
+)
+returns uuid
+language plpgsql
+as $$
+declare
+  v_user_id uuid;
+  v_set_id uuid;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if p_season_id is not null and not exists (
+    select 1
+    from public.seasons s
+    where s.id = p_season_id
+      and s.user_id = v_user_id
+  ) then
+    raise exception 'Season not found or not owned by user';
+  end if;
+
+  if p_event_type not in ('slalom', 'tricks', 'jump', 'other') then
+    raise exception 'Unsupported event type: %', p_event_type;
+  end if;
+
+  insert into public.sets (
+    user_id,
+    season_id,
+    is_favorite,
+    event_type,
+    date,
+    notes
+  )
+  values (
+    v_user_id,
+    p_season_id,
+    coalesce(p_is_favorite, false),
+    p_event_type,
+    p_date,
+    coalesce(p_notes, '')
+  )
+  returning id into v_set_id;
+
+  if p_event_type = 'slalom' then
+    insert into public.slalom_sets (set_id, buoys, rope_length, speed, passes_count)
+    values (
+      v_set_id,
+      coalesce(p_buoys, 0),
+      coalesce(p_rope_length, ''),
+      p_speed,
+      coalesce(p_passes_count, 0)
+    );
+  elsif p_event_type = 'tricks' then
+    insert into public.tricks_sets (set_id, duration_minutes, trick_type)
+    values (v_set_id, p_duration_minutes, p_trick_type);
+  elsif p_event_type = 'jump' then
+    insert into public.jump_sets (
+      set_id,
+      subevent,
+      attempts,
+      passed,
+      made,
+      distance,
+      cuts_type,
+      cuts_count
+    )
+    values (
+      v_set_id,
+      coalesce(p_subevent, 'jump'),
+      case when coalesce(p_subevent, 'jump') = 'cuts' then 0 else coalesce(p_attempts, 0) end,
+      case when coalesce(p_subevent, 'jump') = 'cuts' then 0 else coalesce(p_passed, 0) end,
+      case when coalesce(p_subevent, 'jump') = 'cuts' then 0 else coalesce(p_made, 0) end,
+      p_distance,
+      p_cuts_type,
+      p_cuts_count
+    );
+  else
+    insert into public.other_sets (set_id, name, duration_minutes)
+    values (v_set_id, coalesce(p_other_name, ''), p_other_duration_minutes);
+  end if;
+
+  return v_set_id;
+end;
+$$;
+
+drop function if exists public.update_set_with_subtype(
+  uuid, uuid, boolean, text, date, text, numeric, text, numeric, integer, integer, text, text,
+  integer, integer, integer, numeric, text, integer, text, integer, boolean
+);
+create or replace function public.update_set_with_subtype(
+  p_set_id uuid,
+  p_season_id uuid,
+  p_is_favorite boolean,
+  p_event_type text,
+  p_date date,
+  p_notes text,
+  p_buoys numeric default null,
+  p_rope_length text default null,
+  p_speed numeric default null,
+  p_passes_count integer default null,
+  p_duration_minutes integer default null,
+  p_trick_type text default null,
+  p_subevent text default null,
+  p_attempts integer default null,
+  p_passed integer default null,
+  p_made integer default null,
+  p_distance numeric default null,
+  p_cuts_type text default null,
+  p_cuts_count integer default null,
+  p_other_name text default null,
+  p_other_duration_minutes integer default null,
+  p_event_changed boolean default false
+)
+returns void
+language plpgsql
+as $$
+declare
+  v_user_id uuid;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if p_season_id is not null and not exists (
+    select 1
+    from public.seasons s
+    where s.id = p_season_id
+      and s.user_id = v_user_id
+  ) then
+    raise exception 'Season not found or not owned by user';
+  end if;
+
+  if p_event_type not in ('slalom', 'tricks', 'jump', 'other') then
+    raise exception 'Unsupported event type: %', p_event_type;
+  end if;
+
+  update public.sets
+  set
+    season_id = p_season_id,
+    is_favorite = coalesce(p_is_favorite, false),
+    event_type = p_event_type,
+    date = p_date,
+    notes = coalesce(p_notes, '')
+  where id = p_set_id
+    and user_id = v_user_id;
+
+  if not found then
+    raise exception 'Set not found or not owned by user';
+  end if;
+
+  if p_event_type = 'slalom' then
+    insert into public.slalom_sets (set_id, buoys, rope_length, speed, passes_count)
+    values (
+      p_set_id,
+      coalesce(p_buoys, 0),
+      coalesce(p_rope_length, ''),
+      p_speed,
+      coalesce(p_passes_count, 0)
+    )
+    on conflict (set_id) do update
+      set
+        buoys = excluded.buoys,
+        rope_length = excluded.rope_length,
+        speed = excluded.speed,
+        passes_count = excluded.passes_count;
+  elsif p_event_type = 'tricks' then
+    insert into public.tricks_sets (set_id, duration_minutes, trick_type)
+    values (p_set_id, p_duration_minutes, p_trick_type)
+    on conflict (set_id) do update
+      set
+        duration_minutes = excluded.duration_minutes,
+        trick_type = excluded.trick_type;
+  elsif p_event_type = 'jump' then
+    insert into public.jump_sets (
+      set_id,
+      subevent,
+      attempts,
+      passed,
+      made,
+      distance,
+      cuts_type,
+      cuts_count
+    )
+    values (
+      p_set_id,
+      coalesce(p_subevent, 'jump'),
+      case when coalesce(p_subevent, 'jump') = 'cuts' then 0 else coalesce(p_attempts, 0) end,
+      case when coalesce(p_subevent, 'jump') = 'cuts' then 0 else coalesce(p_passed, 0) end,
+      case when coalesce(p_subevent, 'jump') = 'cuts' then 0 else coalesce(p_made, 0) end,
+      p_distance,
+      p_cuts_type,
+      p_cuts_count
+    )
+    on conflict (set_id) do update
+      set
+        subevent = excluded.subevent,
+        attempts = excluded.attempts,
+        passed = excluded.passed,
+        made = excluded.made,
+        distance = excluded.distance,
+        cuts_type = excluded.cuts_type,
+        cuts_count = excluded.cuts_count;
+  else
+    insert into public.other_sets (set_id, name, duration_minutes)
+    values (p_set_id, coalesce(p_other_name, ''), p_other_duration_minutes)
+    on conflict (set_id) do update
+      set
+        name = excluded.name,
+        duration_minutes = excluded.duration_minutes;
+  end if;
+
+  if p_event_changed then
+    if p_event_type <> 'slalom' then
+      delete from public.slalom_sets where set_id = p_set_id;
+    end if;
+    if p_event_type <> 'tricks' then
+      delete from public.tricks_sets where set_id = p_set_id;
+    end if;
+    if p_event_type <> 'jump' then
+      delete from public.jump_sets where set_id = p_set_id;
+    end if;
+    if p_event_type <> 'other' then
+      delete from public.other_sets where set_id = p_set_id;
+    end if;
+  end if;
+end;
+$$;
 
 alter table public.profiles enable row level security;
 alter table public.seasons enable row level security;

@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import jsPDF from "jspdf"
-import autoTable from "jspdf-autotable"
 
 import { useSetsStore } from "../store/setsStore"
 import type { EventKey } from "../types/sets"
@@ -114,8 +112,8 @@ export default function Insights() {
   }
 
   const getSeasonTotalLabel = (event: EventKey | "all", seasonYear: string) => {
-    if (event === "all") return `${seasonYear} total training sets:`
-    return `${seasonYear} total ${event} sets:`
+    if (event === "all") return `${seasonYear} training sets:`
+    return `${seasonYear} ${event} sets:`
   }
 
   const sortedSeasons = useMemo(() => {
@@ -338,7 +336,7 @@ export default function Insights() {
     }
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     const exportData = buildExportPayload()
     if (!exportData.ok) {
       setExportError(exportData.error ?? "Unable to export.")
@@ -347,100 +345,109 @@ export default function Insights() {
 
     const { payload } = exportData
 
-    const doc = new jsPDF({ unit: "mm", format: "a4" })
-    const pageWidth = doc.internal.pageSize.getWidth()
+    try {
+      const [{ default: JsPdf }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable")
+      ])
 
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(18)
-    doc.setTextColor(15, 23, 42)
-    doc.text("Training Summary Report", 14, 20)
+      const doc = new JsPdf({ unit: "mm", format: "a4" })
+      const pageWidth = doc.internal.pageSize.getWidth()
 
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(9)
-    doc.setTextColor(71, 85, 105)
-    doc.text("iSkiLog", pageWidth - 14, 10, { align: "right" })
-    doc.text(`${payload.rangeLabel} | ${payload.start} to ${payload.end}`, 14, 27)
-
-    autoTable(doc, {
-      startY: 34,
-      head: [["Metric", "Value"]],
-      body: [
-        ["Total Sets", String(payload.totalSets)],
-        ["Training Days", String(payload.trainingDays)],
-        ["Most Practiced", payload.mostPracticedEventLabel]
-      ],
-      theme: "grid",
-      headStyles: { fillColor: [37, 99, 235] },
-      styles: { font: "helvetica", fontSize: 10 }
-    })
-
-    const afterMetricsY =
-      (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70
-
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(12)
-    doc.setTextColor(15, 23, 42)
-    doc.text("Event Breakdown Chart", 14, afterMetricsY + 10)
-
-    const chartStartY = afterMetricsY + 16
-    const labelX = 14
-    const barX = 52
-    const barMaxWidth = pageWidth - 70
-    const barHeight = 5
-
-    const colorByEvent: Record<string, [number, number, number]> = {
-      Slalom: [37, 99, 235],
-      Tricks: [147, 51, 234],
-      Jump: [249, 115, 22],
-      Other: [16, 185, 129]
-    }
-
-    payload.breakdownWithPercent.forEach((item, idx) => {
-      const y = chartStartY + idx * 10
-      const width = Math.max((item.percent / 100) * barMaxWidth, item.count > 0 ? 2 : 0)
-      const color = colorByEvent[item.event] ?? [100, 116, 139]
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(18)
+      doc.setTextColor(15, 23, 42)
+      doc.text("Training Summary Report", 14, 20)
 
       doc.setFont("helvetica", "normal")
-      doc.setFontSize(10)
-      doc.setTextColor(51, 65, 85)
-      doc.text(item.event, labelX, y + 4)
-
-      doc.setFillColor(226, 232, 240)
-      doc.roundedRect(barX, y, barMaxWidth, barHeight, 1.5, 1.5, "F")
-
-      if (width > 0) {
-        doc.setFillColor(color[0], color[1], color[2])
-        doc.roundedRect(barX, y, width, barHeight, 1.5, 1.5, "F")
-      }
-
       doc.setFontSize(9)
       doc.setTextColor(71, 85, 105)
-      doc.text(`${item.count} (${item.percent.toFixed(1)}%)`, pageWidth - 14, y + 4, { align: "right" })
-    })
+      doc.text("iSkiLog", pageWidth - 14, 10, { align: "right" })
+      doc.text(`${payload.rangeLabel} | ${payload.start} to ${payload.end}`, 14, 27)
 
-    const tableStartY = chartStartY + payload.breakdownWithPercent.length * 10 + 8
+      autoTable(doc, {
+        startY: 34,
+        head: [["Metric", "Value"]],
+        body: [
+          ["Total Sets", String(payload.totalSets)],
+          ["Training Days", String(payload.trainingDays)],
+          ["Most Practiced", payload.mostPracticedEventLabel]
+        ],
+        theme: "grid",
+        headStyles: { fillColor: [37, 99, 235] },
+        styles: { font: "helvetica", fontSize: 10 }
+      })
 
-    autoTable(doc, {
-      startY: tableStartY,
-      head: [["Event", "Count", "Percentage"]],
-      body: payload.breakdownWithPercent.map(item => [
-        item.event,
-        String(item.count),
-        `${item.percent.toFixed(1)}%`
-      ]),
-      theme: "striped",
-      headStyles: { fillColor: [15, 23, 42] },
-      styles: { font: "helvetica", fontSize: 10 }
-    })
+      const afterMetricsY =
+        (doc as typeof doc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70
 
-    doc.save(`iSkiLog_${payload.start}_to_${payload.end}.pdf`)
-    setExportOpen(false)
-    setExportError(null)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(12)
+      doc.setTextColor(15, 23, 42)
+      doc.text("Event Breakdown Chart", 14, afterMetricsY + 10)
+
+      const chartStartY = afterMetricsY + 16
+      const labelX = 14
+      const barX = 52
+      const barMaxWidth = pageWidth - 70
+      const barHeight = 5
+
+      const colorByEvent: Record<string, [number, number, number]> = {
+        Slalom: [37, 99, 235],
+        Tricks: [147, 51, 234],
+        Jump: [249, 115, 22],
+        Other: [16, 185, 129]
+      }
+
+      payload.breakdownWithPercent.forEach((item, idx) => {
+        const y = chartStartY + idx * 10
+        const width = Math.max((item.percent / 100) * barMaxWidth, item.count > 0 ? 2 : 0)
+        const color = colorByEvent[item.event] ?? [100, 116, 139]
+
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(10)
+        doc.setTextColor(51, 65, 85)
+        doc.text(item.event, labelX, y + 4)
+
+        doc.setFillColor(226, 232, 240)
+        doc.roundedRect(barX, y, barMaxWidth, barHeight, 1.5, 1.5, "F")
+
+        if (width > 0) {
+          doc.setFillColor(color[0], color[1], color[2])
+          doc.roundedRect(barX, y, width, barHeight, 1.5, 1.5, "F")
+        }
+
+        doc.setFontSize(9)
+        doc.setTextColor(71, 85, 105)
+        doc.text(`${item.count} (${item.percent.toFixed(1)}%)`, pageWidth - 14, y + 4, { align: "right" })
+      })
+
+      const tableStartY = chartStartY + payload.breakdownWithPercent.length * 10 + 8
+
+      autoTable(doc, {
+        startY: tableStartY,
+        head: [["Event", "Count", "Percentage"]],
+        body: payload.breakdownWithPercent.map(item => [
+          item.event,
+          String(item.count),
+          `${item.percent.toFixed(1)}%`
+        ]),
+        theme: "striped",
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { font: "helvetica", fontSize: 10 }
+      })
+
+      doc.save(`iSkiLog_${payload.start}_to_${payload.end}.pdf`)
+      setExportOpen(false)
+      setExportError(null)
+    } catch {
+      setExportError("Unable to export.")
+    }
   }
 
-  function handleExport() {
+  async function handleExport() {
     if (exportFormat === "pdf") {
-      handleExportPdf()
+      await handleExportPdf()
       return
     }
 

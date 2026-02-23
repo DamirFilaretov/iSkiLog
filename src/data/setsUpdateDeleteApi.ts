@@ -1,96 +1,17 @@
 // src/data/setsUpdateDeleteApi.ts
 import { supabase } from "../lib/supabaseClient"
 import type { EventKey, SkiSet } from "../types/sets"
+import { buildUpdateSetSubtypeRpcPayload } from "./setSubtypeRpcPayload"
 
 /**
- * Update a set in Supabase.
- * Strategy:
- * 1) Update base row in sets (includes season_id)
- * 2) Upsert the correct subtype row
- * 3) Only clean up other subtype rows if the event type changed
+ * Update a set through a single transactional RPC in Supabase.
  */
 export async function updateSetInDb(args: { set: SkiSet; previousEvent: EventKey }): Promise<void> {
   const { set, previousEvent } = args
+  const payload = buildUpdateSetSubtypeRpcPayload(set, previousEvent)
 
-  const { error: baseError } = await supabase
-    .from("sets")
-    .update({
-      event_type: set.event,
-      date: set.date,
-      notes: set.notes,
-      season_id: set.seasonId,
-      is_favorite: set.isFavorite
-    })
-    .eq("id", set.id)
-
-  if (baseError) throw baseError
-
-  if (set.event === "slalom") {
-    const { error } = await supabase.from("slalom_sets").upsert({
-      set_id: set.id,
-      buoys: set.data.buoys ?? 0,
-      rope_length: set.data.ropeLength ?? "",
-      speed: set.data.speed ? Number(set.data.speed) : null,
-      passes_count: set.data.passesCount ?? 0
-    })
-    if (error) throw error
-  }
-
-  if (set.event === "tricks") {
-    const { error } = await supabase.from("tricks_sets").upsert({
-      set_id: set.id,
-      duration_minutes: set.data.duration,
-      trick_type: set.data.trickType
-    })
-    if (error) throw error
-  }
-
-  if (set.event === "jump") {
-    const { error } = await supabase.from("jump_sets").upsert({
-      set_id: set.id,
-      subevent: set.data.subEvent ?? "jump",
-      attempts: set.data.subEvent === "cuts" ? 0 : set.data.attempts ?? 0,
-      passed: set.data.subEvent === "cuts" ? 0 : set.data.passed ?? 0,
-      made: set.data.subEvent === "cuts" ? 0 : set.data.made ?? 0,
-      distance: set.data.distance ?? null,
-      cuts_type: set.data.cutsType ?? null,
-      cuts_count: set.data.cutsCount ?? null
-    })
-    if (error) throw error
-  }
-
-  if (set.event === "other") {
-    const { error } = await supabase.from("other_sets").upsert({
-      set_id: set.id,
-      name: set.data.name ?? ""
-    })
-    if (error) throw error
-  }
-
-  // Only clean up subtype tables if the event type changed.
-  // This makes updates much faster for normal edits like notes or numbers.
-  if (previousEvent !== set.event) {
-    if (set.event !== "slalom") {
-      const { error } = await supabase.from("slalom_sets").delete().eq("set_id", set.id)
-      if (error) throw error
-    }
-
-    if (set.event !== "tricks") {
-      const { error } = await supabase.from("tricks_sets").delete().eq("set_id", set.id)
-      if (error) throw error
-    }
-
-    if (set.event !== "jump") {
-      const { error } = await supabase.from("jump_sets").delete().eq("set_id", set.id)
-      if (error) throw error
-    }
-
-
-    if (set.event !== "other") {
-      const { error } = await supabase.from("other_sets").delete().eq("set_id", set.id)
-      if (error) throw error
-    }
-  }
+  const { error } = await supabase.rpc("update_set_with_subtype", payload)
+  if (error) throw error
 }
 
 /**

@@ -83,6 +83,17 @@ export default function About() {
                 </p>
               </div>
             </div>
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="w-2 h-2 rounded-full bg-blue-600" />
+              </div>
+              <div>
+                <p className="text-slate-900 text-sm">Task Management</p>
+                <p className="text-slate-500 text-xs">
+                  Create, track, and complete your training tasks
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -95,7 +106,7 @@ export default function About() {
               </div>
               <div className="flex-1 text-left">
                 <p className="text-slate-900 text-sm">Contact Support</p>
-                <p className="text-slate-500 text-xs">support@iskilog.com</p>
+                <p className="text-slate-500 text-xs">damir.filaretov@gmail.com</p>
               </div>
             </button>
           </div>

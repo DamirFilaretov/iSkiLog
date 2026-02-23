@@ -19,8 +19,14 @@ import {
   type SlalomSeriesPoint
 } from "../../features/insights/insightsSelectors"
 import { getAverageTournamentSpeedStep } from "../../features/insights/slalomSpeedSteps"
+import {
+  daysAgoLocalIsoDate,
+  filterByDateRange,
+  todayLocalIsoDate,
+  type InsightRangeKey
+} from "../../features/dateRange/dateRange"
 
-type RangeKey = "week" | "month" | "season" | "custom"
+type RangeKey = InsightRangeKey
 
 type Props = {
   sets: SkiSet[]
@@ -31,69 +37,6 @@ const ROPE_OFF = ["15off", "22off", "28off", "32off", "35off", "38off", "39.5off
 const SCORE_PASS_SIZE = 6
 const SCORE_EPSILON = 1e-9
 const CHART_ROPE_SCORE_TICKS = ROPE_LENGTHS.map((_, index) => (index + 1) * SCORE_PASS_SIZE)
-
-function todayLocalIso() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, "0")
-  const d = String(now.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}
-
-function isoToDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number)
-  return new Date(y, (m ?? 1) - 1, d ?? 1)
-}
-
-function clampRange(start: Date, end: Date) {
-  const normalizedStart = new Date(start)
-  const normalizedEnd = new Date(end)
-  normalizedStart.setHours(0, 0, 0, 0)
-  normalizedEnd.setHours(23, 59, 59, 999)
-  return { start: normalizedStart, end: normalizedEnd }
-}
-
-function filterSetsByRange(
-  sets: SkiSet[],
-  range: RangeKey,
-  customStart: string,
-  customEnd: string
-) {
-  const now = new Date()
-
-  if (range === "season") return sets
-
-  if (range === "week") {
-    const end = new Date(now)
-    end.setHours(23, 59, 59, 999)
-    const start = new Date(now)
-    start.setDate(now.getDate() - 6)
-    const bounds = clampRange(start, end)
-    return sets.filter(set => {
-      const d = isoToDate(set.date)
-      return d >= bounds.start && d <= bounds.end
-    })
-  }
-
-  if (range === "month") {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    const bounds = clampRange(start, end)
-    return sets.filter(set => {
-      const d = isoToDate(set.date)
-      return d >= bounds.start && d <= bounds.end
-    })
-  }
-
-  if (!customStart || !customEnd) return sets
-  const start = isoToDate(customStart)
-  const end = isoToDate(customEnd)
-  const bounds = clampRange(start, end)
-  return sets.filter(set => {
-    const d = isoToDate(set.date)
-    return d >= bounds.start && d <= bounds.end
-  })
-}
 
 function roundBuoys(value: number) {
   const rounded = Math.round(value * 4) / 4
@@ -295,16 +238,16 @@ export default function SlalomInsights({ sets }: Props) {
   useEffect(() => {
     if (range !== "custom") return
     if (customStart && customEnd) return
-    const end = todayLocalIso()
-    const start = new Date()
-    start.setDate(start.getDate() - 30)
-    const startIso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`
-    setCustomStart(startIso)
-    setCustomEnd(end)
+    setCustomStart(daysAgoLocalIsoDate(30))
+    setCustomEnd(todayLocalIsoDate())
   }, [range, customStart, customEnd])
 
   const filteredSets = useMemo(
-    () => filterSetsByRange(sets, range, customStart, customEnd),
+    () =>
+      filterByDateRange(sets, range, {
+        customStart,
+        customEnd
+      }),
     [sets, range, customStart, customEnd]
   )
 

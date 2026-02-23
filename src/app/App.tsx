@@ -18,7 +18,7 @@ import Welcome from "../pages/Welcome"
 
 import BottomTabBar from "../components/nav/BottomTabBar"
 
-import { SetsProvider, useSetsStore } from "../store/setsStore"
+import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
 
 function AppLoading() {
@@ -73,6 +73,24 @@ function AppLoading() {
   )
 }
 
+function HydrationErrorState(props: { message: string; onRetry: () => void }) {
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 pt-10">
+      <div className="mx-auto max-w-md rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/60">
+        <h1 className="text-lg font-semibold text-slate-900">Data load failed</h1>
+        <p className="mt-2 text-sm text-slate-600">{props.message}</p>
+        <button
+          type="button"
+          onClick={props.onRetry}
+          className="mt-5 w-full rounded-full bg-blue-600 py-3 text-sm font-semibold text-white"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /**
  * Layout used only for the three main tabs.
  * Adds bottom padding so content never sits under the tab bar.
@@ -95,8 +113,7 @@ function TabLayout() {
 }
 
 function AppContent() {
-  const { user, loading: authLoading } = useAuth()
-  const { setsHydrated } = useSetsStore()
+  const { user, loading: authLoading, hydrationStatus, hydrationError, retryHydration } = useAuth()
   const [welcomeChecked, setWelcomeChecked] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
 
@@ -125,7 +142,16 @@ function AppContent() {
 
   if (authLoading) return <AppLoading />
   if (!user) return <Auth />
-  if (!setsHydrated) return <AppLoading />
+  if (hydrationStatus === "loading" || hydrationStatus === "idle") return <AppLoading />
+  if (hydrationStatus === "error") {
+    return (
+      <HydrationErrorState
+        message={hydrationError ?? "Unable to load your training data."}
+        onRetry={retryHydration}
+      />
+    )
+  }
+  if (hydrationStatus !== "success") return <AppLoading />
 
   return (
     <BrowserRouter>
