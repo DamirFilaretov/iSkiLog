@@ -18,7 +18,7 @@ import Welcome from "../pages/Welcome"
 
 import BottomTabBar from "../components/nav/BottomTabBar"
 
-import { SetsProvider, useSetsStore } from "../store/setsStore"
+import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
 
 function AppLoading() {
@@ -113,8 +113,7 @@ function TabLayout() {
 }
 
 function AppContent() {
-  const { user, loading: authLoading, hydrationError, retryHydration } = useAuth()
-  const { setsHydrated } = useSetsStore()
+  const { user, loading: authLoading, hydrationStatus, hydrationError, retryHydration } = useAuth()
   const [welcomeChecked, setWelcomeChecked] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
 
@@ -143,10 +142,16 @@ function AppContent() {
 
   if (authLoading) return <AppLoading />
   if (!user) return <Auth />
-  if (hydrationError) {
-    return <HydrationErrorState message={hydrationError} onRetry={retryHydration} />
+  if (hydrationStatus === "loading" || hydrationStatus === "idle") return <AppLoading />
+  if (hydrationStatus === "error") {
+    return (
+      <HydrationErrorState
+        message={hydrationError ?? "Unable to load your training data."}
+        onRetry={retryHydration}
+      />
+    )
   }
-  if (!setsHydrated) return <AppLoading />
+  if (hydrationStatus !== "success") return <AppLoading />
 
   return (
     <BrowserRouter>

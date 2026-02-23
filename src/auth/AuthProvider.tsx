@@ -7,9 +7,12 @@ import { fetchSeasons, createSeason, setActiveSeason, updateSeasonDates } from "
 import { useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
 
+type HydrationStatus = "idle" | "loading" | "success" | "error"
+
 type AuthContextValue = {
   user: User | null
   loading: boolean
+  hydrationStatus: HydrationStatus
   hydrationError: string | null
   retryHydration: () => void
 }
@@ -76,6 +79,7 @@ async function ensureProfileName(user: User) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hydrationStatus, setHydrationStatus] = useState<HydrationStatus>("idle")
   const [hydrationError, setHydrationError] = useState<string | null>(null)
   const [hydrateAttempt, setHydrateAttempt] = useState(0)
 
@@ -85,8 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSeasons,
     setActiveSeasonId,
     setSetsHydrated,
-    setCacheUserId,
-    setsHydrated
+    setCacheUserId
   } = useSetsStore()
 
   const lastUserIdRef = useRef<string | null>(null)
@@ -94,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   function retryHydration() {
     if (!user) return
+    setHydrationStatus("idle")
     setHydrationError(null)
     setSetsHydrated(false)
     lastHydratedUserIdRef.current = null
@@ -119,6 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSetsHydrated(false)
       }
 
+      setHydrationStatus("idle")
+      setHydrationError(null)
+      lastHydratedUserIdRef.current = null
+
       lastUserIdRef.current = nextId
       setLoading(false)
     })
@@ -137,6 +145,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSetsHydrated(false)
         }
         lastUserIdRef.current = nextId
+        lastHydratedUserIdRef.current = null
+        setHydrationStatus("idle")
+        setHydrationError(null)
       }
 
       setLoading(false)
@@ -157,16 +168,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearAll()
         setSetsHydrated(false)
         setCacheUserId(null)
+        setHydrationStatus("idle")
         setHydrationError(null)
         lastHydratedUserIdRef.current = null
         return
       }
 
-      if (setsHydrated && user.id === lastHydratedUserIdRef.current) {
-        return
-      }
-
       try {
+        setHydrationStatus("loading")
         setHydrationError(null)
         setSetsHydrated(false)
         setCacheUserId(user.id)
@@ -222,10 +231,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const sets = await fetchSets()
         replaceAll(sets)
         lastHydratedUserIdRef.current = user.id
+        setHydrationStatus("success")
         setSetsHydrated(true)
       } catch (err) {
         console.error("Failed to hydrate data", err)
         clearAll()
+        setHydrationStatus("error")
         setHydrationError("Unable to load your training data.")
         setSetsHydrated(false)
       }
@@ -234,10 +245,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hydrate()
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, setsHydrated, hydrateAttempt])
+  }, [user, hydrateAttempt])
 
   return (
-    <AuthContext.Provider value={{ user, loading, hydrationError, retryHydration }}>
+    <AuthContext.Provider
+      value={{ user, loading, hydrationStatus, hydrationError, retryHydration }}
+    >
       {children}
     </AuthContext.Provider>
   )
