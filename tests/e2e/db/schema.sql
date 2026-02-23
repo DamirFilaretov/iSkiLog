@@ -112,6 +112,63 @@ before update on public.user_tasks
 for each row
 execute function public.set_updated_at();
 
+drop function if exists public.fetch_sets_hydrated();
+create or replace function public.fetch_sets_hydrated()
+returns table (
+  set_id uuid,
+  event_type text,
+  date date,
+  season_id uuid,
+  is_favorite boolean,
+  notes text,
+  buoys numeric,
+  rope_length text,
+  speed numeric,
+  passes_count integer,
+  duration_minutes integer,
+  trick_type text,
+  jump_subevent text,
+  jump_attempts integer,
+  jump_passed integer,
+  jump_made integer,
+  jump_distance numeric,
+  jump_cuts_type text,
+  jump_cuts_count integer,
+  other_name text
+)
+language sql
+stable
+as $$
+  select
+    s.id as set_id,
+    s.event_type::text as event_type,
+    s.date,
+    s.season_id,
+    s.is_favorite,
+    s.notes,
+    sl.buoys,
+    sl.rope_length,
+    sl.speed,
+    sl.passes_count,
+    tr.duration_minutes,
+    tr.trick_type,
+    jp.subevent as jump_subevent,
+    jp.attempts as jump_attempts,
+    jp.passed as jump_passed,
+    jp.made as jump_made,
+    jp.distance as jump_distance,
+    jp.cuts_type as jump_cuts_type,
+    jp.cuts_count as jump_cuts_count,
+    ot.name as other_name
+  from public.sets s
+  left join public.slalom_sets sl on sl.set_id = s.id
+  left join public.tricks_sets tr on tr.set_id = s.id
+  left join public.jump_sets jp on jp.set_id = s.id
+  left join public.other_sets ot on ot.set_id = s.id
+  where s.user_id = auth.uid()
+  order by s.updated_at desc nulls last, s.date desc, s.created_at desc;
+$$;
+
 drop function if exists public.set_active_season_atomic(uuid);
 create or replace function public.set_active_season_atomic(p_season_id uuid)
 returns void

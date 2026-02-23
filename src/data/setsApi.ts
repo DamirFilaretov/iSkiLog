@@ -2,128 +2,95 @@ import { supabase } from "../lib/supabaseClient"
 import type { SkiSet } from "../types/sets"
 
 /**
- * Fetch sets ordered by last touched.
- * Primary: updated_at desc (so edits move to the top after refresh)
- * Fallback: date desc (for schemas that do not have updated_at)
+ * Fetch fully hydrated sets through one RPC call.
+ * Server returns base and subtype fields in one result set, already ordered.
  */
 export async function fetchSets(): Promise<SkiSet[]> {
-  // Try ordering by updated_at first.
-  let { data: sets, error } = await supabase
-    .from("sets")
-    .select("*")
-    .order("updated_at", { ascending: false })
-
-  // If the column does not exist, Supabase will return an error.
-  // In that case, fall back to date ordering so the app still works.
-  if (error) {
-    const fallback = await supabase
-      .from("sets")
-      .select("*")
-      .order("date", { ascending: false })
-
-    sets = fallback.data
-    error = fallback.error
-  }
-
+  const { data, error } = await supabase.rpc("fetch_sets_hydrated")
   if (error) throw error
-  if (!sets) return []
+  if (!data) return []
 
-  const results: SkiSet[] = []
+  const rows = data as HydratedSetRow[]
+  return rows.map(mapHydratedRowToSet)
+}
 
-  for (const s of sets) {
-    const seasonId = (s.season_id as string | null) ?? null
-    const isFavorite = (s.is_favorite as boolean | null) ?? false
+type HydratedSetRow = {
+  set_id: string
+  event_type: "slalom" | "tricks" | "jump" | "other"
+  date: string
+  season_id: string | null
+  is_favorite: boolean | null
+  notes: string | null
+  buoys: number | null
+  rope_length: string | null
+  speed: number | null
+  passes_count: number | null
+  duration_minutes: number | null
+  trick_type: "hands" | "toes" | null
+  jump_subevent: "jump" | "cuts" | null
+  jump_attempts: number | null
+  jump_passed: number | null
+  jump_made: number | null
+  jump_distance: number | null
+  jump_cuts_type: "cut_pass" | "open_cuts" | null
+  jump_cuts_count: number | null
+  other_name: string | null
+}
 
-    if (s.event_type === "slalom") {
-      const { data } = await supabase
-        .from("slalom_sets")
-        .select("*")
-        .eq("set_id", s.id)
-        .maybeSingle()
+function mapHydratedRowToSet(row: HydratedSetRow): SkiSet {
+  const base = {
+    id: row.set_id,
+    date: row.date,
+    seasonId: row.season_id ?? null,
+    isFavorite: row.is_favorite ?? false,
+    notes: row.notes ?? ""
+  }
 
-      results.push({
-        id: s.id,
-        event: "slalom",
-        date: s.date,
-        seasonId,
-        isFavorite,
-        notes: s.notes ?? "",
-        data: {
-          buoys: data?.buoys ?? null,
-          ropeLength: data?.rope_length ?? "",
-          speed: data?.speed ?? "",
-          passesCount: data?.passes_count ?? 0
-        }
-      })
-    }
-
-    if (s.event_type === "tricks") {
-      const { data } = await supabase
-        .from("tricks_sets")
-        .select("*")
-        .eq("set_id", s.id)
-        .maybeSingle()
-
-      results.push({
-        id: s.id,
-        event: "tricks",
-        date: s.date,
-        seasonId,
-        isFavorite,
-        notes: s.notes ?? "",
-        data: {
-          duration: data?.duration_minutes ?? null,
-          trickType: data?.trick_type ?? "hands"
-        }
-      })
-    }
-
-    if (s.event_type === "jump") {
-      const { data } = await supabase
-        .from("jump_sets")
-        .select("*")
-        .eq("set_id", s.id)
-        .maybeSingle()
-
-      results.push({
-        id: s.id,
-        event: "jump",
-        date: s.date,
-        seasonId,
-        isFavorite,
-        notes: s.notes ?? "",
-        data: {
-          subEvent: (data?.subevent as "jump" | "cuts" | undefined) ?? "jump",
-          attempts: data?.attempts ?? null,
-          passed: data?.passed ?? null,
-          made: data?.made ?? null,
-          distance: data?.distance ?? null,
-          cutsType: (data?.cuts_type as "cut_pass" | "open_cuts" | undefined) ?? null,
-          cutsCount: data?.cuts_count ?? null
-        }
-      })
-    }
-
-    if (s.event_type === "other") {
-      const { data } = await supabase
-        .from("other_sets")
-        .select("*")
-        .eq("set_id", s.id)
-        .maybeSingle()
-
-      results.push({
-        id: s.id,
-        event: "other",
-        date: s.date,
-        seasonId,
-        isFavorite,
-        notes: s.notes ?? "",
-        data: {
-          name: data?.name ?? ""
-        }
-      })
+  if (row.event_type === "slalom") {
+    return {
+      ...base,
+      event: "slalom",
+      data: {
+        buoys: row.buoys ?? null,
+        ropeLength: row.rope_length ?? "",
+        speed: row.speed === null ? "" : String(row.speed),
+        passesCount: row.passes_count ?? 0
+      }
     }
   }
 
-  return results
+  if (row.event_type === "tricks") {
+    return {
+      ...base,
+      event: "tricks",
+      data: {
+        duration: row.duration_minutes ?? null,
+        trickType: row.trick_type ?? "hands"
+      }
+    }
+  }
+
+  if (row.event_type === "jump") {
+    return {
+      ...base,
+      event: "jump",
+      data: {
+        subEvent: row.jump_subevent ?? "jump",
+        attempts: row.jump_attempts ?? null,
+        passed: row.jump_passed ?? null,
+        made: row.jump_made ?? null,
+        distance: row.jump_distance ?? null,
+        cutsType: row.jump_cuts_type ?? null,
+        cutsCount: row.jump_cuts_count ?? null
+      }
+    }
+  }
+
+  return {
+    ...base,
+    event: "other",
+    data: {
+      name: row.other_name ?? ""
+    }
+  }
 }
