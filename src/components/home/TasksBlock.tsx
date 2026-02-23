@@ -39,6 +39,31 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+function mergeFetchedTasksWithLocal(fetched: TaskItem[], local: TaskItem[]) {
+  const merged = new Map<string, TaskItem>()
+
+  for (const task of fetched) {
+    merged.set(task.id, task)
+  }
+
+  for (const task of local) {
+    const existing = merged.get(task.id)
+    if (!existing) {
+      merged.set(task.id, task)
+      continue
+    }
+
+    const existingUpdatedAt = Date.parse(existing.updatedAt)
+    const localUpdatedAt = Date.parse(task.updatedAt)
+
+    if (Number.isFinite(localUpdatedAt) && Number.isFinite(existingUpdatedAt) && localUpdatedAt > existingUpdatedAt) {
+      merged.set(task.id, task)
+    }
+  }
+
+  return Array.from(merged.values())
+}
+
 type ModalState =
   | { open: false }
   | { open: true; mode: "create" }
@@ -100,14 +125,16 @@ export default function TasksBlock() {
             })
             createdDefaults.push(created)
           }
-          resolvedTasks = createdDefaults
+          const seededTasks = await fetchTasks()
+          if (!active) return
+          resolvedTasks = seededTasks.length > 0 ? seededTasks : createdDefaults
           markSeededDefaults(userId)
         } else if (userId && nextTasks.length > 0 && !hasSeededDefaults(userId)) {
           // Existing users with any tasks should be considered already initialized.
           markSeededDefaults(userId)
         }
 
-        setTasks(resolvedTasks)
+        setTasks(prev => mergeFetchedTasksWithLocal(resolvedTasks, prev))
       } catch (err) {
         console.error("Failed to load tasks", err)
         if (!active) return
