@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { TRICK_CATALOG, searchTricks } from "./trickCatalog"
+import { searchTricks } from "./trickCatalog"
 
 describe("trickCatalog", () => {
   it("filters tricks by case-insensitive search", () => {
