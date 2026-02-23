@@ -56,6 +56,14 @@ function formatSpeed(value: string, unit: "kmh" | "mph") {
   return unit === "kmh" ? `${rounded}kph` : `${rounded}mph`
 }
 
+function formatJumpDistance(value: number | null | undefined, unit: "meters" | "feet") {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—"
+  const converted = unit === "feet" ? value * 3.28084 : value
+  const rounded = Math.round(converted * 10) / 10
+  const suffix = unit === "feet" ? "ft" : "m"
+  return `${rounded}${suffix}`
+}
+
 
 
 /**
@@ -177,10 +185,7 @@ export default function SetSummary() {
                 { label: "Jumped", value: skiSet.data.made === null ? "—" : String(skiSet.data.made) },
                 {
                   label: "Distance",
-                  value:
-                    skiSet.data.distance === null || skiSet.data.distance === undefined
-                      ? "—"
-                      : String(skiSet.data.distance)
+                  value: formatJumpDistance(skiSet.data.distance, preferences.ropeUnit)
                 }
               ]
           : [{ label: "Name", value: skiSet.data.name || "—" }]
