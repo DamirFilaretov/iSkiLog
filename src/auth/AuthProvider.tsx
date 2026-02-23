@@ -4,12 +4,14 @@ import type { User } from "@supabase/supabase-js"
 import { supabase } from "../lib/supabaseClient"
 import { fetchSets } from "../data/setsApi"
 import { fetchSeasons, createSeason, setActiveSeason, updateSeasonDates } from "../data/seasonsApi"
-import { readSetsCache, useSetsStore } from "../store/setsStore"
+import { useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
 
 type AuthContextValue = {
   user: User | null
   loading: boolean
+  hydrationError: string | null
+  retryHydration: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -74,6 +76,8 @@ async function ensureProfileName(user: User) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hydrationError, setHydrationError] = useState<string | null>(null)
+  const [hydrateAttempt, setHydrateAttempt] = useState(0)
 
   const {
     replaceAll,
@@ -87,6 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const lastUserIdRef = useRef<string | null>(null)
   const lastHydratedUserIdRef = useRef<string | null>(null)
+
+  function retryHydration() {
+    if (!user) return
+    setHydrationError(null)
+    setSetsHydrated(false)
+    lastHydratedUserIdRef.current = null
+    setHydrateAttempt(prev => prev + 1)
+  }
 
   useEffect(() => {
     let mounted = true
@@ -145,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearAll()
         setSetsHydrated(false)
         setCacheUserId(null)
+        setHydrationError(null)
         lastHydratedUserIdRef.current = null
         return
       }
@@ -154,23 +167,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
+        setHydrationError(null)
+        setSetsHydrated(false)
         setCacheUserId(user.id)
-        const cached = readSetsCache(user.id)
-
         await ensureProfileName(user)
 
-        if (cached && !setsHydrated) {
-          replaceAll(cached.sets)
-          setSeasons(cached.seasons)
-          setActiveSeasonId(cached.activeSeasonId)
-          setSetsHydrated(true)
-        }
-
-        if (!cached) {
-          setSetsHydrated(false)
-        }
-
-        let seasons = await fetchSeasons()
+        const seasons = await fetchSeasons()
         const currentYear = new Date().getFullYear()
 
         const normalized: Season[] = []
@@ -220,20 +222,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const sets = await fetchSets()
         replaceAll(sets)
         lastHydratedUserIdRef.current = user.id
+        setSetsHydrated(true)
       } catch (err) {
         console.error("Failed to hydrate data", err)
-      } finally {
-        setSetsHydrated(true)
+        clearAll()
+        setHydrationError("Unable to load your training data.")
+        setSetsHydrated(false)
       }
     }
 
     hydrate()
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, setsHydrated])
+  }, [user, setsHydrated, hydrateAttempt])
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, hydrationError, retryHydration }}>
       {children}
     </AuthContext.Provider>
   )
