@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom"
 import { useEffect, useState } from "react"
+import type { User } from "@supabase/supabase-js"
 
 import Home from "../pages/Home"
 import History from "../pages/History"
@@ -17,9 +18,11 @@ import PrivacySecurity from "../pages/PrivacySecurity"
 import Welcome from "../pages/Welcome"
 
 import BottomTabBar from "../components/nav/BottomTabBar"
+import PolicyModal from "../components/auth/PolicyModal"
 
 import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
+import { supabase } from "../lib/supabaseClient"
 
 function AppLoading() {
   return (
@@ -112,10 +115,111 @@ function TabLayout() {
   )
 }
 
+function isGoogleUser(user: User) {
+  const appMeta = user.app_metadata as Record<string, unknown> | undefined
+  const provider = appMeta?.provider
+  const providers = appMeta?.providers
+
+  if (provider === "google") return true
+  if (Array.isArray(providers)) return providers.includes("google")
+  return false
+}
+
+function hasAcceptedPolicy(user: User) {
+  const userMeta = user.user_metadata as Record<string, unknown> | undefined
+  if (!userMeta) return false
+  if (userMeta.policy_accepted === true) return true
+  return typeof userMeta.policy_accepted_at === "string" && userMeta.policy_accepted_at.length > 0
+}
+
+function GooglePolicyGate(props: { user: User; onAccepted: () => void }) {
+  const [checked, setChecked] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [policyOpen, setPolicyOpen] = useState(false)
+
+  async function handleAgree() {
+    if (!checked) {
+      setError("You must agree to policy to continue.")
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+
+    const previousMeta = (props.user.user_metadata as Record<string, unknown> | undefined) ?? {}
+    const nextMeta = {
+      ...previousMeta,
+      policy_accepted: true,
+      policy_accepted_at: new Date().toISOString()
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: nextMeta
+    })
+
+    if (updateError) {
+      setError(updateError.message)
+      setSaving(false)
+      return
+    }
+
+    setSaving(false)
+    props.onAccepted()
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 px-4 pt-10">
+      <div className="mx-auto max-w-md rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/60">
+        <h1 className="text-lg font-semibold text-slate-900">Policy Agreement</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Before continuing with Google sign-in, you need to agree to iSkiLog policy.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setPolicyOpen(true)}
+          className="mt-4 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700"
+        >
+          Read policy
+        </button>
+
+        <label className="mt-4 flex items-start gap-3 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={e => setChecked(e.target.checked)}
+            className="mt-0.5"
+          />
+          I agree to the Terms of Service and Privacy Policy.
+        </label>
+
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+
+        <button
+          type="button"
+          onClick={handleAgree}
+          disabled={saving}
+          className="mt-5 w-full rounded-full bg-blue-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {saving ? "Saving..." : "Agree and continue"}
+        </button>
+      </div>
+
+      <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
+    </div>
+  )
+}
+
 function AppContent() {
   const { user, loading: authLoading, hydrationStatus, hydrationError, retryHydration } = useAuth()
   const [welcomeChecked, setWelcomeChecked] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
+  const [googlePolicyGateDismissed, setGooglePolicyGateDismissed] = useState(false)
+
+  useEffect(() => {
+    setGooglePolicyGateDismissed(false)
+  }, [user?.id])
 
   useEffect(() => {
     const key = "iskilog:welcome-complete"
@@ -142,6 +246,16 @@ function AppContent() {
 
   if (authLoading) return <AppLoading />
   if (!user) return <Auth />
+  if (isGoogleUser(user) && !hasAcceptedPolicy(user) && !googlePolicyGateDismissed) {
+    return (
+      <GooglePolicyGate
+        user={user}
+        onAccepted={() => {
+          setGooglePolicyGateDismissed(true)
+        }}
+      />
+    )
+  }
   if (hydrationStatus === "loading" || hydrationStatus === "idle") return <AppLoading />
   if (hydrationStatus === "error") {
     return (
