@@ -36,6 +36,11 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/app": "^8.0.1",
+    "@capacitor/browser": "^8.0.1",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
     "@supabase/supabase-js": "^2.89.0",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
