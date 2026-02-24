@@ -93,7 +93,7 @@ export const PRIVACY_POLICY: PolicySection[] = [
   {
     title: "7. Your Rights",
     body:
-      "You may request access, correction, or deletion of your data. Contact: [Insert contact email]."
+      "You may request access, correction, or deletion of your data. Contact: damir.filaretov@gmail.com"
   },
   {
     title: "8. Children's Privacy",
