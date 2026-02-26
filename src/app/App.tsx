@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom"
 import { useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
+import { App as CapacitorApp } from "@capacitor/app"
+import { Browser } from "@capacitor/browser"
 
 import Home from "../pages/Home"
 import History from "../pages/History"
@@ -23,6 +25,7 @@ import PolicyModal from "../components/auth/PolicyModal"
 import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
 import { supabase } from "../lib/supabaseClient"
+import { isNativeOAuthCallbackUrl, isNativeRuntime } from "../lib/nativeOAuth"
 
 function AppLoading() {
   return (
@@ -216,6 +219,55 @@ function AppContent() {
   const [welcomeChecked, setWelcomeChecked] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [googlePolicyGateDismissed, setGooglePolicyGateDismissed] = useState(false)
+
+  useEffect(() => {
+    if (!isNativeRuntime()) return
+
+    // Native OAuth returns through a deep link.
+    // Capture the callback URL once at app startup and exchange code -> session.
+    const listenerPromise = CapacitorApp.addListener("appUrlOpen", async ({ url }) => {
+      if (!url || !isNativeOAuthCallbackUrl(url)) return
+
+      try {
+        await Browser.close()
+      } catch {
+        // Browser may already be closed. Safe to ignore.
+      }
+
+      try {
+        const parsed = new URL(url)
+        const code = parsed.searchParams.get("code")
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code)
+          if (error) {
+            console.error("OAuth code exchange failed", error)
+          }
+          return
+        }
+
+        // Fallback for providers that return token hash fragments instead of code.
+        const hash = parsed.hash.startsWith("#") ? parsed.hash.slice(1) : parsed.hash
+        const hashParams = new URLSearchParams(hash)
+        const accessToken = hashParams.get("access_token")
+        const refreshToken = hashParams.get("refresh_token")
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+          if (error) {
+            console.error("OAuth token session set failed", error)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to handle native OAuth callback", error)
+      }
+    })
+
+    return () => {
+      void listenerPromise.then(listener => listener.remove())
+    }
+  }, [])
 
   useEffect(() => {
     setGooglePolicyGateDismissed(false)

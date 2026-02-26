@@ -2,6 +2,8 @@ import { useMemo, useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
 import PolicyModal from "../components/auth/PolicyModal"
+import { Browser } from "@capacitor/browser"
+import { getNativeOAuthRedirectUrl, isNativeRuntime } from "../lib/nativeOAuth"
 
 type AuthMode = "login" | "signup"
 
@@ -185,18 +187,37 @@ export default function Auth() {
     setLoading(true)
 
     try {
-      const { error: authError } = await supabase.auth.signInWithOAuth({
+      const isNative = isNativeRuntime()
+
+      if (!isNative) {
+        const webRedirectTo = `${window.location.origin}/`
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: webRedirectTo
+          }
+        })
+
+        if (error) throw error
+        return
+      }
+
+      const redirectTo = await getNativeOAuthRedirectUrl()
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo,
+          skipBrowserRedirect: true
         }
       })
-      if (authError) {
-        setError(authError.message)
-        showToast("Google sign in failed. Please try again.")
-      }
-    } catch {
-      setError("Google sign in failed.")
+
+      if (error) throw error
+      if (!data?.url) throw new Error("No OAuth URL returned")
+
+      await Browser.open({ url: data.url })
+    } catch (e: any) {
+      setError(e?.message ?? "Google sign in failed.")
       showToast("Google sign in failed. Please try again.")
     } finally {
       setLoading(false)
@@ -227,6 +248,7 @@ export default function Auth() {
           <p className="text-sm text-slate-500">
             {mode === "login" ? "Sign in to continue" : "Start tracking your progression"}
           </p>
+          
         </div>
 
         <div className="mt-8 space-y-5">

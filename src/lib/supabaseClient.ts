@@ -25,6 +25,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    /**
+     * PKCE is required for native OAuth code exchange (exchangeCodeForSession).
+     * Web email/password and regular session flows are unaffected.
+     */
+    flowType: "pkce"
   }
 })
