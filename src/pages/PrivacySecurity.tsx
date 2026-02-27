@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ArrowLeft, Mail, Shield, Trash2 } from "lucide-react"
+import { ArrowLeft, ExternalLink, Mail, Shield, Trash2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 export default function PrivacySecurity() {
@@ -69,32 +69,39 @@ export default function PrivacySecurity() {
               </div>
               <div>
                 <h3 className="text-base font-semibold text-slate-900">Delete Account</h3>
-                <p className="text-sm text-slate-500">
-                  This function is not accessible right now.
-                </p>
+                <p className="text-sm text-slate-500">This function is not accessible right now.</p>
               </div>
             </div>
 
             <p className="mt-4 text-sm text-slate-600">
-              Contact support if you want to disable your account.
+              Open the account deletion request page for full instructions.
             </p>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 space-y-3">
               <a
-                href="mailto:damir.filaretov@gmail.com?subject=Account%20Disable%20Request"
-                className="flex-1 rounded-xl border border-blue-200 bg-blue-50 py-3 text-center text-sm font-semibold text-blue-700"
+                href="/account-deletion.html"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full rounded-xl border border-blue-200 bg-blue-50 py-3 text-sm font-semibold text-blue-700 inline-flex items-center justify-center gap-2"
               >
-                <span className="inline-flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  Contact Support
-                </span>
+                <ExternalLink className="h-4 w-4" />
+                Open Deletion Request Page
               </a>
+
+              <a
+                href="mailto:damir.filaretov@gmail.com?subject=Account%20Deletion%20Request"
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 inline-flex items-center justify-center gap-2"
+              >
+                <Mail className="h-4 w-4" />
+                Email Request
+              </a>
+
               <button
                 type="button"
                 onClick={() => {
                   setNoticeOpen(false)
                 }}
-                className="flex-1 rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-900"
+                className="w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-900"
               >
                 Close
               </button>
@@ -105,4 +112,3 @@ export default function PrivacySecurity() {
     </div>
   )
 }
-
