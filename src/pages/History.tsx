@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import type { EventKey } from "../types/sets"
 
 import HistoryHeader from "../components/history/HistoryHeader"
 import TimeRangeTabs, { type RangeKey } from "../components/history/TimeRangeTabs"
@@ -16,7 +17,8 @@ import {
 export default function History() {
   const navigate = useNavigate()
   const { sets, getActiveSeason, setsHydrated } = useSetsStore()
-  const [range, setRange] = useState<RangeKey | null>("day")
+  const [range, setRange] = useState<RangeKey>("day")
+  const [eventFilter, setEventFilter] = useState<EventKey | "all">("all")
   const [customStart, setCustomStart] = useState(daysAgoLocalIsoDate(30))
   const [customEnd, setCustomEnd] = useState(todayLocalIsoDate())
   const [favoritesOnly, setFavoritesOnly] = useState(false)
@@ -41,7 +43,7 @@ export default function History() {
   }, [sets, activeSeason])
 
   const listToFilter = useMemo(() => {
-    if (range === "all" || range === null) return sets
+    if (range === "all") return sets
     return seasonOnlySets
   }, [range, sets, seasonOnlySets])
 
@@ -50,22 +52,25 @@ export default function History() {
       customStart,
       customEnd
     })
+    const filteredByEvent =
+      eventFilter === "all"
+        ? filteredByRange
+        : filteredByRange.filter(setItem => setItem.event === eventFilter)
     const filtered = favoritesOnly
-      ? filteredByRange.filter(setItem => setItem.isFavorite)
-      : filteredByRange
+      ? filteredByEvent.filter(setItem => setItem.isFavorite)
+      : filteredByEvent
 
     return [...filtered].sort((a, b) => {
       if (a.date > b.date) return -1
       if (a.date < b.date) return 1
       return 0
     })
-  }, [range, listToFilter, favoritesOnly, customStart, customEnd])
+  }, [range, listToFilter, eventFilter, favoritesOnly, customStart, customEnd])
 
-  const filtersInactive = !favoritesOnly && range === null
   const customRangeInvalid = range === "custom" && customStart > customEnd
 
-  const needsSeasonButMissing = range !== null && range !== "all" && !activeSeason
-  const seasonHasNoSets = range !== null && range !== "all" && activeSeason && seasonOnlySets.length === 0
+  const needsSeasonButMissing = range !== "all" && !activeSeason
+  const seasonHasNoSets = range !== "all" && activeSeason && seasonOnlySets.length === 0
 
   const showLoading = !setsHydrated
 
@@ -79,6 +84,8 @@ export default function History() {
       <TimeRangeTabs
         value={range}
         onChange={setRange}
+        eventFilter={eventFilter}
+        onEventFilterChange={setEventFilter}
         favoritesOnly={favoritesOnly}
         onFavoritesToggle={handleToggleFavoritesFilter}
       />
@@ -102,16 +109,7 @@ export default function History() {
       ) : null}
 
       <div className="mt-4 px-4 space-y-4 pb-6">
-        {filtersInactive ? (
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-sm font-medium text-gray-900">Choose a filter to view history</p>
-            <p className="mt-1 text-sm text-gray-500">
-              Select the star filter and a time range.
-            </p>
-          </div>
-        ) : null}
-
-        {customRangeInvalid && !filtersInactive ? (
+        {customRangeInvalid ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-red-600">
               Start date must be before end date.
@@ -126,7 +124,7 @@ export default function History() {
               Fetching your sets
             </p>
           </div>
-        ) : filtersInactive ? null : needsSeasonButMissing ? (
+        ) : needsSeasonButMissing ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">No active season</p>
             <p className="mt-1 text-sm text-gray-500">
@@ -154,7 +152,7 @@ export default function History() {
           </div>
         ) : null}
 
-        {showLoading || filtersInactive || needsSeasonButMissing || seasonHasNoSets || customRangeInvalid ? null : filteredAndSorted.length === 0 ? (
+        {showLoading || needsSeasonButMissing || seasonHasNoSets || customRangeInvalid ? null : filteredAndSorted.length === 0 ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-900">
               {favoritesOnly ? "No favourite sets in this range" : "No sets in this range"}
