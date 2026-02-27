@@ -348,7 +348,7 @@ export default function TricksLibrary() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28">
-      <div className="px-4 pt-6 pb-4">
+      <div className="px-4 pt-10 pb-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/insights?event=tricks")}
@@ -500,3 +500,4 @@ export default function TricksLibrary() {
     </div>
   )
 }
+

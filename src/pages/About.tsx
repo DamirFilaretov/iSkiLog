@@ -8,7 +8,7 @@ export default function About() {
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
-      <div className="px-5 pt-6 pb-4">
+      <div className="px-5 pt-10 pb-4">
         <div className="h-4" />
         <div className="flex items-center gap-3 mb-5">
           <button
@@ -124,3 +124,4 @@ export default function About() {
     </div>
   )
 }
+

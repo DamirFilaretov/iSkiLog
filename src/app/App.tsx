@@ -20,7 +20,6 @@ import PrivacySecurity from "../pages/PrivacySecurity"
 import Welcome from "../pages/Welcome"
 
 import BottomTabBar from "../components/nav/BottomTabBar"
-import PolicyModal from "../components/auth/PolicyModal"
 
 import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
@@ -139,7 +138,6 @@ function GooglePolicyGate(props: { user: User; onAccepted: () => void }) {
   const [checked, setChecked] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [policyOpen, setPolicyOpen] = useState(false)
 
   async function handleAgree() {
     if (!checked) {
@@ -179,13 +177,7 @@ function GooglePolicyGate(props: { user: User; onAccepted: () => void }) {
           Before continuing with Google sign-in, you need to agree to iSkiLog policy.
         </p>
 
-        <button
-          type="button"
-          onClick={() => setPolicyOpen(true)}
-          className="mt-4 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700"
-        >
-          Read policy
-        </button>
+        <a href="/policy.html" target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">Read policy</a>
 
         <label className="mt-4 flex items-start gap-3 text-sm text-slate-600">
           <input
@@ -208,8 +200,6 @@ function GooglePolicyGate(props: { user: User; onAccepted: () => void }) {
           {saving ? "Saving..." : "Agree and continue"}
         </button>
       </div>
-
-      <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
     </div>
   )
 }
@@ -354,3 +344,4 @@ export default function App() {
     </SetsProvider>
   )
 }
+

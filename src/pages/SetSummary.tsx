@@ -108,7 +108,7 @@ export default function SetSummary() {
   if (!skiSet) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <div className="px-4 pt-6 pb-4">
+        <div className="px-4 pt-10 pb-4">
           <div className="flex items-center gap-3">
             <button
               onClick={goBackSafe}
@@ -221,7 +221,7 @@ export default function SetSummary() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="px-4 pt-6 pb-4">
+      <div className="px-4 pt-10 pb-4">
         <div className="flex items-center gap-3">
           <button
             onClick={goBackSafe}
@@ -373,4 +373,5 @@ export default function SetSummary() {
     </div>
   )
 }
+
 

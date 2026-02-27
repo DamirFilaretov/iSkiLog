@@ -472,7 +472,7 @@ export default function Insights() {
 
   if (!setsHydrated) {
     return (
-      <div className="px-4 pt-6">
+      <div className="px-4 pt-10">
         <p className="text-sm text-gray-500">
           Loading insights
         </p>
@@ -482,7 +482,7 @@ export default function Insights() {
 
   if (!selectedSeason) {
     return (
-      <div className="px-4 pt-6">
+      <div className="px-4 pt-10">
         <InsightsHeader
           seasons={dropdownSeasons}
           selectedSeasonId={selectedSeasonId}
@@ -580,7 +580,7 @@ export default function Insights() {
       </div>
 
       {showAllEventOverview ? (
-        <div className="px-4 pt-6 pb-10">
+        <div className="px-4 pt-10 pb-10">
           <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -703,3 +703,4 @@ export default function Insights() {
     </div>
   )
 }
+

@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { supabase } from "../lib/supabaseClient"
-import PolicyModal from "../components/auth/PolicyModal"
 import { Browser } from "@capacitor/browser"
 import { getNativeOAuthRedirectUrl, isNativeRuntime } from "../lib/nativeOAuth"
 
@@ -27,7 +26,6 @@ export default function Auth() {
   const [signupPassword, setSignupPassword] = useState("")
   const [showSignupPassword, setShowSignupPassword] = useState(false)
   const [agreePolicies, setAgreePolicies] = useState(false)
-  const [policyOpen, setPolicyOpen] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -382,16 +380,7 @@ export default function Auth() {
                 />
                 <span>
                   Agree to{" "}
-                  <button
-                    type="button"
-                    onClick={e => {
-                      e.preventDefault()
-                      setPolicyOpen(true)
-                    }}
-                    className="text-blue-600 underline underline-offset-2"
-                  >
-                    policy
-                  </button>
+                  <a href="/policy.html" target="_blank" rel="noreferrer" className="text-blue-600 underline underline-offset-2">policy</a>
                 </span>
               </label>
             </>
@@ -468,8 +457,7 @@ export default function Auth() {
           )}
         </div>
       </div>
-
-      <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
     </div>
   )
 }
+

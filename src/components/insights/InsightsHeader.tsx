@@ -14,7 +14,7 @@ export default function InsightsHeader({
   const disableDropdown = seasons.length <= 1
 
   return (
-    <div className="px-4 pt-6 pb-4">
+    <div className="px-4 pt-10 pb-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">
@@ -53,3 +53,4 @@ export default function InsightsHeader({
     </div>
   )
 }
+

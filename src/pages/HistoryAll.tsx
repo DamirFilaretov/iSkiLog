@@ -20,7 +20,7 @@ export default function HistoryAll() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="px-4 pt-6 pb-4 bg-gray-100 rounded-b-3xl">
+      <div className="px-4 pt-10 pb-4 bg-gray-100 rounded-b-3xl">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/history", { replace: true })}
@@ -71,3 +71,4 @@ export default function HistoryAll() {
     </div>
   )
 }
+

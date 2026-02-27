@@ -17,7 +17,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pt-6 pb-10">
+    <div className="min-h-screen bg-slate-50 px-4 pt-10 pb-10">
       {/* Header */}
       <div className="mb-6">
         <div>
@@ -98,3 +98,4 @@ function SettingsCard({ title, subtitle, onClick }: CardProps) {
     </button>
   )
 }
+

@@ -10,7 +10,7 @@ export default function AddSetHeader({ disabled = false, rightAction }: Props) {
   const navigate = useNavigate()
 
   return (
-    <div className="px-4 pt-6 pb-4">
+    <div className="px-4 pt-10 pb-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
@@ -32,3 +32,4 @@ export default function AddSetHeader({ disabled = false, rightAction }: Props) {
     </div>
   )
 }
+

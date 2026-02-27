@@ -6,7 +6,7 @@ import { useSetsStore } from "../store/setsStore"
 
 function HomeLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 pt-10 pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <HomeHeader />
 
       <div className="mt-4 space-y-4 pb-6">
@@ -48,7 +48,7 @@ export default function Home() {
   const showEmptySeason = Boolean(activeSeason) && seasonSets.length === 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 pt-10 pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <HomeHeader />
 
       {showEmptySeason ? (
@@ -73,3 +73,4 @@ export default function Home() {
     </div>
   )
 }
+

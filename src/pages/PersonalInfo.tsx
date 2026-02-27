@@ -24,7 +24,7 @@ export default function PersonalInfo() {
 
   return (
     <div className="min-h-screen bg-gray-100 pb-10">
-      <div className="px-4 pt-6 pb-4">
+      <div className="px-4 pt-10 pb-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/profile", { replace: true })}
@@ -75,3 +75,4 @@ export default function PersonalInfo() {
     </div>
   )
 }
+

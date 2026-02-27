@@ -21,7 +21,7 @@ export default function SeasonSettings() {
   if (!activeSeason) {
     return (
     <div className="min-h-screen bg-slate-50">
-      <div className="px-4 pt-6 pb-4">
+      <div className="px-4 pt-10 pb-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/profile", { replace: true })}
@@ -51,7 +51,7 @@ export default function SeasonSettings() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
-      <div className="px-4 pt-6 pb-4">
+      <div className="px-4 pt-10 pb-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/profile", { replace: true })}
@@ -94,3 +94,4 @@ export default function SeasonSettings() {
     </div>
   )
 }
+

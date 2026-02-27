@@ -7,7 +7,7 @@ export default function PrivacySecurity() {
   const [noticeOpen, setNoticeOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pt-6 pb-10">
+    <div className="min-h-screen bg-slate-50 px-4 pt-10 pb-10">
       <div className="mb-6">
         <button
           onClick={() => navigate("/settings", { replace: true })}
@@ -105,3 +105,4 @@ export default function PrivacySecurity() {
     </div>
   )
 }
+
