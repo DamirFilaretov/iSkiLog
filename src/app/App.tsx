@@ -134,6 +134,13 @@ function hasAcceptedPolicy(user: User) {
   return typeof userMeta.policy_accepted_at === "string" && userMeta.policy_accepted_at.length > 0
 }
 
+function hasCompletedWelcome(user: User) {
+  const userMeta = user.user_metadata as Record<string, unknown> | undefined
+  if (!userMeta) return false
+  if (userMeta.welcome_completed === true) return true
+  return typeof userMeta.welcome_completed_at === "string" && userMeta.welcome_completed_at.length > 0
+}
+
 function GooglePolicyGate(props: { user: User; onAccepted: () => void }) {
   const [checked, setChecked] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -206,8 +213,7 @@ function GooglePolicyGate(props: { user: User; onAccepted: () => void }) {
 
 function AppContent() {
   const { user, loading: authLoading, hydrationStatus, hydrationError, retryHydration } = useAuth()
-  const [welcomeChecked, setWelcomeChecked] = useState(false)
-  const [showWelcome, setShowWelcome] = useState(false)
+  const [welcomeGateDismissed, setWelcomeGateDismissed] = useState(false)
   const [googlePolicyGateDismissed, setGooglePolicyGateDismissed] = useState(false)
 
   useEffect(() => {
@@ -260,34 +266,37 @@ function AppContent() {
   }, [])
 
   useEffect(() => {
+    setWelcomeGateDismissed(false)
     setGooglePolicyGateDismissed(false)
   }, [user?.id])
 
-  useEffect(() => {
-    const key = "iskilog:welcome-complete"
-    const stored = typeof window === "undefined" ? null : window.localStorage.getItem(key)
-    if (stored === "true") {
-      setShowWelcome(false)
-    } else {
-      setShowWelcome(true)
-    }
-    setWelcomeChecked(true)
-  }, [])
-
-  if (!welcomeChecked) return <AppLoading />
-  if (showWelcome) {
+  if (authLoading) return <AppLoading />
+  if (!user) return <Auth />
+  if (!hasCompletedWelcome(user) && !welcomeGateDismissed) {
     return (
       <Welcome
         onComplete={() => {
+          setWelcomeGateDismissed(true)
           window.localStorage.setItem("iskilog:welcome-complete", "true")
-          setShowWelcome(false)
+
+          const previousMeta = (user.user_metadata as Record<string, unknown> | undefined) ?? {}
+          const nextMeta = {
+            ...previousMeta,
+            welcome_completed: true,
+            welcome_completed_at: new Date().toISOString()
+          }
+
+          void supabase.auth.updateUser({
+            data: nextMeta
+          }).then(({ error }) => {
+            if (error) {
+              console.error("Failed to save welcome completion", error)
+            }
+          })
         }}
       />
     )
   }
-
-  if (authLoading) return <AppLoading />
-  if (!user) return <Auth />
   if (isGoogleUser(user) && !hasAcceptedPolicy(user) && !googlePolicyGateDismissed) {
     return (
       <GooglePolicyGate

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { Check, Pencil, Plus, Trash2 } from "lucide-react"
+import type { User } from "@supabase/supabase-js"
 import type { TaskItem } from "../../types/tasks"
 import { useAuth } from "../../auth/AuthProvider"
+import { supabase } from "../../lib/supabaseClient"
 import {
   createTask,
   deleteTask,
@@ -37,6 +39,30 @@ function markSeededDefaults(userId: string) {
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+function hasSeededDefaultsInMetadata(user: User) {
+  const meta = (user.user_metadata as Record<string, unknown> | undefined) ?? {}
+  if (meta.default_tasks_seeded === true) return true
+  return (
+    typeof meta.default_tasks_seeded_at === "string" &&
+    meta.default_tasks_seeded_at.length > 0
+  )
+}
+
+async function markSeededDefaultsInMetadata(user: User) {
+  const previousMeta = (user.user_metadata as Record<string, unknown> | undefined) ?? {}
+  const nextMeta = {
+    ...previousMeta,
+    default_tasks_seeded: true,
+    default_tasks_seeded_at: new Date().toISOString()
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    data: nextMeta
+  })
+
+  if (error) throw error
 }
 
 function mergeFetchedTasksWithLocal(fetched: TaskItem[], local: TaskItem[]) {
@@ -111,9 +137,11 @@ export default function TasksBlock() {
         if (!active) return
 
         let resolvedTasks = nextTasks
+        const seededInMetadata = user ? hasSeededDefaultsInMetadata(user) : false
         const shouldSeedDefaults =
           userId !== null &&
           nextTasks.length === 0 &&
+          !seededInMetadata &&
           !hasSeededDefaults(userId)
 
         if (shouldSeedDefaults) {
@@ -129,9 +157,24 @@ export default function TasksBlock() {
           if (!active) return
           resolvedTasks = seededTasks.length > 0 ? seededTasks : createdDefaults
           markSeededDefaults(userId)
+
+          if (user) {
+            try {
+              await markSeededDefaultsInMetadata(user)
+            } catch (metadataError) {
+              console.error("Failed to persist default task seed metadata", metadataError)
+            }
+          }
         } else if (userId && nextTasks.length > 0 && !hasSeededDefaults(userId)) {
-          // Existing users with any tasks should be considered already initialized.
           markSeededDefaults(userId)
+
+          if (user && !seededInMetadata) {
+            try {
+              await markSeededDefaultsInMetadata(user)
+            } catch (metadataError) {
+              console.error("Failed to persist default task seed metadata", metadataError)
+            }
+          }
         }
 
         setTasks(prev => mergeFetchedTasksWithLocal(resolvedTasks, prev))
