@@ -15,6 +15,8 @@ import TricksInsights from "../components/insights/TricksInsights"
 import JumpInsights from "../components/insights/JumpInsights"
 import OtherInsights from "../components/insights/OtherInsights"
 import DateFieldNativeOverlay from "../components/date/DateFieldNativeOverlay"
+import { isNativeAppRuntime, shareFileFromBlobNative } from "../lib/nativeFileExport"
+import { useAuth } from "../auth/AuthProvider"
 
 import {
   getWeeklyStats,
@@ -82,6 +84,26 @@ function csvEscape(value: string) {
   return needsQuotes ? `"${escaped}"` : escaped
 }
 
+function getExportFirstName(user: { email?: string | null; user_metadata?: unknown } | null) {
+  const meta = (user?.user_metadata as Record<string, unknown> | undefined) ?? {}
+  const fromMeta =
+    (typeof meta.first_name === "string" && meta.first_name.trim()) ||
+    (typeof meta.given_name === "string" && meta.given_name.trim()) ||
+    (typeof meta.full_name === "string" && meta.full_name.trim().split(/\s+/)[0]) ||
+    ""
+
+  const fromEmail = typeof user?.email === "string" ? user.email.split("@")[0] : ""
+  const candidate = (fromMeta || fromEmail || "User").replace(/[^a-zA-Z0-9_-]/g, "")
+  return candidate || "User"
+}
+
+function buildExportFilename(
+  user: { email?: string | null; user_metadata?: unknown } | null,
+  extension: "csv" | "pdf"
+) {
+  return `${getExportFirstName(user)}_iskilog_${toLocalIsoDate(new Date())}.${extension}`
+}
+
 function parseSelectedEventParam(value: string | null): EventKey | "all" | null {
   if (value === "all") return "all"
   if (value === "slalom") return "slalom"
@@ -95,6 +117,7 @@ export default function Insights() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const eventParam = parseSelectedEventParam(searchParams.get("event"))
+  const { user } = useAuth()
 
   const { sets, setsHydrated, seasons, activeSeasonId } = useSetsStore()
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
@@ -292,7 +315,7 @@ export default function Insights() {
     })
 
     const csv = lines.join("\n")
-    const filename = `iSkiLog_${payload.start}_to_${payload.end}.csv`
+    const filename = buildExportFilename(user, "csv")
 
     return { ok: true, csv, filename }
   }
@@ -337,6 +360,8 @@ export default function Insights() {
   }
 
   async function handleExportPdf() {
+    setExportError(null)
+
     const exportData = buildExportPayload()
     if (!exportData.ok) {
       setExportError(exportData.error ?? "Unable to export.")
@@ -437,11 +462,22 @@ export default function Insights() {
         styles: { font: "helvetica", fontSize: 10 }
       })
 
-      doc.save(`iSkiLog_${payload.start}_to_${payload.end}.pdf`)
+      const filename = buildExportFilename(user, "pdf")
+      if (isNativeAppRuntime()) {
+        const blob = doc.output("blob")
+        await shareFileFromBlobNative({
+          filename,
+          mimeType: "application/pdf",
+          blob
+        })
+      } else {
+        doc.save(filename)
+      }
       setExportOpen(false)
       setExportError(null)
-    } catch {
-      setExportError("Unable to export.")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error"
+      setExportError(`Unable to export. ${message}`)
     }
   }
 
@@ -458,14 +494,29 @@ export default function Insights() {
     }
 
     const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = result.filename
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
+
+    if (isNativeAppRuntime()) {
+      try {
+        await shareFileFromBlobNative({
+          filename: result.filename,
+          mimeType: "text/csv",
+          blob
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error"
+        setExportError(`Unable to export. ${message}`)
+        return
+      }
+    } else {
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = result.filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    }
     setExportOpen(false)
     setExportError(null)
   }
@@ -703,4 +754,3 @@ export default function Insights() {
     </div>
   )
 }
-

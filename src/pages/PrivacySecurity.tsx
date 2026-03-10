@@ -89,7 +89,7 @@ export default function PrivacySecurity() {
               </a>
 
               <a
-                href="mailto:damir.filaretov@gmail.com?subject=Account%20Deletion%20Request"
+                href="mailto:iskilog@gmail.com?subject=Account%20Deletion%20Request"
                 className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 inline-flex items-center justify-center gap-2"
               >
                 <Mail className="h-4 w-4" />
