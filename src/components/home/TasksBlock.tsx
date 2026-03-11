@@ -15,6 +15,7 @@ import {
 } from "../../data/tasksApi"
 import { formatTaskDueLabel, isOverdue, todayIsoDate } from "../../features/tasks/taskDate"
 import { sortTasks } from "../../features/tasks/taskSort"
+import { captureHandledException, captureHandledWarning } from "../../lib/sentryHandled"
 import TaskModal from "./TaskModal"
 
 const DEFAULT_TASK_TITLES = [
@@ -162,6 +163,18 @@ export default function TasksBlock() {
             try {
               await markSeededDefaultsInMetadata(user)
             } catch (metadataError) {
+              captureHandledWarning(
+                "Failed to persist default task seed metadata",
+                {
+                  area: "tasks",
+                  action: "seed_metadata",
+                  screen: "tasks_block",
+                  identifiers: {
+                    user_id: user.id
+                  }
+                },
+                metadataError
+              )
               console.error("Failed to persist default task seed metadata", metadataError)
             }
           }
@@ -172,6 +185,18 @@ export default function TasksBlock() {
             try {
               await markSeededDefaultsInMetadata(user)
             } catch (metadataError) {
+              captureHandledWarning(
+                "Failed to persist default task seed metadata",
+                {
+                  area: "tasks",
+                  action: "seed_metadata",
+                  screen: "tasks_block",
+                  identifiers: {
+                    user_id: user.id
+                  }
+                },
+                metadataError
+              )
               console.error("Failed to persist default task seed metadata", metadataError)
             }
           }
@@ -179,6 +204,14 @@ export default function TasksBlock() {
 
         setTasks(prev => mergeFetchedTasksWithLocal(resolvedTasks, prev))
       } catch (err) {
+        captureHandledException(err, {
+          area: "tasks",
+          action: "load",
+          screen: "tasks_block",
+          identifiers: {
+            user_id: user?.id ?? null
+          }
+        })
         console.error("Failed to load tasks", err)
         if (!active) return
         setLoadError("Unable to load tasks")
@@ -247,6 +280,15 @@ export default function TasksBlock() {
 
       setModalState({ open: false })
     } catch (err) {
+      captureHandledException(err, {
+        area: "tasks",
+        action: modalState.open && modalState.mode === "edit" ? "update" : "create",
+        screen: "tasks_block",
+        identifiers: {
+          task_id: modalState.open && modalState.mode === "edit" ? modalState.task.id : null,
+          user_id: user?.id ?? null
+        }
+      })
       console.error("Failed to save task", err)
       setSaveError("Unable to save task. Please try again.")
     } finally {
@@ -272,6 +314,18 @@ export default function TasksBlock() {
     try {
       await setTaskDone({ id: task.id, isDone: nextDone })
     } catch (err) {
+      captureHandledException(err, {
+        area: "tasks",
+        action: "toggle_done",
+        screen: "tasks_block",
+        identifiers: {
+          task_id: task.id,
+          user_id: user?.id ?? null
+        },
+        extra: {
+          nextDone
+        }
+      })
       console.error("Failed to toggle task state", err)
       setSaveError("Unable to save task. Please try again.")
       setTasks(prev => prev.map(item => (item.id === task.id ? task : item)))
@@ -301,6 +355,15 @@ export default function TasksBlock() {
       setTasks(prev => prev.filter(item => item.id !== task.id))
       setDeleteConfirmTask(null)
     } catch (err) {
+      captureHandledException(err, {
+        area: "tasks",
+        action: "delete",
+        screen: "tasks_block",
+        identifiers: {
+          task_id: task.id,
+          user_id: user?.id ?? null
+        }
+      })
       console.error("Failed to delete task", err)
       setSaveError("Unable to delete task. Please try again.")
     } finally {

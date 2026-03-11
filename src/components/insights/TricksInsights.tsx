@@ -17,6 +17,7 @@ import {
   todayLocalIsoDate,
   type InsightRangeKey
 } from "../../features/dateRange/dateRange"
+import { captureHandledException } from "../../lib/sentryHandled"
 
 type RangeKey = InsightRangeKey
 type TrickType = "hands" | "toes"
@@ -87,10 +88,11 @@ export default function TricksInsights({ sets, dataSource }: Props) {
         active = false
       }
     }
+    const userId = user.id
 
     // Show cached values instantly while background refresh runs.
-    setLearnedTrickIds(readCachedLearnedTrickIds(user.id))
-    setInProgressTrickIds(readCachedInProgressTrickIds(user.id))
+    setLearnedTrickIds(readCachedLearnedTrickIds(userId))
+    setInProgressTrickIds(readCachedInProgressTrickIds(userId))
 
     async function loadTrickSelections() {
       setSelectionLoadError(null)
@@ -104,6 +106,14 @@ export default function TricksInsights({ sets, dataSource }: Props) {
         setLearnedTrickIds(learnedIds)
         setInProgressTrickIds(inProgressIds)
       } catch (err) {
+        captureHandledException(err, {
+          area: "insights",
+          action: "load_trick_selections",
+          screen: "tricks_insights",
+          identifiers: {
+            user_id: userId
+          }
+        })
         console.error("Failed to load trick selections for insights", err)
         if (!active) return
         setSelectionLoadError("Unable to load trick selections")

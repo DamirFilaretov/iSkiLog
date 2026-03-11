@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { deleteSetFromDb } from "../data/setsUpdateDeleteApi"
+import { captureHandledException } from "../lib/sentryHandled"
 
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet } from "../types/sets"
@@ -213,6 +214,14 @@ export default function SetSummary() {
       setConfirmOpen(false)
       navigate(-1)
     } catch (err) {
+      captureHandledException(err, {
+        area: "sets",
+        action: "delete",
+        screen: "set_summary",
+        identifiers: {
+          set_id: id
+        }
+      })
       console.error("Failed to delete set", err)
       setDeleteError("Failed to delete set. Please try again.")
       setIsDeleting(false)
