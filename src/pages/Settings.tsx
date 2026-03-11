@@ -43,12 +43,6 @@ export default function Settings() {
     }
   }
 
-  function handleTestSentryError() {
-    window.setTimeout(() => {
-      throw new Error(`iSkiLog manual Sentry test ${Date.now()}`)
-    }, 0)
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 px-4 pt-10 pb-10">
       {/* Header */}
@@ -102,12 +96,6 @@ export default function Settings() {
             Reset Welcome
           </button>
         </div>
-        <button
-          onClick={handleTestSentryError}
-          className="mt-3 w-full rounded-full border border-amber-400 bg-amber-50 py-3 text-amber-700 shadow-lg shadow-amber-100/80"
-        >
-          Test Sentry Error
-        </button>
       </div>
     </div>
   )
