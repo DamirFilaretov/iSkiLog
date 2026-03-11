@@ -4,6 +4,7 @@ import { Star } from "lucide-react"
 import { createSet } from "../data/setsWriteApi"
 import { updateSetInDb } from "../data/setsUpdateDeleteApi"
 import { createSeason, setActiveSeason } from "../data/seasonsApi"
+import { captureHandledException } from "../lib/sentryHandled"
 
 import AddSetHeader from "../components/addSet/AddSetHeader"
 import EventTypeSelect from "../components/addSet/EventTypeSelect"
@@ -409,7 +410,20 @@ export default function AddSet() {
       const id = await createSet({ set: draft })
       addSet({ ...draft, id })
       navigate("/")
-    } catch {
+    } catch (err) {
+      captureHandledException(err, {
+        area: "sets",
+        action: isEditing ? "update" : "create",
+        screen: "add_set",
+        identifiers: {
+          editing_set_id: editingSet?.id ?? null
+        },
+        extra: {
+          event,
+          date,
+          isEditing
+        }
+      })
       setError("Failed to save set. Please try again.")
       setIsSubmitting(false)
     }

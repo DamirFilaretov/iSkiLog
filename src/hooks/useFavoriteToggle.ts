@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { SkiSet } from "../types/sets"
 import { useSetsStore } from "../store/setsStore"
 import { updateSetFavoriteInDb } from "../data/setsUpdateDeleteApi"
+import { captureHandledException } from "../lib/sentryHandled"
 
 type UseFavoriteToggleResult = {
   favoriteError: string | null
@@ -30,6 +31,17 @@ export function useFavoriteToggle(): UseFavoriteToggleResult {
     try {
       await updateSetFavoriteInDb({ id, isFavorite: nextValue })
     } catch (err) {
+      captureHandledException(err, {
+        area: "history",
+        action: "toggle_favorite",
+        screen: "history_list",
+        identifiers: {
+          set_id: id
+        },
+        extra: {
+          nextValue
+        }
+      })
       console.error("Failed to update favourite", err)
       setFavorite(id, setItem.isFavorite)
       setFavoriteError("Failed to update favourite set. Please try again.")

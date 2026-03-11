@@ -17,6 +17,7 @@ import OtherInsights from "../components/insights/OtherInsights"
 import DateFieldNativeOverlay from "../components/date/DateFieldNativeOverlay"
 import { isNativeAppRuntime, shareFileFromBlobNative } from "../lib/nativeFileExport"
 import { useAuth } from "../auth/AuthProvider"
+import { captureHandledException } from "../lib/sentryHandled"
 
 import {
   getWeeklyStats,
@@ -369,6 +370,14 @@ export default function Insights() {
 
     const exportData = buildExportPayload()
     if (!exportData.ok) {
+      captureHandledException(
+        new Error(exportData.error ?? "Unable to export."),
+        {
+          area: "reports",
+          action: "export_pdf_payload",
+          screen: "insights_reports"
+        }
+      )
       setExportError(exportData.error ?? "Unable to export.")
       return
     }
@@ -481,6 +490,11 @@ export default function Insights() {
       setExportOpen(false)
       setExportError(null)
     } catch (error) {
+      captureHandledException(error, {
+        area: "reports",
+        action: "export_pdf",
+        screen: "insights_reports"
+      })
       const message = error instanceof Error ? error.message : "Unknown error"
       setExportError(`Unable to export. ${message}`)
     }
@@ -494,6 +508,14 @@ export default function Insights() {
 
     const result = buildExportCsv()
     if (!result.ok) {
+      captureHandledException(
+        new Error(result.error ?? "Unable to export."),
+        {
+          area: "reports",
+          action: "export_csv_payload",
+          screen: "insights_reports"
+        }
+      )
       setExportError(result.error ?? "Unable to export.")
       return
     }
@@ -508,6 +530,11 @@ export default function Insights() {
           blob
         })
       } catch (error) {
+        captureHandledException(error, {
+          area: "reports",
+          action: "export_csv",
+          screen: "insights_reports"
+        })
         const message = error instanceof Error ? error.message : "Unknown error"
         setExportError(`Unable to export. ${message}`)
         return

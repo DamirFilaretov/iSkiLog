@@ -8,6 +8,7 @@ import { fetchSeasons, createSeason, setActiveSeason, updateSeasonDates } from "
 import { useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
 import { clearAppLocalCaches } from "../lib/localCache"
+import { captureHandledException } from "../lib/sentryHandled"
 
 type HydrationStatus = "idle" | "loading" | "success" | "error"
 
@@ -254,6 +255,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setHydrationStatus("success")
         setSetsHydrated(true)
       } catch (err) {
+        captureHandledException(err, {
+          area: "history",
+          action: "hydrate_data",
+          screen: "auth_provider",
+          identifiers: {
+            user_id: user.id
+          }
+        })
         console.error("Failed to hydrate data", err)
         clearAll()
         setHydrationStatus("error")
