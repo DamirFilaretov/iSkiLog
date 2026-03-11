@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 import { App as CapacitorApp } from "@capacitor/app"
 import { Browser } from "@capacitor/browser"
+import * as Sentry from "@sentry/react"
 
 import Home from "../pages/Home"
 import History from "../pages/History"
@@ -25,6 +26,8 @@ import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
 import { supabase } from "../lib/supabaseClient"
 import { isNativeOAuthCallbackUrl, isNativeRuntime } from "../lib/nativeOAuth"
+
+const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes)
 
 function AppLoading() {
   return (
@@ -320,7 +323,7 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <Routes>
+      <SentryRoutes>
         <Route element={<TabLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/insights" element={<Insights />} />
@@ -339,7 +342,7 @@ function AppContent() {
         <Route path="/privacy-security" element={<PrivacySecurity />} />
 
         <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      </SentryRoutes>
     </BrowserRouter>
   )
 }
