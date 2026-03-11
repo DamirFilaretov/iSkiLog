@@ -24,6 +24,7 @@ import {
   getEventBreakdown,
   getMostPracticedEvent,
   getWeeklyChartBars,
+  getMonthlyChartBars,
   getMonthlyProgress,
   getCurrentStreak
 } from "../features/insights/insightsSelectors"
@@ -194,6 +195,10 @@ export default function Insights() {
 
   const weeklyBars = useMemo(
     () => getWeeklyChartBars(filteredSeasonSets),
+    [filteredSeasonSets]
+  )
+  const monthlyBars = useMemo(
+    () => getMonthlyChartBars(filteredSeasonSets),
     [filteredSeasonSets]
   )
 
@@ -619,9 +624,8 @@ export default function Insights() {
             <EventBreakdown items={eventBreakdown} />
 
             <WeeklyActivityChart
-              bars={weeklyBars.bars}
-              totalText={weeklyBars.totalText}
-              deltaText={weeklyBars.deltaText}
+              weekData={weeklyBars}
+              monthData={monthlyBars}
             />
 
             <MonthlyProgressList items={monthlyProgress} />

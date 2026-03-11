@@ -16,6 +16,33 @@ export default function Settings() {
     navigate("/", { replace: true })
   }
 
+  async function handleResetWelcome() {
+    try {
+      const { data, error } = await supabase.auth.getUser()
+      if (error) throw error
+
+      const user = data.user
+      if (user) {
+        const previousMeta = (user.user_metadata as Record<string, unknown> | undefined) ?? {}
+        const nextMeta = {
+          ...previousMeta,
+          welcome_completed: false,
+          welcome_completed_at: null
+        }
+
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: nextMeta
+        })
+        if (updateError) throw updateError
+      }
+    } catch (error) {
+      console.error("Failed to reset welcome status", error)
+    } finally {
+      window.localStorage.removeItem("iskilog:welcome-complete")
+      window.location.reload()
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 pt-10 pb-10">
       {/* Header */}
@@ -63,10 +90,7 @@ export default function Settings() {
             Log Out
           </button>
           <button
-            onClick={() => {
-              window.localStorage.removeItem("iskilog:welcome-complete")
-              window.location.reload()
-            }}
+            onClick={handleResetWelcome}
             className="w-full rounded-full border border-slate-200 bg-white py-3 text-slate-600 shadow-lg shadow-slate-200/60"
           >
             Reset Welcome

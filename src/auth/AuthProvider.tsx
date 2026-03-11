@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 import type { User } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/react"
 
 import { supabase } from "../lib/supabaseClient"
 import { fetchSets } from "../data/setsApi"
@@ -167,6 +168,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Store functions change identity when state updates, we do not want to rerun this effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      Sentry.setUser(null)
+      return
+    }
+
+    Sentry.setUser({
+      id: user.id,
+      email: user.email ?? undefined,
+      username: metadataName(user) || undefined
+    })
+  }, [user])
 
   useEffect(() => {
     async function hydrate() {
