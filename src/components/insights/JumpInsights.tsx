@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Trophy, TrendingUp, Plane, Flag } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
+import { usePreferences } from "../../lib/preferences"
 import {
   daysAgoLocalIsoDate,
   filterByDateRange,
@@ -36,6 +37,15 @@ function isoToDate(iso: string) {
 function average(values: number[]) {
   if (values.length === 0) return 0
   return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function fromMeters(value: number, unit: "meters" | "feet") {
+  if (unit === "feet") return value * 3.28084
+  return value
+}
+
+function distanceSuffix(unit: "meters" | "feet") {
+  return unit === "feet" ? "ft" : "m"
 }
 
 function buildJumpSourceFromSets(
@@ -108,6 +118,7 @@ function buildJumpSourceFromSets(
 }
 
 export default function JumpInsights({ sets, dataSource }: Props) {
+  const { preferences } = usePreferences()
   const [range, setRange] = useState<RangeKey>("week")
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
@@ -124,6 +135,12 @@ export default function JumpInsights({ sets, dataSource }: Props) {
     if (dataSource) return dataSource
     return buildJumpSourceFromSets(sets, range, customStart, customEnd)
   }, [dataSource, sets, range, customStart, customEnd])
+
+  const unit = preferences.ropeUnit
+  const bestDistanceDisplay = fromMeters(source.bestDistanceMeters, unit).toFixed(1)
+  const averageDistanceDisplay = fromMeters(source.averageDistanceMeters, unit).toFixed(1)
+  const avgDeltaDisplay = fromMeters(source.avgDistanceDeltaVsLastMonthMeters, unit).toFixed(1)
+  const unitText = distanceSuffix(unit)
 
   return (
     <div className="space-y-4">
@@ -254,7 +271,8 @@ export default function JumpInsights({ sets, dataSource }: Props) {
             </div>
             <p className="mt-3 text-xs text-slate-500">Best Distance</p>
             <p className="mt-1 text-3xl font-semibold text-slate-900">
-              {source.bestDistanceMeters.toFixed(1)}m
+              {bestDistanceDisplay}
+              {unitText}
             </p>
             <p className="mt-1 text-xs text-indigo-400">Personal record</p>
           </div>
@@ -265,11 +283,13 @@ export default function JumpInsights({ sets, dataSource }: Props) {
             </div>
             <p className="mt-3 text-xs text-slate-500">Average Distance</p>
             <p className="mt-1 text-3xl font-semibold text-slate-900 leading-none">
-              {source.averageDistanceMeters.toFixed(1)}m
+              {averageDistanceDisplay}
+              {unitText}
             </p>
             <p className="mt-1 text-xs text-emerald-600">
               {source.avgDistanceDeltaVsLastMonthMeters > 0 ? "+" : ""}
-              {source.avgDistanceDeltaVsLastMonthMeters.toFixed(1)}m vs last month
+              {avgDeltaDisplay}
+              {unitText} vs last month
             </p>
           </div>
         </div>

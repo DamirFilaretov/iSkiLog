@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 import type { User } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/react"
 
 import { supabase } from "../lib/supabaseClient"
 import { fetchSets } from "../data/setsApi"
@@ -7,6 +8,7 @@ import { fetchSeasons, createSeason, setActiveSeason, updateSeasonDates } from "
 import { useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
 import { clearAppLocalCaches } from "../lib/localCache"
+import { captureHandledException } from "../lib/sentryHandled"
 
 type HydrationStatus = "idle" | "loading" | "success" | "error"
 
@@ -169,6 +171,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (!user) {
+      Sentry.setUser(null)
+      return
+    }
+
+    Sentry.setUser({
+      id: user.id,
+      email: user.email ?? undefined,
+      username: metadataName(user) || undefined
+    })
+  }, [user])
+
+  useEffect(() => {
     async function hydrate() {
       if (!user) {
         clearAll()
@@ -240,6 +255,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setHydrationStatus("success")
         setSetsHydrated(true)
       } catch (err) {
+        captureHandledException(err, {
+          area: "history",
+          action: "hydrate_data",
+          screen: "auth_provider",
+          identifiers: {
+            user_id: user.id
+          }
+        })
         console.error("Failed to hydrate data", err)
         clearAll()
         setHydrationStatus("error")

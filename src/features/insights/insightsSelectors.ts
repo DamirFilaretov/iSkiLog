@@ -196,6 +196,67 @@ export function getWeeklyChartBars(
   }
 }
 
+export function getMonthlyChartBars(
+  sets: SkiSet[],
+  now = new Date()
+): WeeklyChartBars {
+  const rangeEnd = new Date(now)
+  rangeEnd.setHours(23, 59, 59, 999)
+  const rangeStart = new Date(now)
+  rangeStart.setDate(rangeEnd.getDate() - 29)
+  rangeStart.setHours(0, 0, 0, 0)
+
+  const previousRangeStart = new Date(rangeStart)
+  previousRangeStart.setDate(previousRangeStart.getDate() - 30)
+  previousRangeStart.setHours(0, 0, 0, 0)
+  const previousRangeEnd = new Date(rangeStart)
+  previousRangeEnd.setDate(previousRangeEnd.getDate() - 1)
+  previousRangeEnd.setHours(23, 59, 59, 999)
+
+  const thisRangeSets = sets.filter(s => {
+    const d = isoToDate(s.date)
+    return d >= rangeStart && d <= rangeEnd
+  })
+
+  const previousRangeSets = sets.filter(s => {
+    const d = isoToDate(s.date)
+    return d >= previousRangeStart && d <= previousRangeEnd
+  })
+
+  const bars = []
+  for (let i = 0; i < 30; i += 1) {
+    const currentDate = new Date(rangeStart)
+    currentDate.setDate(rangeStart.getDate() + i)
+    const iso = dateToIso(currentDate)
+    const count = thisRangeSets.filter(s => normalizeIsoDay(s.date) === iso).length
+    bars.push({
+      day: currentDate.toLocaleDateString("en-US", { month: "numeric", day: "numeric" }),
+      count
+    })
+  }
+
+  const max = Math.max(...bars.map(d => d.count), 1)
+  const deltaPercent =
+    previousRangeSets.length === 0
+      ? null
+      : ((thisRangeSets.length - previousRangeSets.length) / previousRangeSets.length) * 100
+
+  return {
+    bars: bars.map(d => ({
+      day: d.day,
+      count: d.count,
+      heightPercent: (d.count / max) * 100
+    })),
+    totalText: `Total last 30 days: ${thisRangeSets.length} sets`,
+    deltaText:
+      deltaPercent === null
+        ? "--"
+        : `${deltaPercent > 0 ? "Up" : "Down"} ${Math.abs(
+            Math.round(deltaPercent)
+          )}% from previous 30 days`
+  }
+}
+
 /* -----------------------------
    Monthly stats
 ----------------------------- */

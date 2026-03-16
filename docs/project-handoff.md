@@ -1,20 +1,22 @@
 # iSkiLog Project Handoff
 
 ## Scope of this handoff
-This handoff describes the current codebase at:
+This handoff reflects the current app in:
 
 `C:\dev\iskilog`
 
-Do not assume both are in sync.
+Snapshot refreshed: **March 10, 2026**.
 
 ## Stack
 - Frontend: React 19 + TypeScript + Vite (`src/`)
-- Routing: `react-router-dom` (`src/app/App.tsx`)
+- Routing: `react-router-dom` v7 (`src/app/App.tsx`)
+- State: reducer-based store in `src/store/setsStore.tsx`
 - Charts: `recharts`
 - Icons: `lucide-react`
 - Backend/Auth/DB: Supabase (`src/lib/supabaseClient.ts`)
-- Native mobile shell: Capacitor Android (`android/`, `capacitor.config.ts`)
-- Export libs: `jspdf`, `jspdf-autotable`, plus Capacitor `filesystem` and `share` for native export
+- Native shell: Capacitor Android (`android/`, `capacitor.config.ts`)
+- Export: `jspdf`, `jspdf-autotable`, Capacitor `filesystem` + `share`
+- Error monitoring dependency: `@sentry/react` is installed
 - Tests: Vitest (unit) + Playwright (E2E)
 
 ## Run and build
@@ -23,13 +25,29 @@ Do not assume both are in sync.
 - Build: `npm run build`
 - Unit tests: `npm run test:run`
 - E2E tests: `npm run e2e`
+- E2E DB prepare: `npm run e2e:db:prepare`
+- E2E DB cleanup: `npm run e2e:db:cleanup`
 - Android sync after web changes: `npx cap sync android`
+
+## Environment variables
+
+### App runtime
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- optional: `VITE_APP_VERSION` (used in About page)
+
+### E2E (`.env.test`)
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `E2E_SUPABASE_DB_URL`
+- `E2E_TEST_EMAIL_DOMAIN`
+- `E2E_BASE_URL`
 
 ## App architecture
 
 ### Root composition
-- `src/main.tsx` mounts `App`.
-- `src/app/App.tsx` wraps app with:
+- `src/main.tsx` mounts `App` and imports `supabaseClient` for startup env validation.
+- `src/app/App.tsx` wraps app in:
   - `SetsProvider` (`src/store/setsStore.tsx`)
   - `AuthProvider` (`src/auth/AuthProvider.tsx`)
 
@@ -45,80 +63,92 @@ Main routes in `src/app/App.tsx`:
 - `/set/:id`
 - `/season-settings`
 - `/profile`
+- `/personal-info` -> redirects to `/profile`
 - `/about`
 - `/privacy-security`
 
-Tabbed layout for Home/Insights/Settings is handled by `TabLayout`.
+`TabLayout` renders bottom tabs only for `/`, `/insights*`, `/settings*`.
 
-## Authentication and hydration flow
+## Authentication, onboarding, and hydration
 
 ### Auth UI
-- Login/signup page: `src/pages/Auth.tsx`
+- Page: `src/pages/Auth.tsx`
 - Supports:
   - email/password login
   - signup with metadata (`first_name`, `last_name`)
   - Google OAuth
 
-### Google OAuth
-- Native/web branching in `handleGoogle` (`src/pages/Auth.tsx`)
-- Native helpers: `src/lib/nativeOAuth.ts`
-  - builds deep link: `<appId>://auth`
-  - detects native runtime
-- Callback handling in `src/app/App.tsx` via `@capacitor/app` listener (`appUrlOpen`)
-  - closes browser
-  - exchanges code via `supabase.auth.exchangeCodeForSession(code)`
+### Native + web Google OAuth
+- Native/web branch in `handleGoogle` (`src/pages/Auth.tsx`)
+- Native helpers in `src/lib/nativeOAuth.ts`
+- Native callback handled in `src/app/App.tsx` via Capacitor `appUrlOpen`
+  - closes in-app browser
+  - exchanges auth code via `supabase.auth.exchangeCodeForSession(code)`
+  - token-hash fallback is also implemented
 
-### Profile policy gate
-- Google users are gated until policy accepted:
-  - `GooglePolicyGate` in `src/app/App.tsx`
-  - user metadata flag `policy_accepted` + `policy_accepted_at`
-  - modal content from `src/components/auth/PolicyModal.tsx` and `src/content/policyDocument.ts`
+### Onboarding gates
+- Welcome gate before app usage unless user metadata has completion:
+  - `welcome_completed`, `welcome_completed_at`
+- Google policy gate for Google-auth users:
+  - `policy_accepted`, `policy_accepted_at`
+  - links to static `/policy.html`
 
-### Hydration lifecycle
-- `AuthProvider` manages hydration status state machine:
-  - `idle | loading | success | error`
+### Hydration lifecycle (`AuthProvider`)
+- Hydration state: `idle | loading | success | error`
 - On sign-in:
   - ensures profile name
-  - fetches/normalizes seasons
-  - enforces active season via Supabase RPC
-  - fetches sets via hydrated RPC
+  - fetches seasons
+  - normalizes season dates to calendar-year bounds
+  - ensures current year season exists
+  - sets active season via RPC `set_active_season_atomic`
+  - fetches hydrated sets via RPC `fetch_sets_hydrated`
 - On sign-out:
-  - clears in-memory store
-  - clears all `iskilog:` localStorage caches (`src/lib/localCache.ts`)
+  - clears store
+  - clears app local caches via `clearAppLocalCaches()`
 
-## State management
+## State and caching
 
 ### Sets store
-- `src/store/setsStore.tsx` is reducer-based central store for:
-  - sets
-  - seasons
-  - activeSeasonId
-  - setsHydrated flag
-- Includes local cache read/write keyed by user id.
-- Reducer semantics:
-  - add/update put most recent set first
-  - full replace preserves server-provided order
+- `src/store/setsStore.tsx` centralizes:
+  - `sets`
+  - `seasons`
+  - `activeSeasonId`
+  - `setsHydrated`
+- Per-user local cache key format: `iskilog:cache:user:<userId>`
+- Reducer behavior:
+  - `ADD_SET` and `UPDATE_SET` push item to top
+  - `SET_ALL` preserves server ordering
 
-## Data access layer
-Data modules in `src/data/`:
+### Other local caches
+- Global app cache prefix: `iskilog:`
+- Preferences cache: `iskilog:preferences`
+- Tasks cache: `iskilog:tasks:<userId>`
+- Learned tricks cache: `iskilog:learned-tricks:<userId>`
+- In-progress tricks cache: `iskilog:in-progress-tricks:<userId>`
+
+## Data access layer (`src/data`)
 - `setsApi.ts`
-  - `fetchSets()` calls `rpc("fetch_sets_hydrated")`
+  - `fetchSets()` -> `rpc("fetch_sets_hydrated")`
 - `setsWriteApi.ts`
-  - `createSet()` calls `rpc("create_set_with_subtype")`
+  - `createSet()` -> `rpc("create_set_with_subtype")`
 - `setsUpdateDeleteApi.ts`
-  - `updateSetInDb()` calls `rpc("update_set_with_subtype")`
-  - `deleteSetFromDb()` deletes from `sets` (subtype rows cascade)
+  - `updateSetInDb()` -> `rpc("update_set_with_subtype")`
+  - `deleteSetFromDb()` -> delete from `sets` (cascade)
+  - `updateSetFavoriteInDb()` -> update `sets.is_favorite`
 - `seasonsApi.ts`
-  - includes atomic active-season switch via `rpc("set_active_season_atomic")`
+  - fetch/insert/update seasons
+  - active-season switch via `rpc("set_active_season_atomic")`
 - `tasksApi.ts`
-  - CRUD on `user_tasks` with auth ownership checks in query filters
-  - includes localStorage task cache helpers
+  - CRUD on `user_tasks` with ownership filters
+  - local task cache helpers
 - `tricksLearnedApi.ts`
-  - learned/in-progress trick persistence
-  - local cache for fast UI load
+  - CRUD for learned and in-progress trick tables
+  - local cache helpers
+- `setSubtypeRpcPayload.ts`
+  - maps app set model to RPC payloads for create/update
 
 ## Supabase schema and RPC contracts
-Authoritative local test schema:
+Reference schema for local/E2E:
 
 `tests/e2e/db/schema.sql`
 
@@ -129,10 +159,10 @@ Key tables:
 - `slalom_sets`
 - `tricks_sets`
 - `jump_sets`
-- `other_sets` (includes `duration_minutes`)
+- `other_sets`
+- `user_tasks`
 - `user_learned_tricks`
 - `user_in_progress_tricks`
-- `user_tasks`
 
 Key RPCs:
 - `fetch_sets_hydrated`
@@ -140,82 +170,103 @@ Key RPCs:
 - `update_set_with_subtype`
 - `set_active_season_atomic`
 
-RLS is enabled with per-user policies across user-owned tables.
+RLS is enabled with per-user policies on all user-owned tables.
 
 ## Feature map
 
 ### Home
 - `src/pages/Home.tsx`
-- Blocks:
-  - Season summary card
-  - Quick add
-  - Tasks
+- Sections:
+  - `SeasonSummaryCard`
+  - `QuickAdd`
+  - `TasksBlock`
+- Empty-season state shown when active season exists but has zero sets.
 
 ### Tasks
-- `src/components/home/TasksBlock.tsx`
-- `src/components/home/TaskModal.tsx`
+- Components:
+  - `src/components/home/TasksBlock.tsx`
+  - `src/components/home/TaskModal.tsx`
 - Behavior:
-  - default seed tasks for first-time user
-  - due-date calendar modal
+  - first-time default seed tasks
+  - due-date month calendar
   - optimistic done toggle with rollback
-  - custom delete confirmation modal
-  - open/done sorted using `src/features/tasks/taskSort.ts`
+  - delete confirmation modal
+  - sorted open/done via `src/features/tasks/taskSort.ts`
 
-### Add/Edit set
-- `src/pages/AddSet.tsx`
-- Event-specific components:
-  - Slalom fields
-  - Tricks fields
-  - Jump fields
-  - Other fields
-- Uses transactional RPC create/update path.
-- Converts speed and distance using user preferences where needed.
+### Add / Edit set
+- Page: `src/pages/AddSet.tsx`
+- Event-specific form blocks:
+  - Slalom
+  - Tricks
+  - Jump (jump/cuts modes)
+  - Other
+- Save/update uses transactional Supabase RPC path.
+- Converts speed and jump distance using user preference units.
 
 ### History
-- `src/pages/History.tsx`
+- Pages:
+  - `src/pages/History.tsx`
+  - `src/pages/HistoryAll.tsx`
 - Filters:
-  - favorites toggle
-  - timeline dropdown (day/week/month/season/custom/all)
-  - event dropdown (all/slalom/tricks/jump/other)
-  - custom date range fields
+  - favourites toggle
+  - timeline select (`day|week|month|season|custom|all`)
+  - event select (`all|slalom|tricks|jump|other`)
+  - custom date range
+- Supports favourite toggling with optimistic update.
 
 ### Insights
-- `src/pages/Insights.tsx`
-- Event-specific insights components:
+- Page: `src/pages/Insights.tsx`
+- Event-specific sections:
   - `SlalomInsights.tsx`
   - `TricksInsights.tsx`
   - `JumpInsights.tsx`
   - `OtherInsights.tsx`
-- All-events overview includes export modal (CSV/PDF).
+- All-events view includes report export modal:
+  - CSV export
+  - PDF export (with chart/table)
+  - Native runtime shares file via Capacitor Share
 
 ### Tricks library
-- `src/pages/TricksLibrary.tsx`
-- Catalog source:
-  - `src/features/tricks/trickCatalog.ts`
+- Page: `src/pages/TricksLibrary.tsx`
+- Catalog: `src/features/tricks/trickCatalog.ts`
 - Supports:
-  - learned + in-progress toggles
-  - race-safe toggle handling (`src/features/tricks/learnedToggle.ts`)
-  - hands/toes filter
+  - learned and in-progress toggles
+  - race-safe optimistic toggles (`learnedToggle.ts`)
+  - search + hands/toes filter
   - sectioned trick groups
   - learned count for selected discipline
 
+### Settings and profile
+- `Settings` page: logout, reset welcome flag, navigation cards
+- `ProfileSettings` page:
+  - edit display name
+  - password change
+  - unit preferences (rope/speed)
+- `SeasonSettings` page is informational (calendar-year model)
+- `PrivacySecurity` page includes static account deletion request flow
+- `About` page shows app summary and version
+
 ## Native/mobile specifics
 
-### Android
+### Capacitor
 - App id: `com.damir.iskilog` (`capacitor.config.ts`)
-- Intent filter for OAuth deep link in:
-  - `android/app/src/main/AndroidManifest.xml`
-- Security flags currently include:
+- App name: `iSkiLog`
+- Web dir: `dist`
+
+### Android
+- Deep-link OAuth intent filter:
+  - scheme: `com.damir.iskilog`
+  - host: `auth`
+- Security-related manifest values currently:
   - `android:usesCleartextTraffic="false"`
-  - `android:allowBackup="true"`
+  - `android:allowBackup="false"`
 
 ### Native export
 - `src/lib/nativeFileExport.ts`
 - Flow:
-  - convert Blob -> base64
-  - write to Capacitor cache via Filesystem
-  - open share sheet via Share plugin
-- Used by Insights export on native runtime.
+  - Blob -> base64
+  - write to Capacitor cache dir
+  - share via `@capacitor/share`
 
 ## Testing
 
@@ -232,16 +283,28 @@ RLS is enabled with per-user policies across user-owned tables.
 - `tests/e2e/specs/reports.spec.ts`
 - `tests/e2e/specs/tasks.spec.ts`
 - Runbook: `docs/testing/e2e-runbook.md`
+- E2E DB setup/cleanup scripts:
+  - `tests/e2e/scripts/db-prepare.mjs`
+  - `tests/e2e/scripts/db-cleanup.mjs`
 
 ## Current known repository state
-- This workspace currently has many uncommitted changes (`git status` is not clean).
-- `android/` is currently untracked in this workspace status output.
-- `src/lib/nativeFileExport.ts` is untracked in this workspace status output.
-- If something "doesn't show in app", first confirm you are editing/building the same path and synced Android assets.
+- Working tree is not clean.
+- Current local modifications include:
+  - `package.json`
+  - `package-lock.json`
+- `android/` is present and tracked in this workspace.
+- `src/lib/nativeFileExport.ts` is present in workspace and used by Insights export.
 
-## High-confidence next-chat starting checklist
+## Known caveats for next work
+- `@sentry/react` is installed but no runtime initialization exists in `src/main.tsx` yet.
+- `tests/e2e/utils/sets.ts` has helper assumptions that can drift from current History UI controls; verify E2E helper compatibility when editing History filters.
+- `src/features/insights/insightsUtils.ts` exists but is currently empty.
+- `src/pages/PersonalInfo.tsx` exists as placeholder UI and is not directly routed (route redirects to `/profile`).
+
+## High-confidence next-chat checklist
 1. Confirm active workspace path.
-2. Run `git status` and capture baseline.
+2. Capture `git status` baseline.
 3. Run `npm run build`.
-4. If mobile issue: run `npx cap sync android` then rebuild/run in Android Studio.
-5. For DB/RPC issues: verify Supabase schema/RPC parity against `tests/e2e/db/schema.sql`.
+4. If touching tests, run `npm run test:run` and targeted `npm run e2e`.
+5. If mobile issue: `npx cap sync android`, then rebuild/run from Android Studio.
+6. For DB/RPC issues: compare logic against `tests/e2e/db/schema.sql`.
