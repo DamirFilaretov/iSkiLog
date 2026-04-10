@@ -448,7 +448,7 @@ export default function TasksBlock() {
   return (
     <div data-testid="tasks-block">
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-slate-900 text-lg">Tasks</h2>
+        <h2 className="text-slate-900 text-lg">Goals</h2>
         <button
           type="button"
           onClick={openCreateModal}

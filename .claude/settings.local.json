@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/dev/iskilog ls-files .npm-cache/)",
+      "Bash(git -C /c/dev/iskilog ls-files Media/)"
+    ]
+  }
+}
