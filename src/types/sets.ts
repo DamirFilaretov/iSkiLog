@@ -9,14 +9,14 @@ export type StructuredNotes = {
   other: string
 }
 
-export const emptyNotes: StructuredNotes = {
+export const emptyNotes: StructuredNotes = Object.freeze({
   summary: "",
   workedOn: "",
   mistakes: "",
   whatHelped: "",
   nextSet: "",
   other: "",
-}
+})
 
 export type SetBase = {
   id: string
