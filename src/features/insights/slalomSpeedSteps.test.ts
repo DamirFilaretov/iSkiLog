@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { SkiSet } from "../../types/sets"
+import { emptyNotes } from "../../types/sets"
 import {
   getAverageTournamentSpeedStep,
   nextTournamentSpeedStepByKph
@@ -12,7 +13,7 @@ function slalomSet(speed: string, ropeLength = "18", id = "slalom-1"): SkiSet {
     date: "2026-02-22",
     seasonId: "season-2026",
     isFavorite: false,
-    notes: "",
+    notes: emptyNotes,
     data: {
       buoys: 6,
       ropeLength,
@@ -29,7 +30,7 @@ function tricksSet(id = "tricks-1"): SkiSet {
     date: "2026-02-22",
     seasonId: "season-2026",
     isFavorite: false,
-    notes: "",
+    notes: emptyNotes,
     data: {
       duration: 20,
       trickType: "hands"
