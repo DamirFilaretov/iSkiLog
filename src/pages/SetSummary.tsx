@@ -4,7 +4,7 @@ import { deleteSetFromDb } from "../data/setsUpdateDeleteApi"
 import { captureHandledException } from "../lib/sentryHandled"
 
 import { useSetsStore } from "../store/setsStore"
-import type { SkiSet } from "../types/sets"
+import type { SkiSet, StructuredNotes } from "../types/sets"
 import { usePreferences } from "../lib/preferences"
 
 /**
@@ -85,6 +85,15 @@ function formatDateLabel(iso: string) {
     day: "2-digit"
   })
 }
+
+const NOTE_SECTION_LABELS: { key: keyof StructuredNotes; label: string }[] = [
+  { key: "summary",    label: "Session Summary" },
+  { key: "workedOn",  label: "What I Worked On" },
+  { key: "mistakes",  label: "Mistakes & Struggles" },
+  { key: "whatHelped",label: "What Helped" },
+  { key: "nextSet",   label: "Focus for Next Set" },
+  { key: "other",     label: "Other Notes" },
+]
 
 export default function SetSummary() {
   const { preferences } = usePreferences()
@@ -281,11 +290,20 @@ export default function SetSummary() {
         <div>
           <h2 className="text-sm font-medium text-gray-900 mb-2">Notes & Reflections</h2>
 
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              {skiSet.notes.trim() ? skiSet.notes : "No notes for this set."}
-            </p>
-          </div>
+          {NOTE_SECTION_LABELS.every(({ key }) => !skiSet.notes[key].trim()) ? (
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <p className="text-sm text-gray-500">No notes for this set.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {NOTE_SECTION_LABELS.filter(({ key }) => skiSet.notes[key].trim()).map(({ key, label }) => (
+                <div key={key} className="rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">{label}</div>
+                  <p className="text-sm text-gray-700 leading-relaxed">{skiSet.notes[key]}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
