@@ -161,7 +161,9 @@ export default function HistoryItem({
         </p>
 
         <p className="mt-1 text-sm text-gray-500">
-          {set.notes.trim() ? set.notes : "No notes."}
+          {(["summary", "workedOn", "mistakes", "whatHelped", "nextSet", "other"] as const)
+            .map(k => set.notes[k])
+            .find(v => v.trim()) ?? "No notes."}
         </p>
       </div>
     </div>
