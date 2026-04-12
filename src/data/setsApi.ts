@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient"
-import type { SkiSet } from "../types/sets"
+import type { SkiSet, StructuredNotes } from "../types/sets"
 
 /**
  * Fetch fully hydrated sets through one RPC call.
@@ -20,7 +20,12 @@ type HydratedSetRow = {
   date: string
   season_id: string | null
   is_favorite: boolean | null
-  notes: string | null
+  notes_summary: string | null
+  notes_worked_on: string | null
+  notes_mistakes: string | null
+  notes_what_helped: string | null
+  notes_next_set: string | null
+  notes_other: string | null
   buoys: number | null
   rope_length: string | null
   speed: number | null
@@ -38,13 +43,22 @@ type HydratedSetRow = {
   other_duration_minutes: number | null
 }
 
-function mapHydratedRowToSet(row: HydratedSetRow): SkiSet {
+export function mapHydratedRowToSet(row: HydratedSetRow): SkiSet {
+  const notes: StructuredNotes = {
+    summary: row.notes_summary ?? "",
+    workedOn: row.notes_worked_on ?? "",
+    mistakes: row.notes_mistakes ?? "",
+    whatHelped: row.notes_what_helped ?? "",
+    nextSet: row.notes_next_set ?? "",
+    other: row.notes_other ?? "",
+  }
+
   const base = {
     id: row.set_id,
     date: row.date,
     seasonId: row.season_id ?? null,
     isFavorite: row.is_favorite ?? false,
-    notes: row.notes ?? ""
+    notes,
   }
 
   if (row.event_type === "slalom") {
