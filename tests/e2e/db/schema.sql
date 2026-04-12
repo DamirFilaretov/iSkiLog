@@ -517,6 +517,7 @@ alter table public.user_in_progress_tricks enable row level security;
 alter table public.user_tasks enable row level security;
 alter table public.jump_sets enable row level security;
 alter table public.other_sets enable row level security;
+alter table public.set_notes enable row level security;
 
 drop policy if exists profiles_select on public.profiles;
 drop policy if exists profiles_insert on public.profiles;
@@ -605,3 +606,12 @@ create policy other_select on public.other_sets for select to authenticated usin
 create policy other_insert on public.other_sets for insert to authenticated with check (exists (select 1 from public.sets s where s.id = other_sets.set_id and s.user_id = auth.uid()));
 create policy other_update on public.other_sets for update to authenticated using (exists (select 1 from public.sets s where s.id = other_sets.set_id and s.user_id = auth.uid())) with check (exists (select 1 from public.sets s where s.id = other_sets.set_id and s.user_id = auth.uid()));
 create policy other_delete on public.other_sets for delete to authenticated using (exists (select 1 from public.sets s where s.id = other_sets.set_id and s.user_id = auth.uid()));
+
+drop policy if exists set_notes_select on public.set_notes;
+drop policy if exists set_notes_insert on public.set_notes;
+drop policy if exists set_notes_update on public.set_notes;
+drop policy if exists set_notes_delete on public.set_notes;
+create policy set_notes_select on public.set_notes for select to authenticated using (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
+create policy set_notes_insert on public.set_notes for insert to authenticated with check (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
+create policy set_notes_update on public.set_notes for update to authenticated using (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid())) with check (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
+create policy set_notes_delete on public.set_notes for delete to authenticated using (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
