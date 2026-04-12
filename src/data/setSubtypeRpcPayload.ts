@@ -1,11 +1,11 @@
-import type { EventKey, SkiSet } from "../types/sets"
+import type { EventKey, SkiSet, StructuredNotes } from "../types/sets"
 
 type BaseSetSubtypeRpcPayload = {
   p_season_id: string | null
   p_is_favorite: boolean
   p_event_type: EventKey
   p_date: string
-  p_notes: string
+  p_notes: StructuredNotes
   p_buoys: number | null
   p_rope_length: string | null
   p_speed: number | null
