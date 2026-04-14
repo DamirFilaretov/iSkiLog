@@ -127,14 +127,9 @@ export async function ensureFavoritesFilterOff(page: Page) {
 }
 
 export async function selectHistoryRange(page: Page, range: "Day" | "Week" | "Month" | "Season" | "Custom") {
-  const tab = page.getByRole("button", { name: new RegExp(`^${range}$`) })
-  await tab.click()
-
-  const needsFilterPrompt = page.getByText("Choose a filter to view history")
-  if (await needsFilterPrompt.isVisible().catch(() => false)) {
-    // Tabs toggle off when clicked while active; click again to keep target range selected.
-    await tab.click()
-  }
+  const select = page.getByRole("combobox", { name: /Timeline filter/i })
+  await expect(select).toBeVisible()
+  await select.selectOption(range.toLowerCase())
 }
 
 export function historyItems(page: Page) {
