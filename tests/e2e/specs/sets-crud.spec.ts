@@ -59,7 +59,7 @@ test("flow 6: edit updates set values in summary and history", async ({ page }) 
 
   await fillByLabel(page, "Buoys", "4")
   const updatedNotes = `edit-new-${Date.now()}`
-  await fillByLabel(page, "Notes", updatedNotes)
+  await fillByLabel(page, "Other Notes", updatedNotes)
   await page.getByRole("button", { name: /^Update Set$/ }).click()
 
   await expect(page.getByRole("heading", { name: "Set Summary" })).toBeVisible()

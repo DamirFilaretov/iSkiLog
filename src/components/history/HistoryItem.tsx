@@ -132,7 +132,7 @@ export default function HistoryItem({
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-gray-900">{eventLabel(set)}</p>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">{set.date}</span>
+            <span className="text-xs text-gray-400">{set.date}{set.timeOfDay ? ` · ${set.timeOfDay}` : ""}</span>
             <button
               type="button"
               onClick={event => {
@@ -161,7 +161,9 @@ export default function HistoryItem({
         </p>
 
         <p className="mt-1 text-sm text-gray-500">
-          {set.notes.trim() ? set.notes : "No notes."}
+          {(["summary", "workedOn", "mistakes", "whatHelped", "nextSet", "other"] as const)
+            .map(k => set.notes[k])
+            .find(v => v.trim()) ?? "No notes."}
         </p>
       </div>
     </div>

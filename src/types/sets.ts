@@ -1,11 +1,32 @@
 export type EventKey = "slalom" | "tricks" | "jump" | "other"
 
+export type StructuredNotes = {
+  summary: string
+  workedOn: string
+  mistakes: string
+  whatHelped: string
+  nextSet: string
+  other: string
+}
+
+export const emptyNotes: StructuredNotes = Object.freeze({
+  summary: "",
+  workedOn: "",
+  mistakes: "",
+  whatHelped: "",
+  nextSet: "",
+  other: "",
+})
+
 export type SetBase = {
   id: string
   event: EventKey
 
   // Logical date of the training session (user input)
   date: string
+
+  // Optional time of the training session (HH:MM, 24-hour, user input)
+  timeOfDay: string | null
 
   // Stored season membership from the database.
   // This is the source of truth for which season the set belongs to.
@@ -14,7 +35,7 @@ export type SetBase = {
   // True when the user marked this set as a favourite.
   isFavorite: boolean
 
-  notes: string
+  notes: StructuredNotes
 }
 
 export type SlalomData = {
@@ -47,8 +68,8 @@ export type OtherData = {
 export type SkiSet =
   | (SetBase & { event: "slalom"; data: SlalomData })
   | (SetBase & { event: "tricks"; data: TricksData })
-  | (SetBase & { event: "jump"; data: JumpData })
-  | (SetBase & { event: "other"; data: OtherData })
+  | (SetBase & { event: "jump";   data: JumpData })
+  | (SetBase & { event: "other";  data: OtherData })
 
 export type Season = {
   id: string

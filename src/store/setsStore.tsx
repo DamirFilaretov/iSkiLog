@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useState } from "react"
 import type { Season, SkiSet } from "../types/sets"
 
-const CACHE_VERSION = 2
+const CACHE_VERSION = 4
 
 type SetsState = {
   sets: SkiSet[]

@@ -42,10 +42,10 @@ SentryCapacitor.init(
         blockAllMedia: true
       })
     ],
-    tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
+    tracesSampleRate: import.meta.env.DEV ? 0.0 : 0.2,
     tracePropagationTargets,
-    replaysSessionSampleRate: import.meta.env.DEV ? 1.0 : 0.1,
-    replaysOnErrorSampleRate: 1.0,
+    replaysSessionSampleRate: import.meta.env.DEV ? 0.0 : 0.1,
+    replaysOnErrorSampleRate: import.meta.env.DEV ? 0.0 : 1.0,
     enableLogs: true
   },
   SentryReact.init

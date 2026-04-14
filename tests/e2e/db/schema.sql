@@ -21,9 +21,25 @@ create table if not exists public.sets (
   is_favorite boolean not null default false,
   event_type text not null check (event_type in ('slalom', 'tricks', 'jump', 'other')),
   date date not null,
-  notes text not null default '',
+  time_of_day time null,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
+);
+
+-- Ensure columns added after initial schema creation exist on pre-existing tables
+alter table if exists public.sets add column if not exists time_of_day time null;
+
+create table if not exists public.set_notes (
+  id uuid primary key default extensions.gen_random_uuid(),
+  set_id uuid not null references public.sets(id) on delete cascade,
+  summary text not null default '',
+  worked_on text not null default '',
+  mistakes text not null default '',
+  what_helped text not null default '',
+  next_set text not null default '',
+  other text not null default '',
+  created_at timestamptz not null default timezone('utc', now()),
+  unique (set_id)
 );
 
 create table if not exists public.slalom_sets (
@@ -122,9 +138,15 @@ returns table (
   set_id uuid,
   event_type text,
   date date,
+  time_of_day time,
   season_id uuid,
   is_favorite boolean,
-  notes text,
+  notes_summary text,
+  notes_worked_on text,
+  notes_mistakes text,
+  notes_what_helped text,
+  notes_next_set text,
+  notes_other text,
   buoys numeric,
   rope_length text,
   speed numeric,
@@ -148,9 +170,15 @@ as $$
     s.id as set_id,
     s.event_type::text as event_type,
     s.date,
+    s.time_of_day,
     s.season_id,
     s.is_favorite,
-    s.notes,
+    coalesce(sn.summary, '') as notes_summary,
+    coalesce(sn.worked_on, '') as notes_worked_on,
+    coalesce(sn.mistakes, '') as notes_mistakes,
+    coalesce(sn.what_helped, '') as notes_what_helped,
+    coalesce(sn.next_set, '') as notes_next_set,
+    coalesce(sn.other, '') as notes_other,
     sl.buoys,
     sl.rope_length,
     sl.speed,
@@ -167,6 +195,7 @@ as $$
     ot.name as other_name,
     ot.duration_minutes as other_duration_minutes
   from public.sets s
+  left join public.set_notes sn on sn.set_id = s.id
   left join public.slalom_sets sl on sl.set_id = s.id
   left join public.tricks_sets tr on tr.set_id = s.id
   left join public.jump_sets jp on jp.set_id = s.id
@@ -204,7 +233,11 @@ end;
 $$;
 
 drop function if exists public.create_set_with_subtype(
-  uuid, boolean, text, date, text, numeric, text, numeric, integer, integer, text, text, integer,
+  uuid, boolean, text, date, time, jsonb, numeric, text, numeric, integer, integer, text, text, integer,
+  integer, integer, numeric, text, integer, text, integer
+);
+drop function if exists public.create_set_with_subtype(
+  uuid, boolean, text, date, jsonb, numeric, text, numeric, integer, integer, text, text, integer,
   integer, integer, numeric, text, integer, text, integer
 );
 create or replace function public.create_set_with_subtype(
@@ -212,7 +245,8 @@ create or replace function public.create_set_with_subtype(
   p_is_favorite boolean,
   p_event_type text,
   p_date date,
-  p_notes text,
+  p_time_of_day time default null,
+  p_notes jsonb default '{}',
   p_buoys numeric default null,
   p_rope_length text default null,
   p_speed numeric default null,
@@ -260,7 +294,7 @@ begin
     is_favorite,
     event_type,
     date,
-    notes
+    time_of_day
   )
   values (
     v_user_id,
@@ -268,9 +302,20 @@ begin
     coalesce(p_is_favorite, false),
     p_event_type,
     p_date,
-    coalesce(p_notes, '')
+    p_time_of_day
   )
   returning id into v_set_id;
+
+  insert into public.set_notes (set_id, summary, worked_on, mistakes, what_helped, next_set, other)
+  values (
+    v_set_id,
+    coalesce(p_notes->>'summary', ''),
+    coalesce(p_notes->>'workedOn', ''),
+    coalesce(p_notes->>'mistakes', ''),
+    coalesce(p_notes->>'whatHelped', ''),
+    coalesce(p_notes->>'nextSet', ''),
+    coalesce(p_notes->>'other', '')
+  );
 
   if p_event_type = 'slalom' then
     insert into public.slalom_sets (set_id, buoys, rope_length, speed, passes_count)
@@ -315,7 +360,11 @@ end;
 $$;
 
 drop function if exists public.update_set_with_subtype(
-  uuid, uuid, boolean, text, date, text, numeric, text, numeric, integer, integer, text, text,
+  uuid, uuid, boolean, text, date, time, jsonb, numeric, text, numeric, integer, integer, text, text,
+  integer, integer, integer, numeric, text, integer, text, integer, boolean
+);
+drop function if exists public.update_set_with_subtype(
+  uuid, uuid, boolean, text, date, jsonb, numeric, text, numeric, integer, integer, text, text,
   integer, integer, integer, numeric, text, integer, text, integer, boolean
 );
 create or replace function public.update_set_with_subtype(
@@ -324,7 +373,8 @@ create or replace function public.update_set_with_subtype(
   p_is_favorite boolean,
   p_event_type text,
   p_date date,
-  p_notes text,
+  p_time_of_day time default null,
+  p_notes jsonb default '{}',
   p_buoys numeric default null,
   p_rope_length text default null,
   p_speed numeric default null,
@@ -372,13 +422,31 @@ begin
     is_favorite = coalesce(p_is_favorite, false),
     event_type = p_event_type,
     date = p_date,
-    notes = coalesce(p_notes, '')
+    time_of_day = p_time_of_day
   where id = p_set_id
     and user_id = v_user_id;
 
   if not found then
     raise exception 'Set not found or not owned by user';
   end if;
+
+  insert into public.set_notes (set_id, summary, worked_on, mistakes, what_helped, next_set, other)
+  values (
+    p_set_id,
+    coalesce(p_notes->>'summary', ''),
+    coalesce(p_notes->>'workedOn', ''),
+    coalesce(p_notes->>'mistakes', ''),
+    coalesce(p_notes->>'whatHelped', ''),
+    coalesce(p_notes->>'nextSet', ''),
+    coalesce(p_notes->>'other', '')
+  )
+  on conflict (set_id) do update set
+    summary     = excluded.summary,
+    worked_on   = excluded.worked_on,
+    mistakes    = excluded.mistakes,
+    what_helped = excluded.what_helped,
+    next_set    = excluded.next_set,
+    other       = excluded.other;
 
   if p_event_type = 'slalom' then
     insert into public.slalom_sets (set_id, buoys, rope_length, speed, passes_count)
@@ -468,6 +536,7 @@ alter table public.user_in_progress_tricks enable row level security;
 alter table public.user_tasks enable row level security;
 alter table public.jump_sets enable row level security;
 alter table public.other_sets enable row level security;
+alter table public.set_notes enable row level security;
 
 drop policy if exists profiles_select on public.profiles;
 drop policy if exists profiles_insert on public.profiles;
@@ -556,3 +625,12 @@ create policy other_select on public.other_sets for select to authenticated usin
 create policy other_insert on public.other_sets for insert to authenticated with check (exists (select 1 from public.sets s where s.id = other_sets.set_id and s.user_id = auth.uid()));
 create policy other_update on public.other_sets for update to authenticated using (exists (select 1 from public.sets s where s.id = other_sets.set_id and s.user_id = auth.uid())) with check (exists (select 1 from public.sets s where s.id = other_sets.set_id and s.user_id = auth.uid()));
 create policy other_delete on public.other_sets for delete to authenticated using (exists (select 1 from public.sets s where s.id = other_sets.set_id and s.user_id = auth.uid()));
+
+drop policy if exists set_notes_select on public.set_notes;
+drop policy if exists set_notes_insert on public.set_notes;
+drop policy if exists set_notes_update on public.set_notes;
+drop policy if exists set_notes_delete on public.set_notes;
+create policy set_notes_select on public.set_notes for select to authenticated using (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
+create policy set_notes_insert on public.set_notes for insert to authenticated with check (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
+create policy set_notes_update on public.set_notes for update to authenticated using (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid())) with check (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
+create policy set_notes_delete on public.set_notes for delete to authenticated using (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));

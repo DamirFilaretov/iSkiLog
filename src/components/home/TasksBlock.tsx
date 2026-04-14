@@ -472,10 +472,10 @@ export default function TasksBlock() {
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
         {loading ? (
-          <div className="px-4 py-6 text-sm text-slate-500">Loading tasks...</div>
+          <div className="px-4 py-6 text-sm text-slate-500">Loading goals...</div>
         ) : tasks.length === 0 ? (
           <div className="flex min-h-[112px] items-center px-4 py-4 text-lg font-medium text-slate-500">
-            No tasks yet. Add your first task.
+            No goals yet. Add your first goal.
           </div>
         ) : (
           <>
