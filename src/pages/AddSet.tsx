@@ -15,7 +15,8 @@ import JumpFields from "../components/addSet/JumpFields"
 import OtherFields from "../components/addSet/OtherFields"
 import SaveSetButton from "../components/addSet/SaveSetButton"
 
-import type { EventKey, SkiSet } from "../types/sets"
+import type { EventKey, SkiSet, StructuredNotes } from "../types/sets"
+import { emptyNotes } from "../types/sets"
 import { useSetsStore } from "../store/setsStore"
 import { usePreferences } from "../lib/preferences"
 
@@ -59,7 +60,7 @@ export default function AddSet() {
   const [event, setEvent] = useState<EventKey>("slalom")
   const [date, setDate] = useState(todayLocalIsoDate())
   const [isFavorite, setIsFavorite] = useState(false)
-  const [notes, setNotes] = useState("")
+  const [notes, setNotes] = useState<StructuredNotes>(emptyNotes)
 
   const [slalomBuoys, setSlalomBuoys] = useState<number | null>(null)
   const [slalomRopeLength, setSlalomRopeLength] = useState("")
@@ -131,7 +132,11 @@ export default function AddSet() {
     setEvent(editingSet.event)
     setDate(editingSet.date)
     setIsFavorite(editingSet.isFavorite)
-    setNotes(editingSet.notes)
+    const loadedNotes =
+      typeof editingSet.notes === "string"
+        ? { ...emptyNotes, other: editingSet.notes as string }
+        : editingSet.notes
+    setNotes(loadedNotes)
 
     if (editingSet.event === "slalom") {
       setSlalomBuoys(editingSet.data.buoys)

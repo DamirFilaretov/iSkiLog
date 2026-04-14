@@ -1,26 +1,23 @@
+import type { StructuredNotes } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 
 type Props = {
-  // Controlled value for the date input.
   date: string
-
-  // Called when the user changes the date.
   onDateChange: (value: string) => void
-
-  // ISO date string in "YYYY-MM-DD" format.
-  // Used to block picking future dates in the native date picker.
   maxDate: string
-
-  // Optional error message shown under the date field.
-  // Example: "Date cannot be in the future"
   dateError?: string
-
-  // Controlled value for notes.
-  notes: string
-
-  // Called when the user changes notes.
-  onNotesChange: (value: string) => void
+  notes: StructuredNotes
+  onNotesChange: (notes: StructuredNotes) => void
 }
+
+const NOTE_SECTIONS: { key: keyof StructuredNotes; label: string; placeholder: string }[] = [
+  { key: "summary",     label: "Session Summary",     placeholder: "How did the session go overall?" },
+  { key: "workedOn",   label: "What I Worked On",    placeholder: "Drills, techniques, or areas of focus…" },
+  { key: "mistakes",   label: "Mistakes & Struggles", placeholder: "What went wrong or felt off?" },
+  { key: "whatHelped", label: "What Helped",          placeholder: "Cues, adjustments, or tips that worked…" },
+  { key: "nextSet",    label: "Focus for Next Set",   placeholder: "What to prioritise next time…" },
+  { key: "other",      label: "Other Notes",          placeholder: "Anything else worth noting…" },
+]
 
 export default function BaseFields({
   date,
@@ -28,8 +25,12 @@ export default function BaseFields({
   maxDate,
   dateError,
   notes,
-  onNotesChange
+  onNotesChange,
 }: Props) {
+  function handleFieldChange(key: keyof StructuredNotes, value: string) {
+    onNotesChange({ ...notes, [key]: value })
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -42,23 +43,27 @@ export default function BaseFields({
           placeholder="Select date"
         />
 
-        {/* Show validation feedback directly under the field */}
         {dateError ? (
           <p className="mt-1 text-xs text-red-600">{dateError}</p>
         ) : null}
       </div>
 
-      <div>
-        <label className="block text-sm text-gray-500 mb-1">Notes</label>
+      <div className="space-y-3">
+        <label className="block text-sm text-gray-500">Notes & Reflections</label>
 
-        <textarea
-          placeholder="Add your thoughts, observations, or areas to improve…"
-          // Controlled textarea, value comes from AddSet state.
-          value={notes}
-          // Update AddSet state when the user types.
-          onChange={e => onNotesChange(e.target.value)}
-          className="w-full h-28 rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 resize-none"
-        />
+        {NOTE_SECTIONS.map(({ key, label, placeholder }) => (
+          <div key={key}>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">
+              {label}
+            </label>
+            <textarea
+              placeholder={placeholder}
+              value={notes[key]}
+              onChange={e => handleFieldChange(key, e.target.value)}
+              className="w-full h-24 rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 resize-none"
+            />
+          </div>
+        ))}
       </div>
     </div>
   )
