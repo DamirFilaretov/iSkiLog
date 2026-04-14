@@ -33,7 +33,7 @@ export async function addSlalomSet(page: Page, args?: { notes?: string; date?: s
   await page.getByRole("button", { name: args?.rope ?? "16m/22off" }).click()
   await fillByLabel(page, "Speed", args?.speed ?? "34")
   await page.locator("input[type='date']").first().fill(date)
-  await fillByLabel(page, "Notes", notes)
+  await fillByLabel(page, "Other Notes", notes)
   await saveSet(page)
 
   return { notes, date }
@@ -46,7 +46,7 @@ export async function addTricksSet(page: Page, args?: { notes?: string; date?: s
   await openAddByQuickTile(page, "Tricks")
   await fillByLabel(page, "Duration", args?.duration ?? "25")
   await page.locator("input[type='date']").first().fill(date)
-  await fillByLabel(page, "Notes", notes)
+  await fillByLabel(page, "Other Notes", notes)
   await saveSet(page)
 
   return { notes, date }
@@ -60,7 +60,7 @@ export async function addJumpSet(page: Page, args?: { notes?: string; date?: str
   await fillByLabel(page, "Total Attempts", args?.attempts ?? "4")
   await fillByLabel(page, "Passed", args?.passed ?? "1")
   await page.locator("input[type='date']").first().fill(date)
-  await fillByLabel(page, "Notes", notes)
+  await fillByLabel(page, "Other Notes", notes)
   await saveSet(page)
 
   return { notes, date }
@@ -77,7 +77,7 @@ export async function addOtherSet(
   await fillByLabel(page, "Duration", args?.duration ?? "30")
   await fillByLabel(page, "Name", args?.name ?? "Warmup")
   await page.locator("input[type='date']").first().fill(date)
-  await fillByLabel(page, "Notes", notes)
+  await fillByLabel(page, "Other Notes", notes)
   await saveSet(page)
 
   return { notes, date }
