@@ -87,7 +87,7 @@ function formatDateLabel(iso: string) {
 }
 
 const NOTE_SECTION_LABELS: { key: keyof StructuredNotes; label: string }[] = [
-  { key: "summary",    label: "Session Summary" },
+  { key: "summary",    label: "Set type" },
   { key: "workedOn",  label: "What I Worked On" },
   { key: "mistakes",  label: "Mistakes & Struggles" },
   { key: "whatHelped",label: "What Helped" },

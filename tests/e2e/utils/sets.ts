@@ -128,7 +128,7 @@ export async function ensureFavoritesFilterOff(page: Page) {
 
 export async function selectHistoryRange(page: Page, range: "Day" | "Week" | "Month" | "Season" | "Custom") {
   const select = page.getByRole("combobox", { name: /Timeline filter/i })
-  await expect(select).toBeVisible()
+  await expect(select).toBeVisible({ timeout: 5_000 })
   await select.selectOption(range.toLowerCase())
 }
 
