@@ -13,8 +13,8 @@ type Props = {
 }
 
 const NOTE_SECTIONS: { key: keyof StructuredNotes; label: string; placeholder: string }[] = [
-  { key: "summary",     label: "Session Summary",     placeholder: "How did the session go overall?" },
-  { key: "workedOn",   label: "What I Worked On",    placeholder: "Drills, techniques, or areas of focus…" },
+  { key: "summary",     label: "Set type",             placeholder: "Examples: warm-up set, first set of the season, regular set, pre-tournament set, tournament set" },
+  { key: "workedOn",   label: "What I Worked On",    placeholder: "Examples: applying more effort when crossing the wakes, keeping the handle higher, etc." },
   { key: "mistakes",   label: "Mistakes & Struggles", placeholder: "What went wrong or felt off?" },
   { key: "whatHelped", label: "What Helped",          placeholder: "Cues, adjustments, or tips that worked…" },
   { key: "nextSet",    label: "Focus for Next Set",   placeholder: "What to prioritise next time…" },
