@@ -4,6 +4,8 @@ import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 type Props = {
   date: string
   onDateChange: (value: string) => void
+  time: string
+  onTimeChange: (value: string) => void
   maxDate: string
   dateError?: string
   notes: StructuredNotes
@@ -22,6 +24,8 @@ const NOTE_SECTIONS: { key: keyof StructuredNotes; label: string; placeholder: s
 export default function BaseFields({
   date,
   onDateChange,
+  time,
+  onTimeChange,
   maxDate,
   dateError,
   notes,
@@ -34,14 +38,28 @@ export default function BaseFields({
   return (
     <div className="space-y-4">
       <div>
-        <DateFieldNativeOverlay
-          value={date}
-          onChange={onDateChange}
-          max={maxDate}
-          label="Date"
-          variant="addSet"
-          placeholder="Select date"
-        />
+        <div className="flex gap-3">
+          <div className="w-[65%]">
+            <DateFieldNativeOverlay
+              value={date}
+              onChange={onDateChange}
+              max={maxDate}
+              label="Date"
+              variant="addSet"
+              placeholder="Select date"
+            />
+          </div>
+
+          <div className="w-[35%]">
+            <label className="block text-sm text-gray-500 mb-1">Time</label>
+            <input
+              type="time"
+              value={time}
+              onChange={e => onTimeChange(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
+            />
+          </div>
+        </div>
 
         {dateError ? (
           <p className="mt-1 text-xs text-red-600">{dateError}</p>
@@ -49,11 +67,11 @@ export default function BaseFields({
       </div>
 
       <div className="space-y-3">
-        <label className="block text-sm text-gray-500">Notes & Reflections</label>
+        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 pt-5">Notes & Reflections</label>
 
         {NOTE_SECTIONS.map(({ key, label, placeholder }) => (
           <div key={key}>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">
+            <label className="block text-sm text-gray-500 mb-1">
               {label}
             </label>
             <textarea

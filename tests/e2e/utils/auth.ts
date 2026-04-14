@@ -29,7 +29,7 @@ export async function signUpUser(page: Page, args: { firstName?: string; lastNam
   await fillByLabel(page, "Last Name", lastName)
   await fillByLabel(page, "Email", args.email)
   await fillByLabel(page, "New Password", args.password)
-  await page.getByRole("checkbox", { name: /Agree to policies/i }).check()
+  await page.getByRole("checkbox", { name: /Agree to policy/i }).check()
   await page.getByRole("button", { name: /^Sign up$/ }).first().click()
 
   // Depending on local Supabase auth config, sign-up can:
@@ -69,9 +69,22 @@ export async function signUpThenLogin(page: Page, args: { emailDomain: string; p
 
   if (onAuthScreen) {
     await loginUser(page, { email, password })
-  } else {
-    await expectHomeLoaded(page)
   }
+
+  // New users always see the Welcome gate. Wait for it then dismiss via Skip.
+  // We wait for either the Skip button (welcome gate) or home content to appear.
+  const skipButton = page.getByRole("button", { name: /^Skip$/ })
+  const homeContent = page.getByText(/No sets logged yet|Season Total:|total training sets/i)
+  const found = await Promise.race([
+    skipButton.waitFor({ state: "visible", timeout: 10_000 }).then(() => "skip" as const),
+    homeContent.waitFor({ state: "visible", timeout: 10_000 }).then(() => "home" as const),
+  ]).catch(() => "timeout" as const)
+
+  if (found === "skip") {
+    await skipButton.click()
+  }
+
+  await expectHomeLoaded(page)
 
   return { email, password }
 }

@@ -132,7 +132,7 @@ export default function HistoryItem({
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-gray-900">{eventLabel(set)}</p>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">{set.date}</span>
+            <span className="text-xs text-gray-400">{set.date}{set.timeOfDay ? ` · ${set.timeOfDay}` : ""}</span>
             <button
               type="button"
               onClick={event => {

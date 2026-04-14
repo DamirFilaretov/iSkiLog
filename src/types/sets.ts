@@ -25,6 +25,9 @@ export type SetBase = {
   // Logical date of the training session (user input)
   date: string
 
+  // Optional time of the training session (HH:MM, 24-hour, user input)
+  timeOfDay: string | null
+
   // Stored season membership from the database.
   // This is the source of truth for which season the set belongs to.
   seasonId: string | null

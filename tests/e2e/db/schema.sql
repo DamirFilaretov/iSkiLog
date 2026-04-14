@@ -21,9 +21,13 @@ create table if not exists public.sets (
   is_favorite boolean not null default false,
   event_type text not null check (event_type in ('slalom', 'tricks', 'jump', 'other')),
   date date not null,
+  time_of_day time null,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+-- Ensure columns added after initial schema creation exist on pre-existing tables
+alter table if exists public.sets add column if not exists time_of_day time null;
 
 create table if not exists public.set_notes (
   id uuid primary key default extensions.gen_random_uuid(),
@@ -134,6 +138,7 @@ returns table (
   set_id uuid,
   event_type text,
   date date,
+  time_of_day time,
   season_id uuid,
   is_favorite boolean,
   notes_summary text,
@@ -165,6 +170,7 @@ as $$
     s.id as set_id,
     s.event_type::text as event_type,
     s.date,
+    s.time_of_day,
     s.season_id,
     s.is_favorite,
     coalesce(sn.summary, '') as notes_summary,
@@ -227,6 +233,10 @@ end;
 $$;
 
 drop function if exists public.create_set_with_subtype(
+  uuid, boolean, text, date, time, jsonb, numeric, text, numeric, integer, integer, text, text, integer,
+  integer, integer, numeric, text, integer, text, integer
+);
+drop function if exists public.create_set_with_subtype(
   uuid, boolean, text, date, jsonb, numeric, text, numeric, integer, integer, text, text, integer,
   integer, integer, numeric, text, integer, text, integer
 );
@@ -235,7 +245,8 @@ create or replace function public.create_set_with_subtype(
   p_is_favorite boolean,
   p_event_type text,
   p_date date,
-  p_notes jsonb,
+  p_time_of_day time default null,
+  p_notes jsonb default '{}',
   p_buoys numeric default null,
   p_rope_length text default null,
   p_speed numeric default null,
@@ -282,14 +293,16 @@ begin
     season_id,
     is_favorite,
     event_type,
-    date
+    date,
+    time_of_day
   )
   values (
     v_user_id,
     p_season_id,
     coalesce(p_is_favorite, false),
     p_event_type,
-    p_date
+    p_date,
+    p_time_of_day
   )
   returning id into v_set_id;
 
@@ -347,6 +360,10 @@ end;
 $$;
 
 drop function if exists public.update_set_with_subtype(
+  uuid, uuid, boolean, text, date, time, jsonb, numeric, text, numeric, integer, integer, text, text,
+  integer, integer, integer, numeric, text, integer, text, integer, boolean
+);
+drop function if exists public.update_set_with_subtype(
   uuid, uuid, boolean, text, date, jsonb, numeric, text, numeric, integer, integer, text, text,
   integer, integer, integer, numeric, text, integer, text, integer, boolean
 );
@@ -356,7 +373,8 @@ create or replace function public.update_set_with_subtype(
   p_is_favorite boolean,
   p_event_type text,
   p_date date,
-  p_notes jsonb,
+  p_time_of_day time default null,
+  p_notes jsonb default '{}',
   p_buoys numeric default null,
   p_rope_length text default null,
   p_speed numeric default null,
@@ -403,7 +421,8 @@ begin
     season_id = p_season_id,
     is_favorite = coalesce(p_is_favorite, false),
     event_type = p_event_type,
-    date = p_date
+    date = p_date,
+    time_of_day = p_time_of_day
   where id = p_set_id
     and user_id = v_user_id;
 

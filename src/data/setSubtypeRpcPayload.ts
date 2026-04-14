@@ -5,6 +5,7 @@ type BaseSetSubtypeRpcPayload = {
   p_is_favorite: boolean
   p_event_type: EventKey
   p_date: string
+  p_time_of_day: string | null
   p_notes: StructuredNotes
   p_buoys: number | null
   p_rope_length: string | null
@@ -42,6 +43,7 @@ export function buildCreateSetSubtypeRpcPayload(set: SkiSet): CreateSetSubtypeRp
     p_is_favorite: set.isFavorite,
     p_event_type: set.event,
     p_date: set.date,
+    p_time_of_day: set.timeOfDay ?? null,
     p_notes: set.notes,
     p_buoys: null,
     p_rope_length: null,

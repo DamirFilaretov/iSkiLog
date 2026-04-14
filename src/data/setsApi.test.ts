@@ -8,6 +8,7 @@ const baseRow = {
   set_id: "abc-123",
   event_type: "slalom" as const,
   date: "2024-07-01",
+  time_of_day: null,
   season_id: "season-1",
   is_favorite: false,
   notes_summary: "Good session",

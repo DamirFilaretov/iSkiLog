@@ -18,6 +18,7 @@ type HydratedSetRow = {
   set_id: string
   event_type: "slalom" | "tricks" | "jump" | "other"
   date: string
+  time_of_day: string | null
   season_id: string | null
   is_favorite: boolean | null
   notes_summary: string | null
@@ -56,6 +57,7 @@ export function mapHydratedRowToSet(row: HydratedSetRow): SkiSet {
   const base = {
     id: row.set_id,
     date: row.date,
+    timeOfDay: row.time_of_day ?? null,
     seasonId: row.season_id ?? null,
     isFavorite: row.is_favorite ?? false,
     notes,

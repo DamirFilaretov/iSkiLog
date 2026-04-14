@@ -59,6 +59,7 @@ export default function AddSet() {
 
   const [event, setEvent] = useState<EventKey>("slalom")
   const [date, setDate] = useState(todayLocalIsoDate())
+  const [time, setTime] = useState("")
   const [isFavorite, setIsFavorite] = useState(false)
   const [notes, setNotes] = useState<StructuredNotes>(emptyNotes)
 
@@ -131,6 +132,7 @@ export default function AddSet() {
 
     setEvent(editingSet.event)
     setDate(editingSet.date)
+    setTime(editingSet.timeOfDay ?? "")
     setIsFavorite(editingSet.isFavorite)
     const loadedNotes =
       typeof editingSet.notes === "string"
@@ -280,6 +282,7 @@ export default function AddSet() {
         id,
         event,
         date,
+        timeOfDay: time || null,
         seasonId,
         isFavorite,
         notes,
@@ -297,6 +300,7 @@ export default function AddSet() {
         id,
         event,
         date,
+        timeOfDay: time || null,
         seasonId,
         isFavorite,
         notes,
@@ -316,6 +320,7 @@ export default function AddSet() {
         id,
         event,
         date,
+        timeOfDay: time || null,
         seasonId,
         isFavorite,
         notes,
@@ -335,6 +340,7 @@ export default function AddSet() {
       id,
       event: "other",
       date,
+      timeOfDay: time || null,
       seasonId,
       isFavorite,
       notes,
@@ -513,6 +519,8 @@ export default function AddSet() {
         <BaseFields
           date={date}
           onDateChange={setDate}
+          time={time}
+          onTimeChange={setTime}
           maxDate={maxDate}
           dateError={dateIsInFuture ? "Date cannot be in the future" : ""}
           notes={notes}

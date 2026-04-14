@@ -208,7 +208,7 @@ export default function SetSummary() {
 
   const details: { label: string; value: string }[] = [
     { label: "Event Type", value: eventLabel(skiSet) },
-    { label: "Date Logged", value: formatDateLabel(skiSet.date) }
+    { label: "Date Logged", value: formatDateLabel(skiSet.date) + (skiSet.timeOfDay ? ` · ${skiSet.timeOfDay}` : "") }
   ]
 
   async function handleConfirmDelete() {
@@ -268,7 +268,7 @@ export default function SetSummary() {
             <div className="mt-1 flex items-center gap-4 text-sm text-white/80">
               <div className="flex items-center gap-2">
                 <span>📅</span>
-                <span>{formatDateLabel(skiSet.date)}</span>
+                <span>{formatDateLabel(skiSet.date)}{skiSet.timeOfDay ? ` · ${skiSet.timeOfDay}` : ""}</span>
               </div>
             </div>
           </div>
