@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { Target, Clock3 } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import {
-  daysAgoLocalIsoDate,
   filterByDateRange,
-  todayLocalIsoDate,
   type InsightRangeKey
 } from "../../features/dateRange/dateRange"
 
@@ -19,6 +17,12 @@ type OtherInsightSource = {
 type Props = {
   sets: SkiSet[]
   dataSource?: OtherInsightSource
+  range: RangeKey
+  customStart: string
+  customEnd: string
+  onRangeChange: (range: RangeKey) => void
+  onCustomStartChange: (date: string) => void
+  onCustomEndChange: (date: string) => void
 }
 
 type OtherSet = Extract<SkiSet, { event: "other" }>
@@ -38,17 +42,7 @@ function buildOtherSourceFromSets(
   return { totalSets, totalHours }
 }
 
-export default function OtherInsights({ sets, dataSource }: Props) {
-  const [range, setRange] = useState<RangeKey>("week")
-  const [customStart, setCustomStart] = useState("")
-  const [customEnd, setCustomEnd] = useState("")
-
-  useEffect(() => {
-    if (range !== "custom") return
-    if (customStart && customEnd) return
-    setCustomStart(daysAgoLocalIsoDate(30))
-    setCustomEnd(todayLocalIsoDate())
-  }, [range, customStart, customEnd])
+export default function OtherInsights({ sets, dataSource, range, customStart, customEnd, onRangeChange, onCustomStartChange, onCustomEndChange }: Props) {
 
   const source = useMemo<OtherInsightSource>(() => {
     if (dataSource) return dataSource
@@ -64,7 +58,7 @@ export default function OtherInsights({ sets, dataSource }: Props) {
             <button
               key={key}
               type="button"
-              onClick={() => setRange(key)}
+              onClick={() => onRangeChange(key)}
               className={
                 key === range
                   ? "rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-900 shadow-sm"
@@ -87,14 +81,14 @@ export default function OtherInsights({ sets, dataSource }: Props) {
         <div className="px-4 flex flex-col gap-3 lg:grid lg:grid-cols-2">
           <DateFieldNativeOverlay
             value={customStart}
-            onChange={setCustomStart}
+            onChange={onCustomStartChange}
             label="Start date"
             placeholder="Select start date"
             variant="insight"
           />
           <DateFieldNativeOverlay
             value={customEnd}
-            onChange={setCustomEnd}
+            onChange={onCustomEndChange}
             label="End date"
             placeholder="Select end date"
             variant="insight"

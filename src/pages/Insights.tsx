@@ -29,6 +29,12 @@ import {
   getMonthlyProgress,
   getCurrentStreak
 } from "../features/insights/insightsSelectors"
+import {
+  filterByDateRange,
+  daysAgoLocalIsoDate,
+  todayLocalIsoDate,
+  type InsightRangeKey
+} from "../features/dateRange/dateRange"
 
 type ExportRange = "season" | "month" | "week" | "custom"
 
@@ -130,15 +136,21 @@ export default function Insights() {
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
   const [exportError, setExportError] = useState<string | null>(null)
+  const [range, setRange] = useState<InsightRangeKey>("week")
+  const [insightCustomStart, setInsightCustomStart] = useState("")
+  const [insightCustomEnd, setInsightCustomEnd] = useState("")
 
   const getSeasonLabel = (startDate: string) => {
     const year = startDate.slice(0, 4)
     return `${year} Season`
   }
 
-  const getSeasonTotalLabel = (event: EventKey | "all", seasonYear: string) => {
+  const getSeasonTotalLabel = (event: EventKey | "all", range: InsightRangeKey, seasonYear: string) => {
     if (event === "all") return `${seasonYear} training sets:`
-    return `${seasonYear} ${event} sets:`
+    if (range === "season") return `${seasonYear} ${event} sets:`
+    if (range === "week") return `${titleCase(event)} sets this week:`
+    if (range === "month") return `${titleCase(event)} sets this month:`
+    return "Total sets during selected period:"
   }
 
   const sortedSeasons = useMemo(() => {
@@ -164,6 +176,13 @@ export default function Insights() {
     if (!eventParam) return
     setSelectedEvent(eventParam)
   }, [eventParam])
+
+  useEffect(() => {
+    if (range !== "custom") return
+    if (insightCustomStart && insightCustomEnd) return
+    setInsightCustomStart(daysAgoLocalIsoDate(30))
+    setInsightCustomEnd(todayLocalIsoDate())
+  }, [range, insightCustomStart, insightCustomEnd])
 
   const selectedSeason = useMemo(() => {
     if (!selectedSeasonId) return undefined
@@ -191,6 +210,11 @@ export default function Insights() {
     if (selectedEvent === "all") return seasonSets
     return seasonSets.filter(s => s.event === selectedEvent)
   }, [seasonSets, selectedEvent])
+
+  const filteredRangeSets = useMemo(() => {
+    if (selectedEvent === "all") return filteredSeasonSets
+    return filterByDateRange(filteredSeasonSets, range, { customStart: insightCustomStart, customEnd: insightCustomEnd })
+  }, [filteredSeasonSets, selectedEvent, range, insightCustomStart, insightCustomEnd])
 
   const weeklyStats = useMemo(() => getWeeklyStats(filteredSeasonSets), [filteredSeasonSets])
 
@@ -229,7 +253,7 @@ export default function Insights() {
   )
 
   const seasonYear = selectedSeason?.startDate.slice(0, 4) ?? ""
-  const seasonTotalLabel = getSeasonTotalLabel(selectedEvent, seasonYear)
+  const seasonTotalLabel = getSeasonTotalLabel(selectedEvent, range, seasonYear)
   const showSlalomInsights = selectedEvent === "slalom"
   const showTricksInsights = selectedEvent === "tricks"
   const showJumpInsights = selectedEvent === "jump"
@@ -611,24 +635,56 @@ export default function Insights() {
 
         <SeasonOverviewCard
           label={seasonTotalLabel}
-          totalSets={filteredSeasonSets.length}
+          totalSets={filteredRangeSets.length}
           event={selectedEvent}
         />
 
         {showSlalomInsights ? (
-          <SlalomInsights sets={filteredSeasonSets} />
+          <SlalomInsights
+            sets={filteredSeasonSets}
+            range={range}
+            customStart={insightCustomStart}
+            customEnd={insightCustomEnd}
+            onRangeChange={setRange}
+            onCustomStartChange={setInsightCustomStart}
+            onCustomEndChange={setInsightCustomEnd}
+          />
         ) : null}
 
         {showTricksInsights ? (
-          <TricksInsights sets={filteredSeasonSets} />
+          <TricksInsights
+            sets={filteredSeasonSets}
+            range={range}
+            customStart={insightCustomStart}
+            customEnd={insightCustomEnd}
+            onRangeChange={setRange}
+            onCustomStartChange={setInsightCustomStart}
+            onCustomEndChange={setInsightCustomEnd}
+          />
         ) : null}
 
         {showJumpInsights ? (
-          <JumpInsights sets={filteredSeasonSets} />
+          <JumpInsights
+            sets={filteredSeasonSets}
+            range={range}
+            customStart={insightCustomStart}
+            customEnd={insightCustomEnd}
+            onRangeChange={setRange}
+            onCustomStartChange={setInsightCustomStart}
+            onCustomEndChange={setInsightCustomEnd}
+          />
         ) : null}
 
         {showOtherInsights ? (
-          <OtherInsights sets={filteredSeasonSets} />
+          <OtherInsights
+            sets={filteredSeasonSets}
+            range={range}
+            customStart={insightCustomStart}
+            customEnd={insightCustomEnd}
+            onRangeChange={setRange}
+            onCustomStartChange={setInsightCustomStart}
+            onCustomEndChange={setInsightCustomEnd}
+          />
         ) : null}
 
         {showAllEventOverview ? (

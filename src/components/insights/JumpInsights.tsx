@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { Trophy, TrendingUp, Plane, Flag } from "lucide-react"
 import type { SkiSet } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import { usePreferences } from "../../lib/preferences"
 import {
-  daysAgoLocalIsoDate,
   filterByDateRange,
-  type InsightRangeKey,
-  todayLocalIsoDate
+  type InsightRangeKey
 } from "../../features/dateRange/dateRange"
 
 type RangeKey = InsightRangeKey
@@ -27,6 +25,12 @@ type JumpInsightSource = {
 type Props = {
   sets: SkiSet[]
   dataSource?: JumpInsightSource
+  range: RangeKey
+  customStart: string
+  customEnd: string
+  onRangeChange: (range: RangeKey) => void
+  onCustomStartChange: (date: string) => void
+  onCustomEndChange: (date: string) => void
 }
 
 function isoToDate(iso: string) {
@@ -117,18 +121,8 @@ function buildJumpSourceFromSets(
   }
 }
 
-export default function JumpInsights({ sets, dataSource }: Props) {
+export default function JumpInsights({ sets, dataSource, range, customStart, customEnd, onRangeChange, onCustomStartChange, onCustomEndChange }: Props) {
   const { preferences } = usePreferences()
-  const [range, setRange] = useState<RangeKey>("week")
-  const [customStart, setCustomStart] = useState("")
-  const [customEnd, setCustomEnd] = useState("")
-
-  useEffect(() => {
-    if (range !== "custom") return
-    if (customStart && customEnd) return
-    setCustomStart(daysAgoLocalIsoDate(30))
-    setCustomEnd(todayLocalIsoDate())
-  }, [range, customStart, customEnd])
 
   // Default source is computed from real jump sets. dataSource stays as an override hook.
   const source = useMemo<JumpInsightSource>(() => {
@@ -151,7 +145,7 @@ export default function JumpInsights({ sets, dataSource }: Props) {
             <button
               key={key}
               type="button"
-              onClick={() => setRange(key)}
+              onClick={() => onRangeChange(key)}
               className={
                 key === range
                   ? "rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-900 shadow-sm"
@@ -174,14 +168,14 @@ export default function JumpInsights({ sets, dataSource }: Props) {
         <div className="px-4 flex flex-col gap-3 lg:grid lg:grid-cols-2">
           <DateFieldNativeOverlay
             value={customStart}
-            onChange={setCustomStart}
+            onChange={onCustomStartChange}
             label="Start date"
             placeholder="Select start date"
             variant="insight"
           />
           <DateFieldNativeOverlay
             value={customEnd}
-            onChange={setCustomEnd}
+            onChange={onCustomEndChange}
             label="End date"
             placeholder="Select end date"
             variant="insight"
