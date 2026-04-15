@@ -1,6 +1,15 @@
 import type { StructuredNotes } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 
+function formatTimeDisplay(time: string): string {
+  const [hourText, minuteText] = time.split(":")
+  const hour = Number.parseInt(hourText ?? "", 10)
+  const minute = Number.parseInt(minuteText ?? "", 10)
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return time
+  const d = new Date(2000, 0, 1, hour, minute)
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d)
+}
+
 type Props = {
   date: string
   onDateChange: (value: string) => void
@@ -52,12 +61,24 @@ export default function BaseFields({
 
           <div className="w-[35%]">
             <label className="block text-sm text-gray-500 mb-1">Time</label>
-            <input
-              type="time"
-              value={time}
-              onChange={e => onTimeChange(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900"
-            />
+            <div className="relative w-full min-w-0">
+              <div
+                className={[
+                  "w-full rounded-xl border border-gray-200 bg-white px-4 py-3",
+                  "pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis",
+                  time ? "text-gray-900" : "text-slate-400"
+                ].join(" ")}
+              >
+                {time ? formatTimeDisplay(time) : "Time"}
+              </div>
+              <input
+                type="time"
+                value={time}
+                onChange={e => onTimeChange(e.target.value)}
+                className="native-time-overlay-input"
+                aria-label="Time"
+              />
+            </div>
           </div>
         </div>
 
