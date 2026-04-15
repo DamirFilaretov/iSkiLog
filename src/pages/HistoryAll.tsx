@@ -14,6 +14,10 @@ export default function HistoryAll() {
     return [...sets].sort((a, b) => {
       if (a.date > b.date) return -1
       if (a.date < b.date) return 1
+      // Same date: sort by time descending, nulls last
+      if (a.timeOfDay && b.timeOfDay) return b.timeOfDay.localeCompare(a.timeOfDay)
+      if (a.timeOfDay) return -1
+      if (b.timeOfDay) return 1
       return 0
     })
   }, [sets])
