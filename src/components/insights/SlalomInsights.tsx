@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { Trophy, TrendingUp } from "lucide-react"
 import {
   CartesianGrid,
@@ -20,9 +20,7 @@ import {
 } from "../../features/insights/insightsSelectors"
 import { getAverageTournamentSpeedStep } from "../../features/insights/slalomSpeedSteps"
 import {
-  daysAgoLocalIsoDate,
   filterByDateRange,
-  todayLocalIsoDate,
   type InsightRangeKey
 } from "../../features/dateRange/dateRange"
 
@@ -30,6 +28,12 @@ type RangeKey = InsightRangeKey
 
 type Props = {
   sets: SkiSet[]
+  range: RangeKey
+  customStart: string
+  customEnd: string
+  onRangeChange: (range: RangeKey) => void
+  onCustomStartChange: (date: string) => void
+  onCustomEndChange: (date: string) => void
 }
 
 const ROPE_LENGTHS = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
@@ -229,18 +233,8 @@ function SeriesChart({
   )
 }
 
-export default function SlalomInsights({ sets }: Props) {
-  const [range, setRange] = useState<RangeKey>("week")
-  const [customStart, setCustomStart] = useState("")
-  const [customEnd, setCustomEnd] = useState("")
+export default function SlalomInsights({ sets, range, customStart, customEnd, onRangeChange, onCustomStartChange, onCustomEndChange }: Props) {
   const { preferences } = usePreferences()
-
-  useEffect(() => {
-    if (range !== "custom") return
-    if (customStart && customEnd) return
-    setCustomStart(daysAgoLocalIsoDate(30))
-    setCustomEnd(todayLocalIsoDate())
-  }, [range, customStart, customEnd])
 
   const filteredSets = useMemo(
     () =>
@@ -289,7 +283,7 @@ export default function SlalomInsights({ sets }: Props) {
             <button
               key={key}
               type="button"
-              onClick={() => setRange(key)}
+              onClick={() => onRangeChange(key)}
               className={
                 key === range
                   ? "rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-900 shadow-sm"
@@ -312,14 +306,14 @@ export default function SlalomInsights({ sets }: Props) {
         <div className="px-4 flex flex-col gap-3 lg:grid lg:grid-cols-2">
           <DateFieldNativeOverlay
             value={customStart}
-            onChange={setCustomStart}
+            onChange={onCustomStartChange}
             label="Start date"
             placeholder="Select start date"
             variant="insight"
           />
           <DateFieldNativeOverlay
             value={customEnd}
-            onChange={setCustomEnd}
+            onChange={onCustomEndChange}
             label="End date"
             placeholder="Select end date"
             variant="insight"

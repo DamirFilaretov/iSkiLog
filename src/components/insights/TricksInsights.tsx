@@ -12,9 +12,7 @@ import {
 import { TRICK_CATALOG } from "../../features/tricks/trickCatalog"
 import { useAuth } from "../../auth/AuthProvider"
 import {
-  daysAgoLocalIsoDate,
   filterByDateRange,
-  todayLocalIsoDate,
   type InsightRangeKey
 } from "../../features/dateRange/dateRange"
 import { captureHandledException } from "../../lib/sentryHandled"
@@ -35,6 +33,12 @@ type TricksInsightDataSource = {
 type Props = {
   sets: SkiSet[]
   dataSource?: TricksInsightDataSource
+  range: RangeKey
+  customStart: string
+  customEnd: string
+  onRangeChange: (range: RangeKey) => void
+  onCustomStartChange: (date: string) => void
+  onCustomEndChange: (date: string) => void
 }
 
 function sessionsFromSets(sets: SkiSet[]): TrickSession[] {
@@ -48,12 +52,9 @@ function sessionsFromSets(sets: SkiSet[]): TrickSession[] {
     }))
 }
 
-export default function TricksInsights({ sets, dataSource }: Props) {
+export default function TricksInsights({ sets, dataSource, range, customStart, customEnd, onRangeChange, onCustomStartChange, onCustomEndChange }: Props) {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [range, setRange] = useState<RangeKey>("week")
-  const [customStart, setCustomStart] = useState("")
-  const [customEnd, setCustomEnd] = useState("")
   const [learnedTrickIds, setLearnedTrickIds] = useState<Set<string> | null>(() => {
     if (!user) return null
     return readCachedLearnedTrickIds(user.id)
@@ -69,13 +70,6 @@ export default function TricksInsights({ sets, dataSource }: Props) {
     () => dataSource?.sessions ?? sessionsFromSets(sets),
     [dataSource?.sessions, sets]
   )
-
-  useEffect(() => {
-    if (range !== "custom") return
-    if (customStart && customEnd) return
-    setCustomStart(daysAgoLocalIsoDate(30))
-    setCustomEnd(todayLocalIsoDate())
-  }, [range, customStart, customEnd])
 
   useEffect(() => {
     let active = true
@@ -203,7 +197,7 @@ export default function TricksInsights({ sets, dataSource }: Props) {
             <button
               key={key}
               type="button"
-              onClick={() => setRange(key)}
+              onClick={() => onRangeChange(key)}
               className={
                 key === range
                   ? "rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-900 shadow-sm"
@@ -226,14 +220,14 @@ export default function TricksInsights({ sets, dataSource }: Props) {
         <div className="px-4 flex flex-col gap-3 lg:grid lg:grid-cols-2">
           <DateFieldNativeOverlay
             value={customStart}
-            onChange={setCustomStart}
+            onChange={onCustomStartChange}
             label="Start date"
             placeholder="Select start date"
             variant="insight"
           />
           <DateFieldNativeOverlay
             value={customEnd}
-            onChange={setCustomEnd}
+            onChange={onCustomEndChange}
             label="End date"
             placeholder="Select end date"
             variant="insight"
