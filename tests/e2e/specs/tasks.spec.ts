@@ -15,7 +15,7 @@ function taskRowByTitle(page: Page, title: string): Locator {
 }
 
 async function openNewTaskModal(page: Page) {
-  await tasksBlock(page).getByRole("button", { name: "Add task" }).click()
+  await tasksBlock(page).getByRole("button", { name: "Add goal" }).click()
   await expect(page.getByTestId("task-modal")).toBeVisible()
 }
 
@@ -71,7 +71,7 @@ test("tasks: mark done and move to done section", async ({ page }) => {
   await addTask(page, { title })
 
   const row = taskRowByTitle(page, title)
-  await row.getByRole("button", { name: "Mark task as done" }).click()
+  await row.getByRole("button", { name: "Mark goal as done" }).click()
 
   await expect(tasksBlock(page).getByTestId("tasks-done").getByText(title)).toBeVisible()
   await expect(row.getByTestId("task-title")).toHaveClass(/line-through/)
@@ -82,8 +82,8 @@ test("tasks: edit task title and deadline", async ({ page }) => {
   await addTask(page, { title })
 
   const row = taskRowByTitle(page, title)
-  await row.getByRole("button", { name: "Edit task" }).click()
-  await expect(page.getByRole("heading", { name: "Edit Task" })).toBeVisible()
+  await row.getByRole("button", { name: "Edit goal" }).click()
+  await expect(page.getByRole("heading", { name: "Edit Goal" })).toBeVisible()
 
   const updatedTitle = `${title}-updated`
   await page.getByTestId("task-title-input").fill(updatedTitle)
@@ -99,9 +99,9 @@ test("tasks: delete task", async ({ page }) => {
   const title = `task-delete-${Date.now()}`
   await addTask(page, { title })
 
-  await taskRowByTitle(page, title).getByRole("button", { name: "Delete task" }).click()
+  await taskRowByTitle(page, title).getByRole("button", { name: "Delete goal" }).click()
   const deleteModal = page.getByTestId("task-delete-modal")
-  await expect(deleteModal.getByText("Delete this task?")).toBeVisible()
+  await expect(deleteModal.getByText("Delete this goal?")).toBeVisible()
   await deleteModal.getByRole("button", { name: /^Delete$/ }).click()
 
   await expect(taskRowByTitle(page, title)).toHaveCount(0)

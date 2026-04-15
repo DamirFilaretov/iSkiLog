@@ -214,7 +214,7 @@ export default function TasksBlock() {
         })
         console.error("Failed to load tasks", err)
         if (!active) return
-        setLoadError("Unable to load tasks")
+        setLoadError("Unable to load goals")
       } finally {
         if (active) setLoading(false)
       }
@@ -290,7 +290,7 @@ export default function TasksBlock() {
         }
       })
       console.error("Failed to save task", err)
-      setSaveError("Unable to save task. Please try again.")
+      setSaveError("Unable to save goal. Please try again.")
     } finally {
       setModalSaving(false)
     }
@@ -327,7 +327,7 @@ export default function TasksBlock() {
         }
       })
       console.error("Failed to toggle task state", err)
-      setSaveError("Unable to save task. Please try again.")
+      setSaveError("Unable to save goal. Please try again.")
       setTasks(prev => prev.map(item => (item.id === task.id ? task : item)))
     } finally {
       setPending(task.id, false)
@@ -365,7 +365,7 @@ export default function TasksBlock() {
         }
       })
       console.error("Failed to delete task", err)
-      setSaveError("Unable to delete task. Please try again.")
+      setSaveError("Unable to delete goal. Please try again.")
     } finally {
       setPending(task.id, false)
       setDeleteSubmitting(false)
@@ -388,7 +388,7 @@ export default function TasksBlock() {
           type="button"
           onClick={() => void handleToggleDone(task)}
           disabled={disabled}
-          aria-label={task.isDone ? "Mark task as not done" : "Mark task as done"}
+          aria-label={task.isDone ? "Mark goal as not done" : "Mark goal as done"}
           className={[
             "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition",
             task.isDone
@@ -426,7 +426,7 @@ export default function TasksBlock() {
             type="button"
             onClick={() => openEditModal(task)}
             disabled={disabled}
-            aria-label="Edit task"
+            aria-label="Edit goal"
             className="rounded-lg p-1.5 text-blue-600 transition hover:bg-slate-100 hover:text-blue-700 disabled:opacity-60"
           >
             <Pencil className="h-4 w-4" />
@@ -435,7 +435,7 @@ export default function TasksBlock() {
             type="button"
             onClick={() => requestDelete(task)}
             disabled={disabled}
-            aria-label="Delete task"
+            aria-label="Delete goal"
             className="rounded-lg p-1.5 text-red-500 transition hover:bg-slate-100 hover:text-red-600 disabled:opacity-60"
           >
             <Trash2 className="h-4 w-4" />
@@ -452,7 +452,7 @@ export default function TasksBlock() {
         <button
           type="button"
           onClick={openCreateModal}
-          aria-label="Add task"
+          aria-label="Add goal"
           className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white"
         >
           <Plus className="h-4 w-4" />
@@ -510,7 +510,7 @@ export default function TasksBlock() {
           />
 
           <div className="relative w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h3 className="text-base font-semibold text-gray-900">Delete this task?</h3>
+            <h3 className="text-base font-semibold text-gray-900">Delete this goal?</h3>
             <p className="mt-1 text-sm text-gray-500">This action cannot be undone.</p>
 
             <div className="mt-4 flex gap-3">

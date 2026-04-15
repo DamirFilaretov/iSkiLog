@@ -79,49 +79,57 @@ export default function TaskModal({
   const today = useMemo(() => toLocalIsoDate(new Date()), [])
 
   const [title, setTitle] = useState(initialTitle)
-  const [dueDate, setDueDate] = useState<string | null>(
-    mode === "create" ? (initialDueDate ?? today) : initialDueDate
+  const [hasDeadline, setHasDeadline] = useState(() =>
+    mode === "create" ? true : initialDueDate !== null
   )
+  // calendarDate always holds the displayed/selected date; submitted value is derived from hasDeadline
+  const [calendarDate, setCalendarDate] = useState<string>(() => initialDueDate ?? today)
   const [validationError, setValidationError] = useState<string | null>(null)
-  const [monthAnchor, setMonthAnchor] = useState<Date>(() => {
-    if (mode === "create" && !initialDueDate) return fromIsoToLocalDate(today)
-    if (initialDueDate) return fromIsoToLocalDate(initialDueDate)
-    return fromIsoToLocalDate(today)
-  })
+  const [monthAnchor, setMonthAnchor] = useState<Date>(() =>
+    fromIsoToLocalDate(initialDueDate ?? today)
+  )
 
   useEffect(() => {
     setTitle(initialTitle)
-    const nextDueDate = mode === "create" ? (initialDueDate ?? today) : initialDueDate
-    setDueDate(nextDueDate)
+    const nextHasDeadline = mode === "create" ? true : initialDueDate !== null
+    setHasDeadline(nextHasDeadline)
+    const nextCalendarDate = initialDueDate ?? today
+    setCalendarDate(nextCalendarDate)
     setValidationError(null)
-    if (nextDueDate) {
-      setMonthAnchor(fromIsoToLocalDate(nextDueDate))
-    } else {
-      setMonthAnchor(fromIsoToLocalDate(today))
-    }
+    setMonthAnchor(fromIsoToLocalDate(nextCalendarDate))
   }, [mode, initialTitle, initialDueDate, today])
 
   const monthLabel = MONTH_FORMATTER.format(monthAnchor)
   const calendarCells = useMemo(() => buildCalendarCells(monthAnchor), [monthAnchor])
 
-  const modalTitle = mode === "create" ? "New Task" : "Edit Task"
-  const submitLabel = mode === "create" ? "Add Task" : "Save Changes"
+  const modalTitle = mode === "create" ? "New Goal" : "Edit Goal"
+  const submitLabel = mode === "create" ? "Add Goal" : "Save Changes"
 
   async function handleSubmit() {
     const trimmed = title.trim()
     if (trimmed.length === 0) {
-      setValidationError("Task title is required.")
+      setValidationError("Goal title is required.")
       return
     }
     if (trimmed.length > 140) {
-      setValidationError("Task title must be 140 characters or less.")
+      setValidationError("Goal title must be 140 characters or less.")
       return
     }
 
     setValidationError(null)
     await onSubmit({
       title: trimmed,
-      dueDate
+      dueDate: hasDeadline ? calendarDate : null
+    })
+  }
+
+  function toggleDeadline() {
+    setHasDeadline(prev => {
+      if (!prev) {
+        // turning on: sync month view to the currently selected calendar date
+        setMonthAnchor(fromIsoToLocalDate(calendarDate))
+      }
+      return !prev
     })
   }
 
@@ -138,7 +146,7 @@ export default function TaskModal({
       <button
         type="button"
         onClick={onCancel}
-        aria-label="Close task modal"
+        aria-label="Close goal modal"
         className="absolute inset-0 bg-black/35"
       />
 
@@ -156,7 +164,7 @@ export default function TaskModal({
 
         <div className="mt-6">
           <label htmlFor="task-title-input" className="text-sm text-slate-700">
-            Task Title
+            Goal Title
           </label>
           <input
             id="task-title-input"
@@ -164,7 +172,7 @@ export default function TaskModal({
             value={title}
             maxLength={140}
             onChange={event => setTitle(event.target.value)}
-            placeholder="Enter task title..."
+            placeholder="Enter goal title..."
             data-testid="task-title-input"
             className="mt-2 w-full rounded-2xl border-2 border-blue-500 bg-white px-4 py-3 text-base text-slate-900 outline-none placeholder:text-slate-400"
           />
@@ -175,71 +183,84 @@ export default function TaskModal({
             <label className="text-sm text-slate-700">Deadline</label>
             <button
               type="button"
-              onClick={() => setDueDate(null)}
+              role="switch"
+              aria-checked={hasDeadline}
+              aria-label={hasDeadline ? "Remove deadline" : "Set deadline"}
+              onClick={toggleDeadline}
               data-testid="task-clear-deadline"
-              className="text-xs text-slate-500 underline-offset-2 hover:underline"
+              className={[
+                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200",
+                hasDeadline ? "bg-blue-500" : "bg-slate-300"
+              ].join(" ")}
             >
-              Clear
+              <span
+                className={[
+                  "inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
+                  hasDeadline ? "translate-x-6" : "translate-x-1"
+                ].join(" ")}
+              />
             </button>
           </div>
 
-          <div className="mt-2 rounded-2xl bg-slate-100 p-3">
-            <div className="mb-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={showPreviousMonth}
-                data-testid="task-prev-month"
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600"
-                aria-label="Previous month"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <p className="text-base font-medium text-slate-900">{monthLabel}</p>
-              <button
-                type="button"
-                onClick={showNextMonth}
-                data-testid="task-next-month"
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600"
-                aria-label="Next month"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+          {hasDeadline && (
+            <div className="mt-2 rounded-2xl bg-slate-100 p-3">
+              <div className="mb-3 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={showPreviousMonth}
+                  data-testid="task-prev-month"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600"
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <p className="text-base font-medium text-slate-900">{monthLabel}</p>
+                <button
+                  type="button"
+                  onClick={showNextMonth}
+                  data-testid="task-next-month"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-slate-600"
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
 
-            <div className="grid grid-cols-7 gap-y-1 text-center">
-              {WEEKDAY_NAMES.map(name => (
-                <span key={name} className="text-xs text-slate-500">
-                  {name}
-                </span>
-              ))}
-            </div>
+              <div className="grid grid-cols-7 gap-y-1 text-center">
+                {WEEKDAY_NAMES.map(name => (
+                  <span key={name} className="text-xs text-slate-500">
+                    {name}
+                  </span>
+                ))}
+              </div>
 
-            <div className="mt-1 grid grid-cols-7 gap-y-1 text-center">
-              {calendarCells.map(cell => {
-                if (cell.kind === "empty") {
-                  return <span key={cell.key} className="h-8" />
-                }
+              <div className="mt-1 grid grid-cols-7 gap-y-1 text-center">
+                {calendarCells.map(cell => {
+                  if (cell.kind === "empty") {
+                    return <span key={cell.key} className="h-8" />
+                  }
 
-                const selected = dueDate === cell.iso
-                return (
-                  <button
-                    key={cell.key}
-                    type="button"
-                    onClick={() => setDueDate(cell.iso)}
-                    data-testid={`task-day-${cell.day}`}
-                    className={[
-                      "mx-auto h-8 w-8 rounded-full text-sm transition",
-                      selected
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-700 hover:bg-slate-200"
-                    ].join(" ")}
-                  >
-                    {cell.day}
-                  </button>
-                )
-              })}
+                  const selected = calendarDate === cell.iso
+                  return (
+                    <button
+                      key={cell.key}
+                      type="button"
+                      onClick={() => setCalendarDate(cell.iso)}
+                      data-testid={`task-day-${cell.day}`}
+                      className={[
+                        "mx-auto h-8 w-8 rounded-full text-sm transition",
+                        selected
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-700 hover:bg-slate-200"
+                      ].join(" ")}
+                    >
+                      {cell.day}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {validationError ? (
