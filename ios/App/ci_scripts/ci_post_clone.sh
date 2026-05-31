@@ -16,4 +16,4 @@ echo "Working dir: $(pwd)"
 
 npm install
 npm run build
-npx cap sync ios
+npx cap copy ios
