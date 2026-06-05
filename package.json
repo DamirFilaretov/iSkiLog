@@ -43,6 +43,7 @@
     "@capacitor/cli": "^8.1.0",
     "@capacitor/core": "^8.1.0",
     "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/ios": "^8.3.4",
     "@capacitor/share": "^8.0.0",
     "@sentry/capacitor": "3.1.0",
     "@sentry/react": "10.40.0",
