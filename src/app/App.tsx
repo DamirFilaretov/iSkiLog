@@ -32,7 +32,7 @@ const SentryRoutes = Sentry.withSentryReactRouterV7Routing(Routes)
 function AppLoading() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="px-4 pt-6 pb-2">
+      <div className="px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-2">
         <div className="flex items-start justify-between">
           <div>
             <div className="h-5 w-28 rounded bg-slate-200 animate-pulse" />
@@ -83,7 +83,7 @@ function AppLoading() {
 
 function HydrationErrorState(props: { message: string; onRetry: () => void }) {
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pt-10">
+    <div className="min-h-screen bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))]">
       <div className="mx-auto max-w-md rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/60">
         <h1 className="text-lg font-semibold text-slate-900">Data load failed</h1>
         <p className="mt-2 text-sm text-slate-600">{props.message}</p>
@@ -180,7 +180,7 @@ function GooglePolicyGate(props: { user: User; onAccepted: () => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pt-10">
+    <div className="min-h-screen bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))]">
       <div className="mx-auto max-w-md rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/60">
         <h1 className="text-lg font-semibold text-slate-900">Policy Agreement</h1>
         <p className="mt-2 text-sm text-slate-600">
@@ -356,4 +356,3 @@ export default function App() {
     </SetsProvider>
   )
 }
-

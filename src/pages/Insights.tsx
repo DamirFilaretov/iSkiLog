@@ -579,7 +579,7 @@ export default function Insights() {
 
   if (!setsHydrated) {
     return (
-      <div className="px-4 pt-10">
+      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))]">
         <p className="text-sm text-gray-500">
           Loading insights
         </p>
@@ -589,7 +589,7 @@ export default function Insights() {
 
   if (!selectedSeason) {
     return (
-      <div className="px-4 pt-10">
+      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))]">
         <InsightsHeader
           seasons={dropdownSeasons}
           selectedSeasonId={selectedSeasonId}
