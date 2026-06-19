@@ -16,7 +16,8 @@
     "e2e:ui": "playwright test --ui",
     "e2e:headed": "playwright test --headed",
     "e2e:db:prepare": "node tests/e2e/scripts/db-prepare.mjs",
-    "e2e:db:cleanup": "node tests/e2e/scripts/db-cleanup.mjs"
+    "e2e:db:cleanup": "node tests/e2e/scripts/db-cleanup.mjs",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
@@ -28,6 +29,7 @@
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.23",
     "dotenv": "^16.6.1",
+    "patch-package": "^8.0.1",
     "pg": "^8.16.3",
     "postcss": "^8.5.6",
     "supabase": "^2.91.0",

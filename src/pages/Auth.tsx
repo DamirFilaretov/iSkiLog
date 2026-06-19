@@ -4,6 +4,7 @@ import { SignInWithApple } from "@capacitor-community/apple-sign-in"
 import { supabase } from "../lib/supabaseClient"
 import { Browser } from "@capacitor/browser"
 import { getNativeOAuthRedirectUrl, isNativeRuntime, isIOSNative, isAndroidNative } from "../lib/nativeOAuth"
+import { captureHandledException } from "../lib/sentryHandled"
 
 function generateNonce(length = 16): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
@@ -278,10 +279,18 @@ export default function Auth() {
           const family = result.response.familyName ?? ""
           const fullName = `${given} ${family}`.trim()
           if (fullName) {
-            await supabase.from("profiles").upsert({
+            const { error: upsertError } = await supabase.from("profiles").upsert({
               user_id: data.user.id,
               full_name: fullName
             })
+            if (upsertError) {
+              captureHandledException(upsertError, {
+                area: "sets",
+                action: "apple_profile_name_upsert",
+                screen: "auth",
+                identifiers: { user_id: data.user.id }
+              })
+            }
           }
         }
       } else {
