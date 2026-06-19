@@ -195,6 +195,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      if (lastHydratedUserIdRef.current === user.id) return
+      lastHydratedUserIdRef.current = user.id
+
       try {
         setHydrationStatus("loading")
         setHydrationError(null)
@@ -255,6 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setHydrationStatus("success")
         setSetsHydrated(true)
       } catch (err) {
+        lastHydratedUserIdRef.current = null
         captureHandledException(err, {
           area: "history",
           action: "hydrate_data",
