@@ -25,8 +25,9 @@ test-results
 .env.*
 *.local
 
-# Local notes (Obsidian vault)
-docs/obsidianVault/
+# Obsidian vault — track notes + shared config, ignore personal workspace state
+docs/obsidianVault/.obsidian/workspace.json
+docs/obsidianVault/.obsidian/workspace-mobile.json
 
 # Editor directories and files
 .vscode/*
