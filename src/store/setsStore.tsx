@@ -42,20 +42,6 @@ function cacheKey(userId: string) {
   return `iskilog:cache:user:${userId}`
 }
 
-export function readSetsCache(userId: string): SetsCache | null {
-  if (typeof window === "undefined") return null
-  try {
-    const raw = window.localStorage.getItem(cacheKey(userId))
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as SetsCache
-    if (parsed.version !== CACHE_VERSION) return null
-    if (parsed.userId !== userId) return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
 function writeSetsCache(userId: string, state: SetsState) {
   if (typeof window === "undefined") return
   const payload: SetsCache = {

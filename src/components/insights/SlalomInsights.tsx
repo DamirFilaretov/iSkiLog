@@ -19,6 +19,7 @@ import {
   type SlalomSeriesPoint
 } from "../../features/insights/insightsSelectors"
 import { getAverageTournamentSpeedStep } from "../../features/insights/slalomSpeedSteps"
+import { ROPE_LENGTHS, ROPE_OFF } from "../../lib/skiFormat"
 import {
   filterByDateRange,
   type InsightRangeKey
@@ -36,8 +37,6 @@ type Props = {
   onCustomEndChange: (date: string) => void
 }
 
-const ROPE_LENGTHS = [18, 16, 14, 13, 12, 11.25, 10.75, 10.25, 9.75]
-const ROPE_OFF = ["15off", "22off", "28off", "32off", "35off", "38off", "39.5off", "41off", "43off"]
 const SCORE_PASS_SIZE = 6
 const SCORE_EPSILON = 1e-9
 const CHART_ROPE_SCORE_TICKS = ROPE_LENGTHS.map((_, index) => (index + 1) * SCORE_PASS_SIZE)

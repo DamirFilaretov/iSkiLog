@@ -10,8 +10,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 .npm-cache/
-df
-
 
 # dependencies
 node_modules
@@ -26,6 +24,9 @@ test-results
 .env
 .env.*
 *.local
+
+# Local notes (Obsidian vault)
+docs/obsidianVault/
 
 # Editor directories and files
 .vscode/*
