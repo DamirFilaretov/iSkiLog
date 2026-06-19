@@ -34,9 +34,18 @@ The raw nonce round-trips through Apple's JWT so Supabase can verify the token w
 
 On web or Android, `supabase.auth.signInWithOAuth({ provider: "apple" })` is used instead — same redirect pattern as [[google-oauth-uses-capacitor-browser-and-deep-links|Google OAuth]]. Apple button is hidden on Android because native-only Supabase config (bundle ID only, no Service ID) won't work via browser OAuth.
 
+## Capacitor 8 compatibility patch
+
+`@capacitor-community/apple-sign-in@7.1.0` ships a `Package.swift` that pins `capacitor-swift-pm` to `>= 7.0.0 < 8.0.0`, which conflicts with the rest of the project on Capacitor 8. The Swift source itself is compatible — only the version range is wrong.
+
+A `patch-package` patch in `patches/@capacitor-community+apple-sign-in+7.1.0.patch` bumps it to `from: "8.0.0"`. It is applied automatically via the `postinstall` npm script, including inside Xcode Cloud's `ci_post_clone.sh` (which runs `npm install`).
+
+> [!note] Package.resolved
+> `Package.resolved` does **not** change when this package is added because it is a local path dependency — SwiftPM only pins remote-URL packages. The `originHash` is stable across local-package additions. Running `xcodebuild -resolvePackageDependencies` from scratch produces identical content.
+
 ## Name on first sign-in only
 
-Apple provides `givenName` / `familyName` **only on the first sign-in**. `handleApple` in `src/pages/Auth.tsx` writes them directly to `profiles` after `signInWithIdToken` succeeds. `ensureProfileName` in [[hydration-is-centralized-in-authprovider|AuthProvider]] acts as a safety net for subsequent sign-ins but can't back-fill if Apple didn't provide the name.
+Apple provides `givenName` / `familyName` **only on the first sign-in**. `handleApple` in `src/pages/Auth.tsx` writes them directly to `profiles` after `signInWithIdToken` succeeds. Upsert errors are captured via `captureHandledException` — a silent failure here permanently loses the user's name. `ensureProfileName` in [[hydration-is-centralized-in-authprovider|AuthProvider]] acts as a safety net for subsequent sign-ins but can't back-fill if Apple didn't provide the name.
 
 ## Entitlements
 
