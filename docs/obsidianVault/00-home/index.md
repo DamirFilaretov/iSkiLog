@@ -40,6 +40,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[sentry-captures-handled-and-unhandled-errors]]
 - [[capacitor-wraps-the-app-for-android]]
 - [[google-oauth-uses-capacitor-browser-and-deep-links]]
+- [[apple-sign-in-uses-native-sdk-and-signInWithIdToken]]
 - [[recharts-and-jspdf-power-charts-and-exports]]
 
 ### Decisions

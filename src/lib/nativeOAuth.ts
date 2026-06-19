@@ -18,6 +18,14 @@ export async function getNativeOAuthRedirectUrl() {
   return `${appInfo.id}://auth`
 }
 
+export function isIOSNative() {
+  return Capacitor.getPlatform() === "ios"
+}
+
+export function isAndroidNative() {
+  return Capacitor.getPlatform() === "android"
+}
+
 /**
  * Limit callback handling only to our OAuth deep link target.
  */
