@@ -1,31 +1,33 @@
-[4/10/2026 8:57 AM] Damir: # iSkiLog Project Handoff
+# iSkiLog Project Handoff
 
 ## Purpose
 iSkiLog is a training log and analysis app for tournament-style waterski practice. The current product is built for individual skiers to:
 
 - log practice sets across four event families: slalom, tricks, jump, and other
-- organize all logged sets into season-based history
-- review trends and insights by event and date range
+- organize logged sets into calendar-year seasons
+- review trends and insights by event, season, and date range
 - manage short training tasks and practice focus items
+- maintain learned and in-progress trick-library state
 - export training summaries for reporting or sharing
-- use the app both as a web app and as a Capacitor-wrapped Android app
+- use the app both as a browser SPA and as a Capacitor-wrapped Android app
 
 This is not a generic social fitness product. The core value is structured self-tracking for waterski training, with the data model and UI shaped around real ski-session logging rather than general note-taking.
 
-## Current Source of Truth
+## Current Source Of Truth
 Workspace:
 
-C:\dev\iskilog
+`C:\dev\iSkiLog`
 
-This document reflects the codebase state as of April 10, 2026.
+This document reflects the codebase state as of June 19, 2026.
 
 If a future chat needs to verify anything, trust the code over this document and validate against:
 
-- [package.json](/c:/dev/iskilog/package.json)
-- [src/app/App.tsx](/c:/dev/iskilog/src/app/App.tsx)
-- [src/auth/AuthProvider.tsx](/c:/dev/iskilog/src/auth/AuthProvider.tsx)
-- [src/store/setsStore.tsx](/c:/dev/iskilog/src/store/setsStore.tsx)
-- [tests/e2e/db/schema.sql](/c:/dev/iskilog/tests/e2e/db/schema.sql)
+- [package.json](C:/dev/iSkiLog/package.json)
+- [src/app/App.tsx](C:/dev/iSkiLog/src/app/App.tsx)
+- [src/auth/AuthProvider.tsx](C:/dev/iSkiLog/src/auth/AuthProvider.tsx)
+- [src/store/setsStore.tsx](C:/dev/iSkiLog/src/store/setsStore.tsx)
+- [src/types/sets.ts](C:/dev/iSkiLog/src/types/sets.ts)
+- [tests/e2e/db/schema.sql](C:/dev/iSkiLog/tests/e2e/db/schema.sql)
 
 ## Product Model
 The app is centered around a single main domain object: a set.
@@ -34,33 +36,44 @@ A set always has shared base fields:
 
 - event type
 - date
+- optional time of day
 - season id
-- notes
 - favourite flag
+- structured notes
+
+Structured notes are not a single freeform string in the current model. They are stored as six named sections:
+
+- summary
+- workedOn
+- mistakes
+- whatHelped
+- nextSet
+- other
 
 Each set also has event-specific subtype data:
 
 - slalom: buoys, rope length, speed, passes count
 - tricks: duration, trick type (hands or toes)
-- jump: jump or cuts submode, attempts/passed/made/distance/cuts data
+- jump: jump or cuts submode, attempts, passed, made, distance, cuts type, cuts count
 - other: freeform activity name and duration
 
-The product treats a training year as a calendar-year season. That is a deliberate design choice, not an incidental implementation detail. The hydration layer actively normalizes season bounds to YYYY-01-01 through YYYY-12-31.
+The product treats a training year as a calendar-year season. That is a deliberate design choice, not an incidental implementation detail. The hydration layer normalizes season bounds to `YYYY-01-01` through `YYYY-12-31`.
 
 ## What The App Does Today
 
-### Authentication and onboarding
+### Authentication And Onboarding
 - Email/password auth is supported.
 - Google OAuth is supported for web and native.
-- Native OAuth uses Capacitor browser + deep-link callback handling.
-- New and returning users are gated by:
-  - welcome completion metadata
-  - policy acceptance metadata for Google-auth users
+- Native OAuth uses Capacitor Browser plus deep-link callback handling.
+- New and returning users are gated by welcome completion metadata.
+- Google-auth users are additionally gated by policy acceptance metadata.
+- Profile names are backfilled from auth metadata when the profile row has no `full_name`.
 
-### Core training workflows
+### Core Training Workflows
 - Log a new set.
 - Edit an existing set.
 - Delete a set.
+- Add date, optional time, and structured notes to a set.
 - Mark a set as favourite.
 - Browse history with filters by event, date range, and favourites.
 - See event-specific insights and all-event season summaries.
@@ -85,52 +98,51 @@ The product treats a training year as a calendar-year season. That is a delibera
 - Playwright + Vitest
 - Sentry React + Sentry Capacitor + Sentry Vite plugin
 
-Important dependency versions are in [package.json](/c:/dev/iskilog/package.json).
+Important dependency versions are in [package.json](C:/dev/iSkiLog/package.json).
 
 ## High-Level Architecture
 
-### Runtime composition
+### Runtime Composition
 Startup flow:
 
-1. [src/main.tsx](/c:/dev/iskilog/src/main.tsx) imports Sentry instrumentation first.
+1. [src/main.tsx](C:/dev/iSkiLog/src/main.tsx) imports Sentry instrumentation first.
 2. React root is created with Sentry React 19 error hooks.
-3. [src/app/App.tsx](/c:/dev/iskilog/src/app/App.tsx) wraps the app in:
-   - SetsProvider
-   - AuthProvider
-4. AuthProvider resolves auth state and hydrates all user-owned training data.
+3. [src/app/App.tsx](C:/dev/iSkiLog/src/app/App.tsx) wraps the app in `SetsProvider` and `AuthProvider`.
+4. `AuthProvider` resolves auth state and hydrates user-owned training data.
 5. Routing and tab-shell rendering happen after hydration and onboarding gates pass.
 
-### Data ownership model
+### Data Ownership Model
 The frontend is the main application layer. Supabase is the backend/data store. There is no separate custom Node/Express backend in this repo.
 
-That means most business logic is split between:
+Most business logic is split between:
 
-- frontend UI + state orchestration in src/
-- DB-side RPC and RLS behavior in Supabase schema/functions
+- frontend UI + state orchestration in `src/`
+- DB-side RPC, RLS policy, and table behavior in the Supabase schema/functions
 
 When debugging a data problem, always think in two layers:
-[4/10/2026 8:57 AM] Damir: 1. frontend shape and optimistic state behavior
-2. Supabase RPC / table policy / SQL behavior
 
-## Routing and App Shell
-Primary routes live in [src/app/App.tsx](/c:/dev/iskilog/src/app/App.tsx).
+1. frontend shape and optimistic state behavior
+2. Supabase RPC, table policy, and SQL behavior
+
+## Routing And App Shell
+Primary routes live in [src/app/App.tsx](C:/dev/iSkiLog/src/app/App.tsx).
 
 Main user routes:
 
-- / home
-- /history
-- /history/all
-- /add
-- /set/:id
-- /insights
-- /insights/tricks-library
-- /settings
-- /season-settings
-- /profile
-- /about
-- /privacy-security
+- `/`
+- `/history`
+- `/history/all`
+- `/add`
+- `/set/:id`
+- `/insights`
+- `/insights/tricks-library`
+- `/settings`
+- `/season-settings`
+- `/profile`
+- `/about`
+- `/privacy-security`
 
-/personal-info redirects to /profile.
+`/personal-info` redirects to `/profile`.
 
 Bottom tabs are intentionally restricted to:
 
@@ -142,8 +154,8 @@ History and add/edit flows are outside the tab shell.
 
 ## State Architecture
 
-### Global store
-The central client store is [src/store/setsStore.tsx](/c:/dev/iskilog/src/store/setsStore.tsx).
+### Global Store
+The central client store is [src/store/setsStore.tsx](C:/dev/iSkiLog/src/store/setsStore.tsx).
 
 It manages:
 
@@ -155,115 +167,129 @@ It manages:
 Key architectural decisions:
 
 - reducer-based state instead of Zustand/Redux
-- ADD_SET and UPDATE_SET move the changed set to the top of the list
-- SET_ALL preserves fetch order from backend hydration
-- store persists per-user cache to localStorage
+- `ADD_SET` and `UPDATE_SET` move the changed set to the top of the list
+- `SET_ALL` preserves fetch order from backend hydration
+- store writes a per-user localStorage cache after hydration has associated a cache user id
 
 Per-user cache key:
 
-iskilog:cache:user:<userId>
+`iskilog:cache:user:<userId>`
 
-### Other caches
+The store currently writes this cache but does not read it back during boot. Backend hydration through `fetchSets()` remains the source of truth.
+
+### Other Local Caches
 Other local caches in the app:
 
-- preferences: iskilog:preferences
-- tasks: iskilog:tasks:<userId>
-- learned tricks: iskilog:learned-tricks:<userId>
-- in-progress tricks: iskilog:in-progress-tricks:<userId>
+- preferences: `iskilog:preferences`
+- tasks: `iskilog:tasks:<userId>`
+- learned tricks: `iskilog:learned-tricks:<userId>`
+- in-progress tricks: `iskilog:in-progress-tricks:<userId>`
 
 These caches exist to improve perceived load speed and preserve state between refreshes, not to replace backend truth.
 
-## Authentication and Hydration
+`clearAppLocalCaches()` removes only keys with the `iskilog:` prefix so sign-out and identity changes do not touch unrelated localStorage data.
 
-### Auth provider responsibilities
-[src/auth/AuthProvider.tsx](/c:/dev/iskilog/src/auth/AuthProvider.tsx) is one of the most important files in the app.
+## Authentication And Hydration
+
+### Auth Provider Responsibilities
+[src/auth/AuthProvider.tsx](C:/dev/iSkiLog/src/auth/AuthProvider.tsx) is one of the most important files in the app.
 
 It is responsible for:
 
-- reading initial Supabase session
+- reading the initial Supabase session
 - subscribing to auth state changes
-- clearing app-local caches on sign-out / auth identity change
+- clearing app-local caches on sign-out or auth identity change
 - setting Sentry user context
+- ensuring profile name data exists
 - hydrating seasons and sets
 - normalizing seasons to calendar-year boundaries
-- ensuring the current season exists
-- activating the current season
+- ensuring the current-year season exists
+- activating the current-year season through `set_active_season_atomic`
+- avoiding duplicate hydration for the same user unless retry is requested
 - exposing retryable hydration state to the UI
 
 Hydration states:
 
-- idle
-- loading
-- success
-- error
+- `idle`
+- `loading`
+- `success`
+- `error`
 
 If hydration fails, the user gets a retry screen instead of a partially broken app shell.
 
-### Onboarding metadata
+### Onboarding Metadata
 The app uses Supabase user metadata for onboarding gates:
 
-- welcome_completed
-- welcome_completed_at
-- policy_accepted
-- policy_accepted_at
+- `welcome_completed`
+- `welcome_completed_at`
+- `policy_accepted`
+- `policy_accepted_at`
 
 This is product-significant. If a future change modifies onboarding, it must remain compatible with these metadata checks unless a migration is introduced.
 
 ## Supabase Backend Design
 
-### Frontend access pattern
-The app does not use raw table reads/writes everywhere. It intentionally uses a mixed approach:
+### Frontend Access Pattern
+The app intentionally uses a mixed access pattern:
 
-- RPCs for set hydration and transactional subtype operations
-- direct table CRUD for tasks, seasons, tricks-library state, profile updates, and some deletes/flags
+- RPCs for set hydration and transactional set create/update with subtype rows and structured notes
+- direct table CRUD for tasks, seasons, tricks-library state, profile updates, some deletes, and favourite toggles
 
 Key files:
 
-- [src/data/setsApi.ts](/c:/dev/iskilog/src/data/setsApi.ts)
-- [src/data/setsWriteApi.ts](/c:/dev/iskilog/src/data/setsWriteApi.ts)
-- [src/data/setsUpdateDeleteApi.ts](/c:/dev/iskilog/src/data/setsUpdateDeleteApi.ts)
-- [src/data/seasonsApi.ts](/c:/dev/iskilog/src/data/seasonsApi.ts)
-- [src/data/tasksApi.ts](/c:/dev/iskilog/src/data/tasksApi.ts)
-- [src/data/tricksLearnedApi.ts](/c:/dev/iskilog/src/data/tricksLearnedApi.ts)
-- [src/data/setSubtypeRpcPayload.ts](/c:/dev/iskilog/src/data/setSubtypeRpcPayload.ts)
+- [src/data/setsApi.ts](C:/dev/iSkiLog/src/data/setsApi.ts)
+- [src/data/setsWriteApi.ts](C:/dev/iSkiLog/src/data/setsWriteApi.ts)
+- [src/data/setsUpdateDeleteApi.ts](C:/dev/iSkiLog/src/data/setsUpdateDeleteApi.ts)
+- [src/data/seasonsApi.ts](C:/dev/iSkiLog/src/data/seasonsApi.ts)
+- [src/data/tasksApi.ts](C:/dev/iSkiLog/src/data/tasksApi.ts)
+- [src/data/tricksLearnedApi.ts](C:/dev/iSkiLog/src/data/tricksLearnedApi.ts)
+- [src/data/setSubtypeRpcPayload.ts](C:/dev/iSkiLog/src/data/setSubtypeRpcPayload.ts)
 
 ### Important RPCs
 The current app relies on these Supabase functions:
 
-- fetch_sets_hydrated
-- create_set_with_subtype
-- update_set_with_subtype
-- set_active_season_atomic
+- `fetch_sets_hydrated`
+- `create_set_with_subtype`
+- `update_set_with_subtype`
+- `set_active_season_atomic`
 
-These are not optional implementation details. If they change, the app’s create/edit/hydrate path changes with them.
+These are not optional implementation details. If they change, the app's create/edit/hydrate paths change with them.
 
-### Schema shape
+### Schema Shape
 Reference test/local schema:
 
-[tests/e2e/db/schema.sql](/c:/dev/iskilog/tests/e2e/db/schema.sql)
+[tests/e2e/db/schema.sql](C:/dev/iSkiLog/tests/e2e/db/schema.sql)
 
 Important tables:
 
-- profiles
-- seasons
-- sets
-- slalom_sets
-- tricks_sets
-- jump_sets
-- other_sets
-- user_tasks
-- user_learned_tricks
-- user_in_progress_tricks
+- `profiles`
+- `seasons`
+- `sets`
+- `set_notes`
+- `slalom_sets`
+- `tricks_sets`
+- `jump_sets`
+- `other_sets`
+- `user_tasks`
+- `user_learned_tricks`
+- `user_in_progress_tricks`
 
-The app assumes RLS is enabled and user-owned rows are scoped correctly.
+Important shape details:
+
+- `sets.time_of_day` is nullable.
+- `sets` has no freeform notes column; structured notes live in `set_notes`.
+- `fetch_sets_hydrated` joins `sets`, `set_notes`, and all subtype tables into one hydrated row shape.
+- create/update RPCs accept `p_notes` JSON and upsert into `set_notes`.
+- The app assumes RLS is enabled and user-owned rows are scoped correctly.
 
 ## Feature Areas
 
 ### Home
-[src/pages/Home.tsx](/c:/dev/iskilog/src/pages/Home.tsx)
+[src/pages/Home.tsx](C:/dev/iSkiLog/src/pages/Home.tsx)
 
 Purpose:
-[4/10/2026 8:57 AM] Damir: - landing dashboard after successful hydration
+
+- landing dashboard after successful hydration
 - current season summary
 - quick navigation into set logging
 - task management
@@ -274,7 +300,7 @@ Key behavior:
 - tasks are loaded and managed from the home page, not from a dedicated task page
 
 ### Add / Edit Set
-[src/pages/AddSet.tsx](/c:/dev/iskilog/src/pages/AddSet.tsx)
+[src/pages/AddSet.tsx](C:/dev/iSkiLog/src/pages/AddSet.tsx)
 
 Purpose:
 
@@ -284,30 +310,35 @@ Key implementation decisions:
 
 - one page handles both create and edit
 - event-specific field groups are split into components
+- shared base fields include date, optional time, and six structured note sections
+- older string notes are normalized into the `other` structured-note field when encountered in edit state
 - unit conversions depend on stored user preferences
 - create/update path is transactional via RPC
 - handled save errors are reported to Sentry and also surfaced in UI
 
 ### Set Summary
-[src/pages/SetSummary.tsx](/c:/dev/iskilog/src/pages/SetSummary.tsx)
+[src/pages/SetSummary.tsx](C:/dev/iSkiLog/src/pages/SetSummary.tsx)
 
 Purpose:
 
 - display a fully logged set
+- show structured notes sections with content
 - allow deletion
 
 Important:
 
 - delete failures are manually captured to Sentry
+- shared ski value formatting is imported from [src/lib/skiFormat.ts](C:/dev/iSkiLog/src/lib/skiFormat.ts)
 
 ### History
-[src/pages/History.tsx](/c:/dev/iskilog/src/pages/History.tsx)  
-[src/pages/HistoryAll.tsx](/c:/dev/iskilog/src/pages/HistoryAll.tsx)
+[src/pages/History.tsx](C:/dev/iSkiLog/src/pages/History.tsx)  
+[src/pages/HistoryAll.tsx](C:/dev/iSkiLog/src/pages/HistoryAll.tsx)
 
 Purpose:
 
 - browse filtered sets
 - toggle favourites
+- open set summaries
 
 Current filtering model:
 
@@ -316,10 +347,10 @@ Current filtering model:
 - custom date range
 - favourites-only toggle
 
-History depends heavily on hydrated sets from AuthProvider. There is no separate page-local fetch for the main history dataset.
+History depends heavily on hydrated sets from `AuthProvider`. There is no separate page-local fetch for the main history dataset.
 
 ### Insights
-[src/pages/Insights.tsx](/c:/dev/iskilog/src/pages/Insights.tsx)
+[src/pages/Insights.tsx](C:/dev/iSkiLog/src/pages/Insights.tsx)
 
 Purpose:
 
@@ -329,20 +360,26 @@ Purpose:
 
 Subsections:
 
-- SlalomInsights
-- TricksInsights
-- JumpInsights
-- OtherInsights
+- `SeasonOverviewCard`
+- `QuickStatsGrid`
+- `EventBreakdown`
+- `WeeklyActivityChart`
+- `MonthlyProgressList`
+- `SlalomInsights`
+- `TricksInsights`
+- `JumpInsights`
+- `OtherInsights`
 
 Important design choices:
 
 - all-event and event-specific analytics are derived client-side from hydrated set data
+- insights support season, week, month, and custom range views depending on selected event/range
 - report export is generated client-side
 - PDF export includes chart/table output
 - native runtime uses Capacitor file write + share flow instead of browser download
 
 ### Tricks Library
-[src/pages/TricksLibrary.tsx](/c:/dev/iskilog/src/pages/TricksLibrary.tsx)
+[src/pages/TricksLibrary.tsx](C:/dev/iSkiLog/src/pages/TricksLibrary.tsx)
 
 Purpose:
 
@@ -350,16 +387,16 @@ Purpose:
 
 Important implementation detail:
 
-- optimistic toggles are race-safe using versioned reconciliation logic in learnedToggle.ts
+- optimistic toggles are race-safe using versioned reconciliation logic in [src/features/tricks/learnedToggle.ts](C:/dev/iSkiLog/src/features/tricks/learnedToggle.ts)
 
-### Settings and profile
+### Settings And Profile
 Relevant pages:
 
-- [src/pages/Settings.tsx](/c:/dev/iskilog/src/pages/Settings.tsx)
-- [src/pages/ProfileSettings.tsx](/c:/dev/iskilog/src/pages/ProfileSettings.tsx)
-- [src/pages/SeasonSettings.tsx](/c:/dev/iskilog/src/pages/SeasonSettings.tsx)
-- [src/pages/About.tsx](/c:/dev/iskilog/src/pages/About.tsx)
-- [src/pages/PrivacySecurity.tsx](/c:/dev/iskilog/src/pages/PrivacySecurity.tsx)
+- [src/pages/Settings.tsx](C:/dev/iSkiLog/src/pages/Settings.tsx)
+- [src/pages/ProfileSettings.tsx](C:/dev/iSkiLog/src/pages/ProfileSettings.tsx)
+- [src/pages/SeasonSettings.tsx](C:/dev/iSkiLog/src/pages/SeasonSettings.tsx)
+- [src/pages/About.tsx](C:/dev/iSkiLog/src/pages/About.tsx)
+- [src/pages/PrivacySecurity.tsx](C:/dev/iSkiLog/src/pages/PrivacySecurity.tsx)
 
 Current behavior:
 
@@ -371,16 +408,30 @@ Current behavior:
 - season information
 - static policy and account-deletion related flows
 
-## Error Monitoring and Observability
+## Shared Formatting And Utilities
 
-### Sentry status
-Sentry is fully initialized and active. The previous handoff version saying runtime initialization did not exist is obsolete.
+### Ski Value Formatting
+[src/lib/skiFormat.ts](C:/dev/iSkiLog/src/lib/skiFormat.ts) holds shared display formatting for:
+
+- tournament rope length labels in meters/off notation
+- speed display in mph/kph
+- jump distance display in meters/feet
+
+`HistoryItem`, `SetSummary`, and `SlalomInsights` use the shared rope constants. `SlalomInsights` still keeps its own number-oriented display helpers where precision/axis behavior differs.
+
+### Date Ranges
+[src/features/dateRange/dateRange.ts](C:/dev/iSkiLog/src/features/dateRange/dateRange.ts) owns reusable local-date range behavior used by history/insights flows.
+
+## Error Monitoring And Observability
+
+### Sentry Status
+Sentry is fully initialized and active.
 
 Main files:
 
-- [src/instrument.ts](/c:/dev/iskilog/src/instrument.ts)
-- [src/main.tsx](/c:/dev/iskilog/src/main.tsx)
-- [src/lib/sentryHandled.ts](/c:/dev/iskilog/src/lib/sentryHandled.ts)
+- [src/instrument.ts](C:/dev/iSkiLog/src/instrument.ts)
+- [src/main.tsx](C:/dev/iSkiLog/src/main.tsx)
+- [src/lib/sentryHandled.ts](C:/dev/iSkiLog/src/lib/sentryHandled.ts)
 
 Current coverage:
 
@@ -390,54 +441,58 @@ Current coverage:
 - session replay
 - log capture API enabled
 - React 19 root error handlers
-- source map upload through Vite plugin
+- source map upload through Vite plugin when Sentry build-time variables are present
 - manual handled-error capture in important product flows
 
-### Handled vs unhandled policy
+### Handled Vs Unhandled Policy
 The current code distinguishes between:
 
 - unhandled runtime errors: auto-captured by global Sentry hooks
-- handled business-flow errors: manually captured through captureHandledException
-- non-blocking warnings: logged through captureHandledWarning
+- handled business-flow errors: manually captured through `captureHandledException`
+- non-blocking warnings: logged through `captureHandledWarning`
+
+`captureHandledException` normalizes Supabase/PostgREST-style error objects into real `Error` instances and attaches PostgREST code/details/hint/message metadata when present.
 
 This is a deliberate architecture decision. If a user-visible catch block only sets UI error state and does not capture to Sentry, observability regresses.
 
-### Current handled error scope
+### Current Handled Error Scope
 Manual capture exists for important flows including:
-[4/10/2026 8:57 AM] Damir: - set create/update
+
+- auth hydration
+- set create/update
 - set delete
+- favourite toggles
 - task load/create/update/toggle/delete
-- history-related hydration/favourite failures
 - tricks insights load failures
 - export/report failures
 
 ## Native / Capacitor Architecture
 
-### Capacitor setup
-- app id: com.damir.iskilog
-- app name: iSkiLog
-- web dir: dist
+### Capacitor Setup
+- app id: `com.damir.iskilog`
+- app name: `iSkiLog`
+- web dir: `dist`
 
 Config file:
 
-[capacitor.config.ts](/c:/dev/iskilog/capacitor.config.ts)
+[capacitor.config.ts](C:/dev/iSkiLog/capacitor.config.ts)
 
 ### Android
 Tracked Android project exists in:
 
-C:\dev\iskilog\android
+`C:\dev\iSkiLog\android`
 
 Important implications:
 
-- web changes that affect the native app require npx cap sync android
+- web changes that affect the native app require `npx cap sync android`
 - Google OAuth native callback depends on deep-link handling
 - Sentry Capacitor native integration is wired into Android sync output
 
-### Native-specific helpers
+### Native-Specific Helpers
 Relevant files:
 
-- [src/lib/nativeOAuth.ts](/c:/dev/iskilog/src/lib/nativeOAuth.ts)
-- [src/lib/nativeFileExport.ts](/c:/dev/iskilog/src/lib/nativeFileExport.ts)
+- [src/lib/nativeOAuth.ts](C:/dev/iSkiLog/src/lib/nativeOAuth.ts)
+- [src/lib/nativeFileExport.ts](C:/dev/iSkiLog/src/lib/nativeFileExport.ts)
 
 Current native responsibilities:
 
@@ -446,97 +501,114 @@ Current native responsibilities:
 
 ## Environment Variables
 
-### App runtime
+### App Runtime
 Required or expected in local/dev/prod:
 
-- VITE_SUPABASE_URL
-- VITE_SUPABASE_ANON_KEY
-- VITE_SENTRY_DSN
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SENTRY_DSN`
 
 Optional but used:
 
-- VITE_APP_VERSION
+- `VITE_APP_VERSION`
 
-### Sentry build-time variables
+### Sentry Build-Time Variables
 Used for release/source map upload:
 
-- SENTRY_AUTH_TOKEN
-- SENTRY_ORG
-- SENTRY_PROJECT
+- `SENTRY_AUTH_TOKEN`
+- `SENTRY_ORG`
+- `SENTRY_PROJECT`
 
 ### E2E
-Expected in .env.test:
+Expected in `.env.test`:
 
-- VITE_SUPABASE_URL
-- VITE_SUPABASE_ANON_KEY
-- E2E_SUPABASE_DB_URL
-- E2E_TEST_EMAIL_DOMAIN
-- E2E_BASE_URL
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `E2E_SUPABASE_DB_URL`
+- `E2E_TEST_EMAIL_DOMAIN`
+- `E2E_BASE_URL`
 
 ## Testing Strategy
 
-### Unit tests
-The project has lightweight unit coverage around calculation and domain helpers, not exhaustive component tests.
+### Unit Tests
+The project has focused unit coverage around calculation and domain helpers, not exhaustive component tests.
+
+Current unit test files:
+
+- [src/data/setsApi.test.ts](C:/dev/iSkiLog/src/data/setsApi.test.ts)
+- [src/features/insights/slalomSpeedSteps.test.ts](C:/dev/iSkiLog/src/features/insights/slalomSpeedSteps.test.ts)
+- [src/features/tasks/taskSort.test.ts](C:/dev/iSkiLog/src/features/tasks/taskSort.test.ts)
+- [src/features/tricks/learnedToggle.test.ts](C:/dev/iSkiLog/src/features/tricks/learnedToggle.test.ts)
+- [src/features/tricks/trickCatalog.test.ts](C:/dev/iSkiLog/src/features/tricks/trickCatalog.test.ts)
+- [src/utils/countSets.test.ts](C:/dev/iSkiLog/src/utils/countSets.test.ts)
 
 Main test areas today:
 
-- insights math
+- hydrated set mapping
+- insights/slalom speed-step helpers
 - task sorting
 - tricks learned-toggle behavior
 - trick catalog search
 - utility counting
 
-### E2E tests
+### E2E Tests
 Playwright E2E exists and is wired to a local Supabase stack.
 
 Important files:
 
-- [tests/e2e/specs/auth.spec.ts](/c:/dev/iskilog/tests/e2e/specs/auth.spec.ts)
-- [tests/e2e/specs/sets-crud.spec.ts](/c:/dev/iskilog/tests/e2e/specs/sets-crud.spec.ts)
-- [tests/e2e/specs/reports.spec.ts](/c:/dev/iskilog/tests/e2e/specs/reports.spec.ts)
-- [tests/e2e/specs/tasks.spec.ts](/c:/dev/iskilog/tests/e2e/specs/tasks.spec.ts)
-- [docs/testing/e2e-runbook.md](/c:/dev/iskilog/docs/testing/e2e-runbook.md)
+- [tests/e2e/specs/auth.spec.ts](C:/dev/iSkiLog/tests/e2e/specs/auth.spec.ts)
+- [tests/e2e/specs/sets-crud.spec.ts](C:/dev/iSkiLog/tests/e2e/specs/sets-crud.spec.ts)
+- [tests/e2e/specs/structured-notes.spec.ts](C:/dev/iSkiLog/tests/e2e/specs/structured-notes.spec.ts)
+- [tests/e2e/specs/reports.spec.ts](C:/dev/iSkiLog/tests/e2e/specs/reports.spec.ts)
+- [tests/e2e/specs/tasks.spec.ts](C:/dev/iSkiLog/tests/e2e/specs/tasks.spec.ts)
+- [docs/testing/e2e-runbook.md](C:/dev/iSkiLog/docs/testing/e2e-runbook.md)
 
 Interpretation:
 
 - the app is not test-free
-- but changes to UX-heavy areas should still be verified manually, especially on mobile/native paths
+- structured notes have dedicated E2E coverage
+- UX-heavy areas should still be verified manually, especially on mobile/native paths
 
-## Operational Decisions and Constraints
+## Operational Decisions And Constraints
 
-### Key architectural decisions already made
+### Key Architectural Decisions Already Made
 - calendar-year seasons are enforced
 - one page handles set create and edit
 - set hydration is centralized in auth lifecycle, not route-local fetching
+- set create/update goes through transactional RPCs because subtype rows and structured notes must stay consistent
 - analytics are mostly computed client-side from hydrated data
 - tasks and tricks-library rely on optimistic UI with backend rollback handling
 - browser and native runtimes are both first-class
 - Sentry is part of the expected production runtime, not optional tooling
 
-### Constraints future agents should respect
+### Constraints Future Agents Should Respect
 - do not casually change season semantics
-- do not bypass RPC shape for set CRUD without understanding subtype consistency
+- do not bypass RPC shape for set CRUD without understanding subtype and `set_notes` consistency
 - do not remove manual Sentry capture from handled user-facing flows
 - do not assume there is a separate custom backend
 - do not trust stale docs over current schema/RPC/tests
 
-## Known Gaps or Things To Verify Before Big Changes
+## Known Gaps Or Things To Verify Before Big Changes
 - There is no separate backend service in this repo beyond Supabase-backed logic. If future work introduces Edge Functions, document them explicitly.
-- Browser zoom has been disabled via viewport meta tag in [index.html](/c:/dev/iskilog/index.html). Any accessibility-related discussion should account for that deliberate choice.
+- Browser zoom has been disabled via viewport meta tag in [index.html](C:/dev/iSkiLog/index.html). Any accessibility-related discussion should account for that deliberate choice.
 - Report export is client-generated and can produce large bundles. Build warnings about large chunks are expected at the moment.
 - The project currently targets Android native usage. There is no tracked iOS project in the repo.
+- Some local/IDE artifacts and personal media may exist in the working tree; check `git status` before making assumptions about project-owned files.
 
 ## Recommended Next-Chat Baseline
 When a new AI agent starts work, the minimum correct baseline is:
-[4/10/2026 8:57 AM] Damir: 1. Confirm workspace path is C:\dev\iskilog.
+
+1. Confirm workspace path is `C:\dev\iSkiLog`.
 2. Read this file.
-3. Check git status.
-4. Read [package.json](/c:/dev/iskilog/package.json).
-5. Read [src/app/App.tsx](/c:/dev/iskilog/src/app/App.tsx), [src/auth/AuthProvider.tsx](/c:/dev/iskilog/src/auth/AuthProvider.tsx), and [src/store/setsStore.tsx](/c:/dev/iskilog/src/store/setsStore.tsx).
-6. If the task touches data contracts, compare against [tests/e2e/db/schema.sql](/c:/dev/iskilog/tests/e2e/db/schema.sql).
-7. Run npm run build.
-8. Run npm run test:run if logic changed.
-9. Run npx cap sync android for native-affecting web changes.
+3. Check `git status`.
+4. Read [package.json](C:/dev/iSkiLog/package.json).
+5. Read [src/types/sets.ts](C:/dev/iSkiLog/src/types/sets.ts).
+6. Read [src/app/App.tsx](C:/dev/iSkiLog/src/app/App.tsx), [src/auth/AuthProvider.tsx](C:/dev/iSkiLog/src/auth/AuthProvider.tsx), and [src/store/setsStore.tsx](C:/dev/iSkiLog/src/store/setsStore.tsx).
+7. If the task touches data contracts, compare against [tests/e2e/db/schema.sql](C:/dev/iSkiLog/tests/e2e/db/schema.sql).
+8. Run `npm run build` for code changes.
+9. Run `npm run test:run` if logic changed.
+10. Run relevant Playwright specs for user-flow or data-contract changes.
+11. Run `npx cap sync android` for native-affecting web changes.
 
 ## Short Summary For A New Agent
-iSkiLog is a React 19 + Supabase + Capacitor training log for waterski practice. The app’s core model is a season-bound set log with event-specific subtype data. Hydration is centralized in AuthProvider, state is reducer-based in SetsProvider, set CRUD is RPC-backed, analytics are mostly client-side, Android/native support matters, and Sentry is already fully integrated for both unhandled and handled production failures.
+iSkiLog is a React 19 + Supabase + Capacitor training log for waterski practice. The app's core model is a season-bound set log with event-specific subtype data, optional time of day, and six-field structured notes stored through `set_notes`. Hydration is centralized in `AuthProvider`, state is reducer-based in `SetsProvider`, set create/update is RPC-backed, analytics are mostly client-side, Android/native support matters, and Sentry is already integrated for both unhandled and handled production failures.
