@@ -26,7 +26,7 @@ export default function EventTile({ event, label, gradient, icon }: EventTilePro
     setPressed(true)
     navigationTimerRef.current = window.setTimeout(() => {
       navigate(`/add?event=${event}`)
-    }, 45)
+    }, 90)
   }
 
   function handleKeyDown(keyboardEvent: KeyboardEvent<HTMLButtonElement>) {
