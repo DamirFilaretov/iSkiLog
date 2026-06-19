@@ -130,6 +130,16 @@ function isGoogleUser(user: User) {
   return false
 }
 
+function isAppleUser(user: User) {
+  const appMeta = user.app_metadata as Record<string, unknown> | undefined
+  const provider = appMeta?.provider
+  const providers = appMeta?.providers
+
+  if (provider === "apple") return true
+  if (Array.isArray(providers)) return providers.includes("apple")
+  return false
+}
+
 function hasAcceptedPolicy(user: User) {
   const userMeta = user.user_metadata as Record<string, unknown> | undefined
   if (!userMeta) return false
@@ -184,7 +194,7 @@ function GooglePolicyGate(props: { user: User; onAccepted: () => void }) {
       <div className="mx-auto max-w-md rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/60">
         <h1 className="text-lg font-semibold text-slate-900">Policy Agreement</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Before continuing with Google sign-in, you need to agree to iSkiLog policy.
+          Before continuing, you need to agree to iSkiLog policy.
         </p>
 
         <a href="/policy.html" target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">Read policy</a>
@@ -300,7 +310,7 @@ function AppContent() {
       />
     )
   }
-  if (isGoogleUser(user) && !hasAcceptedPolicy(user) && !googlePolicyGateDismissed) {
+  if ((isGoogleUser(user) || isAppleUser(user)) && !hasAcceptedPolicy(user) && !googlePolicyGateDismissed) {
     return (
       <GooglePolicyGate
         user={user}

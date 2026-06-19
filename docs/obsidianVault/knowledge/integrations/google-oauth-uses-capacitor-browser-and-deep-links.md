@@ -62,10 +62,10 @@ The redirect `com.damir.iskilog://auth` only returns to the app if the OS knows 
 ## After OAuth sign-in
 [[hydration-is-centralized-in-authprovider|AuthProvider]] sets `user_metadata` (e.g. `profile_name`) and backfills the profile `full_name` if missing.
 
-## Policy gate for Google users
+## Policy gate for OAuth users
 
 > [!note] Extra gate
-> Google-auth users must pass the **policy acceptance** gate (`policy_accepted` metadata) on top of the welcome gate. See [[hydration-is-centralized-in-authprovider]].
+> Google **and Apple** auth users must pass the **policy acceptance** gate (`policy_accepted` metadata) on top of the welcome gate. `isGoogleUser()` and `isAppleUser()` in `App.tsx` detect them via `app_metadata.provider`. See [[hydration-is-centralized-in-authprovider]].
 
 ## Related
 - [[capacitor-wraps-the-app-for-android]]

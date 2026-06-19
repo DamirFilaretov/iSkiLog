@@ -1,10 +1,31 @@
 import { useMemo, useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
+import { SignInWithApple } from "@capacitor-community/apple-sign-in"
 import { supabase } from "../lib/supabaseClient"
 import { Browser } from "@capacitor/browser"
-import { getNativeOAuthRedirectUrl, isNativeRuntime } from "../lib/nativeOAuth"
+import { getNativeOAuthRedirectUrl, isNativeRuntime, isIOSNative, isAndroidNative } from "../lib/nativeOAuth"
+
+function generateNonce(length = 16): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+  const values = crypto.getRandomValues(new Uint8Array(length))
+  return Array.from(values, v => chars[v % chars.length]).join("")
+}
+
+async function sha256Hex(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message)
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer)
+  return Array.from(new Uint8Array(hashBuffer), b => b.toString(16).padStart(2, "0")).join("")
+}
 
 type AuthMode = "login" | "signup"
+
+function AppleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-slate-900" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701z" />
+    </svg>
+  )
+}
 
 function signUpPasswordError(password: string) {
   if (password.length < 6) return "Password must be at least 6 characters."
@@ -222,6 +243,76 @@ export default function Auth() {
     }
   }
 
+  async function handleApple() {
+    clearFeedback()
+    setLoading(true)
+
+    try {
+      if (isIOSNative()) {
+        const rawNonce = generateNonce()
+        const hashedNonce = await sha256Hex(rawNonce)
+
+        const supabaseCallbackUrl = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/callback`
+        const result = await SignInWithApple.authorize({
+          clientId: "com.damir.iskilog",
+          redirectURI: supabaseCallbackUrl,
+          scopes: "email name",
+          nonce: hashedNonce
+        })
+
+        if (!result.response.identityToken) {
+          throw new Error("Apple did not return an identity token")
+        }
+
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: "apple",
+          token: result.response.identityToken,
+          nonce: rawNonce
+        })
+
+        if (error) throw error
+
+        // Apple only provides name on first sign-in — write it to the profile immediately
+        if (data.user) {
+          const given = result.response.givenName ?? ""
+          const family = result.response.familyName ?? ""
+          const fullName = `${given} ${family}`.trim()
+          if (fullName) {
+            await supabase.from("profiles").upsert({
+              user_id: data.user.id,
+              full_name: fullName
+            })
+          }
+        }
+      } else {
+        const isNative = isNativeRuntime()
+
+        if (!isNative) {
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: "apple",
+            options: { redirectTo: `${window.location.origin}/` }
+          })
+          if (error) throw error
+          return
+        }
+
+        const redirectTo = await getNativeOAuthRedirectUrl()
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "apple",
+          options: { redirectTo, skipBrowserRedirect: true }
+        })
+        if (error) throw error
+        if (!data?.url) throw new Error("No OAuth URL returned")
+        await Browser.open({ url: data.url })
+      }
+    } catch (e: any) {
+      setError(e?.message ?? "Apple sign in failed.")
+      showToast("Apple sign in failed. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center bg-slate-50 px-6 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-10">
       {toast ? (
@@ -416,7 +507,7 @@ export default function Auth() {
                   <div className="h-px flex-1 bg-slate-200" />
                 </div>
 
-                <div className="mt-5 flex justify-center">
+                <div className="mt-5 flex justify-center gap-4">
                   <button
                     onClick={handleGoogle}
                     disabled={loading}
@@ -429,6 +520,17 @@ export default function Auth() {
                       className="h-5 w-5"
                     />
                   </button>
+
+                  {!isAndroidNative() && (
+                    <button
+                      onClick={handleApple}
+                      disabled={loading}
+                      className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm hover:bg-slate-50 disabled:opacity-60"
+                      aria-label="Sign in with Apple"
+                    >
+                      <AppleIcon />
+                    </button>
+                  )}
                 </div>
               </div>
 
