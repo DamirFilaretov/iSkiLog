@@ -15,7 +15,9 @@ type JumpInsightSource = {
   averageDistanceMeters: number
   avgDistanceDeltaVsLastMonthMeters: number
   jumpSetCount: number
+  jumpSetPercent: number
   cutsSetCount: number
+  cutsSetPercent: number
   totalJumped: number
   totalPassed: number
   openCutsSetCount: number
@@ -112,8 +114,10 @@ function buildJumpSourceFromSets(
     bestDistanceMeters,
     averageDistanceMeters,
     avgDistanceDeltaVsLastMonthMeters,
-    jumpSetCount: jumpSetPercent,
-    cutsSetCount: cutsSetPercent,
+    jumpSetCount,
+    jumpSetPercent,
+    cutsSetCount,
+    cutsSetPercent,
     totalJumped,
     totalPassed,
     openCutsSetCount,
@@ -135,6 +139,8 @@ export default function JumpInsights({ sets, dataSource, range, customStart, cus
   const averageDistanceDisplay = fromMeters(source.averageDistanceMeters, unit).toFixed(1)
   const avgDeltaDisplay = fromMeters(source.avgDistanceDeltaVsLastMonthMeters, unit).toFixed(1)
   const unitText = distanceSuffix(unit)
+  const jumpRatioText = `${source.jumpSetCount} (${source.jumpSetPercent}%)`
+  const cutsRatioText = `${source.cutsSetCount} (${source.cutsSetPercent}%)`
 
   return (
     <div className="space-y-4">
@@ -194,12 +200,12 @@ export default function JumpInsights({ sets, dataSource, range, customStart, cus
                   <Plane className="h-4 w-4 text-orange-500" />
                   <span>Jump Sets</span>
                 </div>
-                <span className="text-sm font-semibold text-slate-900">{source.jumpSetCount}%</span>
+                <span className="text-sm font-semibold text-slate-900">{jumpRatioText}</span>
               </div>
               <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-orange-500"
-                  style={{ width: `${source.jumpSetCount}%` }}
+                  style={{ width: `${source.jumpSetPercent}%` }}
                 />
               </div>
             </div>
@@ -210,12 +216,12 @@ export default function JumpInsights({ sets, dataSource, range, customStart, cus
                   <Flag className="h-4 w-4 text-amber-500" />
                   <span>Cuts Sets</span>
                 </div>
-                <span className="text-sm font-semibold text-slate-900">{source.cutsSetCount}%</span>
+                <span className="text-sm font-semibold text-slate-900">{cutsRatioText}</span>
               </div>
               <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-amber-400"
-                  style={{ width: `${source.cutsSetCount}%` }}
+                  style={{ width: `${source.cutsSetPercent}%` }}
                 />
               </div>
             </div>

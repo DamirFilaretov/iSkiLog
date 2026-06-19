@@ -52,7 +52,7 @@ function sessionsFromSets(sets: SkiSet[]): TrickSession[] {
       date: set.date,
       durationMinutes: set.data.duration ?? 0,
       trickType: set.data.trickType
-  }))
+    }))
 }
 
 function ratioIcon(item: TrickTypeRatioItem) {
@@ -65,6 +65,10 @@ function ratioBarClass(item: TrickTypeRatioItem) {
   if (item.trickType === "hands") return "bg-cyan-500"
   if (item.trickType === "toes") return "bg-fuchsia-500"
   return "bg-amber-500"
+}
+
+function ratioValueText(count: number, percentage: number) {
+  return `${count} (${percentage}%)`
 }
 
 export default function TricksInsights({ sets, dataSource, range, customStart, customEnd, onRangeChange, onCustomStartChange, onCustomEndChange }: Props) {
@@ -300,7 +304,9 @@ export default function TricksInsights({ sets, dataSource, range, customStart, c
                     {ratioIcon(item)}
                     <span>{item.label}</span>
                   </div>
-                  <span className="text-sm font-semibold text-slate-900">{item.percentage}%</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {ratioValueText(item.count, item.percentage)}
+                  </span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                   <div
