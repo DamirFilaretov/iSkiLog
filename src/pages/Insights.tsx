@@ -594,6 +594,8 @@ export default function Insights() {
           seasons={dropdownSeasons}
           selectedSeasonId={selectedSeasonId}
           onSeasonChange={setSelectedSeasonId}
+          selectedEvent={selectedEvent}
+          onEventChange={setSelectedEvent}
         />
 
         <p className="mt-4 text-sm text-gray-500">
@@ -616,23 +618,11 @@ export default function Insights() {
         seasons={dropdownSeasons}
         selectedSeasonId={selectedSeasonId}
         onSeasonChange={setSelectedSeasonId}
+        selectedEvent={selectedEvent}
+        onEventChange={setSelectedEvent}
       />
 
       <div className="space-y-4">
-        <div className="px-4">
-          <select
-            value={selectedEvent}
-            onChange={e => setSelectedEvent(e.target.value as EventKey | "all")}
-            className="w-full rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 shadow-lg shadow-slate-200/60"
-          >
-            <option value="all">All Events</option>
-            <option value="slalom">Slalom</option>
-            <option value="tricks">Tricks</option>
-            <option value="jump">Jump</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-
         <SeasonOverviewCard
           label={seasonTotalLabel}
           totalSets={filteredRangeSets.length}
