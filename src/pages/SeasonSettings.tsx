@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom"
+import BackButton from "../components/nav/BackButton"
 import { useSetsStore } from "../store/setsStore"
 
 function formatIsoDateForDisplay(iso: string) {
@@ -20,45 +21,35 @@ export default function SeasonSettings() {
 
   if (!activeSeason) {
     return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/profile", { replace: true })}
-            className="h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
-          >
-            ←
-          </button>
+      <div className="min-h-screen bg-slate-50">
+        <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+          <div className="flex items-center gap-3">
+            <BackButton onClick={() => navigate("/profile", { replace: true })} />
 
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">Season Settings</h1>
-            <p className="text-sm text-slate-500">Calendar-year seasons</p>
+            <div>
+              <h1 className="text-xl font-semibold text-slate-900">Season Settings</h1>
+              <p className="text-sm text-slate-500">Calendar-year seasons</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4">
+          <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
+            <p className="text-sm font-medium text-slate-900">No active season found</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Log in again to create the current year season.
+            </p>
           </div>
         </div>
       </div>
-
-      <div className="px-4">
-        <div className="rounded-3xl bg-white p-5 shadow-lg shadow-slate-200/60">
-          <p className="text-sm font-medium text-slate-900">No active season found</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Log in again to create the current year season.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
+    )
   }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
       <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/profile", { replace: true })}
-            className="h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
-          >
-            ←
-          </button>
+          <BackButton onClick={() => navigate("/profile", { replace: true })} />
 
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Season Settings</h1>

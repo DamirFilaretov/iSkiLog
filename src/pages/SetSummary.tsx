@@ -8,6 +8,7 @@ import type { SkiSet, StructuredNotes } from "../types/sets"
 import { TRICK_TYPE_LABELS } from "../types/sets"
 import { usePreferences } from "../lib/preferences"
 import { formatRopeLength, formatSpeed, formatJumpDistance } from "../lib/skiFormat"
+import BackButton from "../components/nav/BackButton"
 
 /**
  * Small UI helper to keep event icons consistent.
@@ -87,12 +88,7 @@ export default function SetSummary() {
       <div className="min-h-screen bg-gray-100">
         <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
           <div className="flex items-center gap-3">
-            <button
-              onClick={goBackSafe}
-              className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
-            >
-              ←
-            </button>
+            <BackButton onClick={goBackSafe} />
 
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Set Summary</h1>
@@ -208,13 +204,7 @@ export default function SetSummary() {
     <div className="min-h-screen bg-gray-100">
       <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={goBackSafe}
-            className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
-            disabled={isDeleting}
-          >
-            ←
-          </button>
+          <BackButton onClick={goBackSafe} disabled={isDeleting} />
 
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Set Summary</h1>

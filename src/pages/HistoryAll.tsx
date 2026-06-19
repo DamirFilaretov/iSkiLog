@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"
 import HistoryItem from "../components/history/HistoryItem"
 import { useSetsStore } from "../store/setsStore"
 import { useFavoriteToggle } from "../hooks/useFavoriteToggle"
+import BackButton from "../components/nav/BackButton"
 
 export default function HistoryAll() {
   const navigate = useNavigate()
@@ -23,15 +24,10 @@ export default function HistoryAll() {
   }, [sets])
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4 bg-gray-100 rounded-b-3xl">
+    <div className="min-h-screen bg-slate-50">
+      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4 bg-slate-50 rounded-b-3xl">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/history", { replace: true })}
-            className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
-          >
-            {"\u2190"}
-          </button>
+          <BackButton onClick={() => navigate("/history", { replace: true })} />
 
           <div>
             <h1 className="text-xl font-semibold text-gray-900">All Sets</h1>

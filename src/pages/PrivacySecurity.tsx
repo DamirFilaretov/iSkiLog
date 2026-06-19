@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { ArrowLeft, ExternalLink, Mail, Shield, Trash2 } from "lucide-react"
+import { ExternalLink, Mail, Shield, Trash2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import BackButton from "../components/nav/BackButton"
 
 export default function PrivacySecurity() {
   const navigate = useNavigate()
@@ -9,13 +10,10 @@ export default function PrivacySecurity() {
   return (
     <div className="min-h-screen bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-10">
       <div className="mb-6">
-        <button
+        <BackButton
           onClick={() => navigate("/settings", { replace: true })}
-          className="mb-3 h-10 w-10 rounded-full bg-white shadow-lg shadow-slate-200/60 flex items-center justify-center"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="h-5 w-5 text-slate-700" />
-        </button>
+          className="mb-3"
+        />
 
         <h1 className="text-xl font-semibold text-slate-900">Privacy & Security</h1>
         <p className="text-sm text-slate-500">Control your data and security</p>

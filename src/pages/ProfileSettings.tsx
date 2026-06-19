@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import {
-  ArrowLeft,
   Mail,
   User,
   Lock,
@@ -12,6 +11,7 @@ import {
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabaseClient"
 import { usePreferences } from "../lib/preferences"
+import BackButton from "../components/nav/BackButton"
 
 export default function ProfileSettings() {
   const navigate = useNavigate()
@@ -133,13 +133,7 @@ export default function ProfileSettings() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-10">
       <div className="px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/settings", { replace: true })}
-            className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="h-5 w-5 text-slate-700" />
-          </button>
+          <BackButton onClick={() => navigate("/settings", { replace: true })} />
 
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Personal Information</h1>

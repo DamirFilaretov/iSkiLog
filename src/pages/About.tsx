@@ -1,5 +1,6 @@
-import { ArrowLeft, Waves, Mail, Heart } from "lucide-react"
+import { Waves, Mail, Heart } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import BackButton from "../components/nav/BackButton"
 
 export default function About() {
   const navigate = useNavigate()
@@ -11,13 +12,7 @@ export default function About() {
       <div className="px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
         <div className="h-4" />
         <div className="flex items-center gap-3 mb-5">
-          <button
-            onClick={() => navigate("/settings", { replace: true })}
-            className="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center hover:shadow-md transition-shadow"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-700" />
-          </button>
+          <BackButton onClick={() => navigate("/settings", { replace: true })} />
           <div>
             <h1 className="text-slate-900">About iSkiLog</h1>
             <p className="text-slate-500 text-sm">App information</p>

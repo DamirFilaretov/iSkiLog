@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { ArrowLeft, Check, Search } from "lucide-react"
+import { Check, Search } from "lucide-react"
 
 import {
   fetchInProgressTrickIds,
@@ -10,6 +10,7 @@ import {
 } from "../data/tricksLearnedApi"
 import { applyToggleResponse, setLearnedState } from "../features/tricks/learnedToggle"
 import { searchTricks, TRICK_CATALOG } from "../features/tricks/trickCatalog"
+import BackButton from "../components/nav/BackButton"
 
 type ToggleTarget = "learned" | "in_progress"
 
@@ -350,13 +351,10 @@ export default function TricksLibrary() {
     <div className="min-h-screen bg-slate-50 pb-28">
       <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
         <div className="flex items-center gap-3">
-          <button
+          <BackButton
             onClick={() => navigate("/insights?event=tricks")}
-            className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
-            aria-label="Go back to insights"
-          >
-            <ArrowLeft className="h-5 w-5 text-slate-700" />
-          </button>
+            ariaLabel="Go back to insights"
+          />
 
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Tricks Library</h1>

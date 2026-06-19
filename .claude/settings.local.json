@@ -10,7 +10,12 @@
       "Read(//c/Users/user/.claude//**)",
       "Read(//c/Users/user/.claude/**)",
       "mcp__claude_ai_Supabase__execute_sql",
-      "mcp__claude_ai_Supabase__apply_migration"
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(npx playwright:*)",
+      "mcp__claude_ai_Supabase__get_logs",
+      "Bash(rm -f Welcome.md)",
+      "Bash(mkdir -p 00-home atlas knowledge/integrations knowledge/decisions knowledge/debugging knowledge/patterns knowledge/business sessions inbox)",
+      "Read(//c/c/dev/iSkiLog/docs/**)"
     ]
   }
 }

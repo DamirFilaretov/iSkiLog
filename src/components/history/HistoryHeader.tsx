@@ -1,4 +1,6 @@
 import { useNavigate } from "react-router-dom"
+import BackButton from "../nav/BackButton"
+
 export default function HistoryHeader() {
   const navigate = useNavigate()
 
@@ -6,12 +8,7 @@ export default function HistoryHeader() {
     <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4 bg-slate-50 rounded-b-3xl">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/")}
-            className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
-          >
-            ←
-          </button>
+          <BackButton onClick={() => navigate("/")} />
 
           <div>
             <h1 className="text-xl font-semibold text-gray-900">History</h1>
