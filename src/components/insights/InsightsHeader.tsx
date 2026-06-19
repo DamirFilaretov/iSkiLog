@@ -15,16 +15,7 @@ export default function InsightsHeader({
 
   return (
     <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">
-            Insights
-          </h1>
-          <p className="text-sm text-gray-500">
-            Your training overview
-          </p>
-        </div>
-
+      <div className="flex items-center justify-end">
         {seasons.length > 0 ? (
           <div className="relative">
             <select

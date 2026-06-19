@@ -45,14 +45,6 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-10">
-      {/* Header */}
-      <div className="mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
-          <p className="text-sm text-slate-500">Manage your preferences</p>
-        </div>
-      </div>
-
       {/* Settings Cards */}
       <div className="space-y-4">
         <SettingsCard
