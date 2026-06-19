@@ -39,12 +39,18 @@ export async function addSlalomSet(page: Page, args?: { notes?: string; date?: s
   return { notes, date }
 }
 
-export async function addTricksSet(page: Page, args?: { notes?: string; date?: string; duration?: string }) {
+export async function addTricksSet(
+  page: Page,
+  args?: { notes?: string; date?: string; duration?: string; trickType?: "Hands" | "Toes" | "Mixed" }
+) {
   const notes = args?.notes ?? `tricks-${Date.now()}`
   const date = args?.date ?? todayIso()
 
   await openAddByQuickTile(page, "Tricks")
   await fillByLabel(page, "Duration", args?.duration ?? "25")
+  if (args?.trickType) {
+    await page.getByRole("button", { name: args.trickType }).click()
+  }
   await page.locator("input[type='date']").first().fill(date)
   await fillByLabel(page, "Other Notes", notes)
   await saveSet(page)

@@ -113,3 +113,28 @@ test("flow 8: two sets on same day appear with same date and adjacent in history
   await expect(items.nth(0)).toContainText(second.notes)
   await expect(items.nth(1)).toContainText(first.notes)
 })
+
+test("flow 11: mixed tricks set appears in summary and tricks insights ratio", async ({ page }) => {
+  const created = await addTricksSet(page, {
+    notes: `trick-third-${Date.now()}`,
+    trickType: "Mixed",
+  })
+
+  await openHistory(page)
+  await ensureFavoritesFilterOff(page)
+  await selectHistoryRange(page, "Day")
+  await openSetFromHistoryByNotes(page, created.notes)
+
+  await expect(page.getByText("Trick Type")).toBeVisible()
+  await expect(page.getByText("Mixed", { exact: true })).toBeVisible()
+
+  await page.goto("/insights?event=tricks")
+  await expect(page.getByRole("heading", { name: "Insights" })).toBeVisible()
+  const ratioCard = page
+    .getByText("Trick Type Ratio")
+    .locator("xpath=ancestor::div[contains(@class,'rounded-3xl')]")
+    .first()
+
+  await expect(ratioCard.getByText("Mixed", { exact: true })).toBeVisible()
+  await expect(ratioCard.getByText("100%", { exact: true })).toBeVisible()
+})

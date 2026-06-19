@@ -1,4 +1,4 @@
-import type { EventKey, SkiSet, StructuredNotes } from "../types/sets"
+import type { EventKey, SkiSet, StructuredNotes, TrickType } from "../types/sets"
 
 type BaseSetSubtypeRpcPayload = {
   p_season_id: string | null
@@ -12,7 +12,7 @@ type BaseSetSubtypeRpcPayload = {
   p_speed: number | null
   p_passes_count: number | null
   p_duration_minutes: number | null
-  p_trick_type: "hands" | "toes" | null
+  p_trick_type: TrickType | null
   p_subevent: "jump" | "cuts" | null
   p_attempts: number | null
   p_passed: number | null

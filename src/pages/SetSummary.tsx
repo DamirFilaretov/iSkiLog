@@ -5,6 +5,7 @@ import { captureHandledException } from "../lib/sentryHandled"
 
 import { useSetsStore } from "../store/setsStore"
 import type { SkiSet, StructuredNotes } from "../types/sets"
+import { TRICK_TYPE_LABELS } from "../types/sets"
 import { usePreferences } from "../lib/preferences"
 import { formatRopeLength, formatSpeed, formatJumpDistance } from "../lib/skiFormat"
 
@@ -132,7 +133,7 @@ export default function SetSummary() {
               label: "Duration",
               value: skiSet.data.duration === null ? "—" : `${skiSet.data.duration} min`
             },
-            { label: "Trick Type", value: skiSet.data.trickType }
+            { label: "Trick Type", value: TRICK_TYPE_LABELS[skiSet.data.trickType] }
           ]
         : skiSet.event === "jump"
           ? skiSet.data.subEvent === "cuts"

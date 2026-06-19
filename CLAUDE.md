@@ -8,7 +8,7 @@ iSkiLog is a training log and analysis app for tournament-style waterski practic
 
 Core domain: a **set** is one logged training pass. Every set has a shared base (event type, date, optional time of day, season ID, structured notes, favourite flag) plus event-specific subtype data:
 - **slalom**: buoys, rope length, speed, passes count
-- **tricks**: duration, trick type (hands/toes)
+- **tricks**: duration, trick type (hands/toes/mixed)
 - **jump**: sub-mode (jump or cuts), attempts/passed/made/distance
 - **other**: freeform name and duration
 

@@ -15,7 +15,7 @@ import JumpFields from "../components/addSet/JumpFields"
 import OtherFields from "../components/addSet/OtherFields"
 import SaveSetButton from "../components/addSet/SaveSetButton"
 
-import type { EventKey, SkiSet, StructuredNotes } from "../types/sets"
+import type { EventKey, SkiSet, StructuredNotes, TrickType } from "../types/sets"
 import { emptyNotes } from "../types/sets"
 import { useSetsStore } from "../store/setsStore"
 import { usePreferences } from "../lib/preferences"
@@ -69,7 +69,7 @@ export default function AddSet() {
   const [slalomPassesCount, setSlalomPassesCount] = useState<number | null>(6)
 
   const [tricksDuration, setTricksDuration] = useState<number | null>(15)
-  const [tricksType, setTricksType] = useState<"hands" | "toes">("hands")
+  const [tricksType, setTricksType] = useState<TrickType>("hands")
 
   const [jumpSubEvent, setJumpSubEvent] = useState<"jump" | "cuts">("jump")
   const [jumpAttempts, setJumpAttempts] = useState<number | null>(null)

@@ -1,4 +1,17 @@
 export type EventKey = "slalom" | "tricks" | "jump" | "other"
+export type TrickType = "hands" | "toes" | "mixed"
+
+export const TRICK_TYPE_OPTIONS: { value: TrickType; label: string }[] = [
+  { value: "hands", label: "Hands" },
+  { value: "toes", label: "Toes" },
+  { value: "mixed", label: "Mixed" },
+]
+
+export const TRICK_TYPE_LABELS: Record<TrickType, string> = Object.freeze({
+  hands: "Hands",
+  toes: "Toes",
+  mixed: "Mixed",
+})
 
 export type StructuredNotes = {
   summary: string
@@ -47,7 +60,7 @@ export type SlalomData = {
 
 export type TricksData = {
   duration: number | null
-  trickType: "hands" | "toes"
+  trickType: TrickType
 }
 
 export type JumpData = {

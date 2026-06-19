@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Clock3, Trophy, Hand, Footprints, ListChecks, Sparkles, ExternalLink } from "lucide-react"
-import type { SkiSet } from "../../types/sets"
+import type { SkiSet, TrickType } from "../../types/sets"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import { useNavigate } from "react-router-dom"
 import {
@@ -16,9 +16,12 @@ import {
   type InsightRangeKey
 } from "../../features/dateRange/dateRange"
 import { captureHandledException } from "../../lib/sentryHandled"
+import {
+  getTrickTypeRatioItems,
+  type TrickTypeRatioItem
+} from "../../features/insights/trickTypeRatio"
 
 type RangeKey = InsightRangeKey
-type TrickType = "hands" | "toes"
 type TrickSession = {
   id: string
   date: string
@@ -49,7 +52,19 @@ function sessionsFromSets(sets: SkiSet[]): TrickSession[] {
       date: set.date,
       durationMinutes: set.data.duration ?? 0,
       trickType: set.data.trickType
-    }))
+  }))
+}
+
+function ratioIcon(item: TrickTypeRatioItem) {
+  if (item.trickType === "hands") return <Hand className="h-4 w-4 text-blue-500" />
+  if (item.trickType === "toes") return <Footprints className="h-4 w-4 text-fuchsia-500" />
+  return <Sparkles className="h-4 w-4 text-amber-500" />
+}
+
+function ratioBarClass(item: TrickTypeRatioItem) {
+  if (item.trickType === "hands") return "bg-cyan-500"
+  if (item.trickType === "toes") return "bg-fuchsia-500"
+  return "bg-amber-500"
 }
 
 export default function TricksInsights({ sets, dataSource, range, customStart, customEnd, onRangeChange, onCustomStartChange, onCustomEndChange }: Props) {
@@ -140,19 +155,11 @@ export default function TricksInsights({ sets, dataSource, range, customStart, c
     [totalMinutes]
   )
 
-  const handsCount = useMemo(
-    () => filteredSessions.filter(session => session.trickType === "hands").length,
+  const trickTypeRatioItems = useMemo(
+    () => getTrickTypeRatioItems(filteredSessions),
     [filteredSessions]
   )
 
-  const toesCount = useMemo(
-    () => filteredSessions.filter(session => session.trickType === "toes").length,
-    [filteredSessions]
-  )
-
-  const totalTypeCount = handsCount + toesCount
-  const handsPercent = totalTypeCount === 0 ? 0 : Math.round((handsCount / totalTypeCount) * 100)
-  const toesPercent = totalTypeCount === 0 ? 0 : Math.round((toesCount / totalTypeCount) * 100)
   const trickById = useMemo(
     () => new Map(TRICK_CATALOG.map(trick => [trick.id, trick])),
     []
@@ -283,40 +290,26 @@ export default function TricksInsights({ sets, dataSource, range, customStart, c
       <div className="px-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm shadow-slate-200/70">
           <div>
-            <p className="text-sm font-semibold text-slate-900">Hands vs Toes Ratio</p>
+            <p className="text-sm font-semibold text-slate-900">Trick Type Ratio</p>
           </div>
           <div className="mt-3 space-y-4">
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-slate-700">
-                  <Hand className="h-4 w-4 text-blue-500" />
-                  <span>Hands</span>
+            {trickTypeRatioItems.map(item => (
+              <div key={item.trickType}>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-slate-700">
+                    {ratioIcon(item)}
+                    <span>{item.label}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-900">{item.percentage}%</span>
                 </div>
-                <span className="text-sm font-semibold text-slate-900">{handsPercent}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-cyan-500"
-                  style={{ width: `${handsPercent}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-slate-700">
-                  <Footprints className="h-4 w-4 text-fuchsia-500" />
-                  <span>Toes</span>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className={["h-full rounded-full", ratioBarClass(item)].join(" ")}
+                    style={{ width: `${item.percentage}%` }}
+                  />
                 </div>
-                <span className="text-sm font-semibold text-slate-900">{toesPercent}%</span>
               </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-fuchsia-500"
-                  style={{ width: `${toesPercent}%` }}
-                />
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>

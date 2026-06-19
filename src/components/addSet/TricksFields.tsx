@@ -1,3 +1,6 @@
+import type { TrickType } from "../../types/sets"
+import { TRICK_TYPE_OPTIONS } from "../../types/sets"
+
 type Props = {
   // Controlled value for duration in minutes.
   duration: number | null
@@ -6,10 +9,10 @@ type Props = {
   onDurationChange: (value: number | null) => void
 
   // Controlled value for trick type.
-  trickType: "hands" | "toes"
+  trickType: TrickType
 
   // Called when the trick type changes.
-  onTrickTypeChange: (value: "hands" | "toes") => void
+  onTrickTypeChange: (value: TrickType) => void
 }
 
 /**
@@ -58,28 +61,20 @@ export default function TricksFields({
         <label className="block text-sm text-gray-500 mb-1">Trick Type</label>
 
         <div className="bg-white rounded-xl border border-gray-200 p-1 flex gap-1">
-          <button
-            type="button"
-            // Parent owns the value, so we call the change handler.
-            onClick={() => onTrickTypeChange("hands")}
-            className={[
-              "flex-1 rounded-lg py-2 text-sm transition",
-              trickType === "hands" ? "bg-blue-600 text-white" : "text-gray-700"
-            ].join(" ")}
-          >
-            Hands
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onTrickTypeChange("toes")}
-            className={[
-              "flex-1 rounded-lg py-2 text-sm transition",
-              trickType === "toes" ? "bg-blue-600 text-white" : "text-gray-700"
-            ].join(" ")}
-          >
-            Toes
-          </button>
+          {TRICK_TYPE_OPTIONS.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              // Parent owns the value, so we call the change handler.
+              onClick={() => onTrickTypeChange(option.value)}
+              className={[
+                "flex-1 rounded-lg py-2 text-sm transition",
+                trickType === option.value ? "bg-blue-600 text-white" : "text-gray-700"
+              ].join(" ")}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>

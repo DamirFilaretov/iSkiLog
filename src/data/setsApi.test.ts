@@ -76,4 +76,19 @@ describe("mapHydratedRowToSet", () => {
       expect(result.data.ropeLength).toBe("13")
     }
   })
+
+  it("maps a mixed tricks row correctly", () => {
+    const result = mapHydratedRowToSet({
+      ...baseRow,
+      event_type: "tricks",
+      duration_minutes: 20,
+      trick_type: "mixed",
+    })
+
+    expect(result.event).toBe("tricks")
+    if (result.event === "tricks") {
+      expect(result.data.duration).toBe(20)
+      expect(result.data.trickType).toBe("mixed")
+    }
+  })
 })

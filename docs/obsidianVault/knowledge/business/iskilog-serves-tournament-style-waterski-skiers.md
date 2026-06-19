@@ -13,7 +13,7 @@ tags:
 Individual skiers practicing **tournament-style waterski** — the three classic events plus catch-all:
 
 - **Slalom** — buoys, rope length, speed, passes
-- **Tricks** — duration, hands/toes trick type
+- **Tricks** — duration, hands/toes/mixed trick type
 - **Jump** — jump or cuts submode; attempts/passed/made/distance
 - **Other** — freeform activity + duration
 

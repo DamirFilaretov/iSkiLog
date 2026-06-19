@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient"
-import type { SkiSet, StructuredNotes } from "../types/sets"
+import type { SkiSet, StructuredNotes, TrickType } from "../types/sets"
 
 /**
  * Fetch fully hydrated sets through one RPC call.
@@ -32,7 +32,7 @@ type HydratedSetRow = {
   speed: number | null
   passes_count: number | null
   duration_minutes: number | null
-  trick_type: "hands" | "toes" | null
+  trick_type: TrickType | null
   jump_subevent: "jump" | "cuts" | null
   jump_attempts: number | null
   jump_passed: number | null

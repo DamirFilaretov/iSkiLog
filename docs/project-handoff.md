@@ -53,7 +53,7 @@ Structured notes are not a single freeform string in the current model. They are
 Each set also has event-specific subtype data:
 
 - slalom: buoys, rope length, speed, passes count
-- tricks: duration, trick type (hands or toes)
+- tricks: duration, trick type (hands, toes, or mixed)
 - jump: jump or cuts submode, attempts, passed, made, distance, cuts type, cuts count
 - other: freeform activity name and duration
 
