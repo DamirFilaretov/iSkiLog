@@ -60,14 +60,14 @@ export default function Home() {
             </p>
           </div>
 
-          <QuickAdd />
-          <TasksBlock />
+          <div data-tutorial="quick-add"><QuickAdd /></div>
+          <div data-tutorial="tasks-block"><TasksBlock /></div>
         </div>
       ) : (
         <div className="mt-4 space-y-6 pb-6">
           <SeasonSummaryCard />
-          <QuickAdd />
-          <TasksBlock />
+          <div data-tutorial="quick-add"><QuickAdd /></div>
+          <div data-tutorial="tasks-block"><TasksBlock /></div>
         </div>
       )}
     </div>
