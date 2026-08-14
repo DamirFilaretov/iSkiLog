@@ -19,8 +19,13 @@ status: active
 - [x] Insights timeline overview card synced to selected time range — see [[analytics-are-computed-client-side]]
 - [x] Structured notes shipped — six-section notes via `set_notes` ([[notes-are-stored-as-six-structured-sections]])
 
+## Recently shipped (this session)
+
+- [x] Onboarding tutorial — 8-step cross-route tour via react-joyride; auto-starts for new users, restartable from Settings ([[tutorial-uses-react-joyride-with-controlled-step-index]], [[2026-06-24-onboarding-tutorial]])
+
 ## In flight
 
+- [ ] Branch `tutorial` — tutorial branch, needs PR + cap sync before merge
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
 
 ## Watch list / known gaps
