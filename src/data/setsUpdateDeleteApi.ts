@@ -2,6 +2,7 @@
 import { supabase } from "../lib/supabaseClient"
 import type { EventKey, SkiSet } from "../types/sets"
 import { buildUpdateSetSubtypeRpcPayload } from "./setSubtypeRpcPayload"
+import { withTimeoutRetry } from "./withTimeoutRetry"
 
 /**
  * Update a set through a single transactional RPC in Supabase.
@@ -10,8 +11,12 @@ export async function updateSetInDb(args: { set: SkiSet; previousEvent: EventKey
   const { set, previousEvent } = args
   const payload = buildUpdateSetSubtypeRpcPayload(set, previousEvent)
 
-  const { error } = await supabase.rpc("update_set_with_subtype", payload)
-  if (error) throw error
+  await withTimeoutRetry(async signal => {
+    const { error } = await supabase
+      .rpc("update_set_with_subtype", payload)
+      .abortSignal(signal)
+    if (error) throw error
+  })
 }
 
 /**
