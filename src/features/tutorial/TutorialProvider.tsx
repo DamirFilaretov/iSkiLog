@@ -1,9 +1,19 @@
 import { createContext, useCallback, useEffect, useState } from 'react'
 import { Joyride, ACTIONS, EVENTS, STATUS, type EventData } from 'react-joyride'
 import { useNavigate } from 'react-router-dom'
+import type { User } from '@supabase/supabase-js'
+import { useAuth } from '../../auth/AuthProvider'
+import { supabase } from '../../lib/supabaseClient'
 import { tutorialSteps, type TutorialStep } from './tutorialSteps'
 
 const TUTORIAL_KEY = 'iskilog:tutorial:completed'
+
+function hasCompletedTutorial(user: User | null) {
+  const meta = user?.user_metadata as Record<string, unknown> | undefined
+  if (!meta) return false
+  if (meta.tutorial_completed === true) return true
+  return typeof meta.tutorial_completed_at === 'string' && meta.tutorial_completed_at.length > 0
+}
 
 type TutorialContextValue = {
   startTutorial: () => void
@@ -19,21 +29,55 @@ export const TutorialContext = createContext<TutorialContextValue>({
 
 export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [run, setRun] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
   const [isCompleted, setIsCompleted] = useState(
-    () => Boolean(localStorage.getItem(TUTORIAL_KEY))
+    () => hasCompletedTutorial(user) || Boolean(localStorage.getItem(TUTORIAL_KEY))
   )
+
+  const persistTutorialCompletion = useCallback(() => {
+    if (!user) return
+
+    const previousMeta = (user.user_metadata as Record<string, unknown> | undefined) ?? {}
+    const nextMeta = {
+      ...previousMeta,
+      tutorial_completed: true,
+      tutorial_completed_at:
+        typeof previousMeta.tutorial_completed_at === 'string' &&
+        previousMeta.tutorial_completed_at.length > 0
+          ? previousMeta.tutorial_completed_at
+          : new Date().toISOString(),
+    }
+
+    void supabase.auth.updateUser({ data: nextMeta }).then(({ error }) => {
+      if (error) {
+        console.error('Failed to save tutorial completion', error)
+      }
+    })
+  }, [user])
 
   // Auto-start on mount for users who haven't seen the tour yet.
   // TutorialProvider is rendered only after all gates pass and hydration
   // succeeds, so the app is ready by the time this fires.
   useEffect(() => {
-    if (localStorage.getItem(TUTORIAL_KEY)) return
+    const remoteCompleted = hasCompletedTutorial(user)
+    const localCompleted = localStorage.getItem(TUTORIAL_KEY) === 'true'
+
+    if (remoteCompleted || localCompleted) {
+      localStorage.setItem(TUTORIAL_KEY, 'true')
+      setIsCompleted(true)
+
+      if (localCompleted && !remoteCompleted) {
+        persistTutorialCompletion()
+      }
+      return
+    }
+
     navigate('/')
     const t = setTimeout(() => setRun(true), 600)
     return () => clearTimeout(t)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [navigate, persistTutorialCompletion, user])
 
   const startTutorial = useCallback(() => {
     setStepIndex(0)
@@ -42,8 +86,6 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   }, [navigate])
 
   const restartTutorial = useCallback(() => {
-    localStorage.removeItem(TUTORIAL_KEY)
-    setIsCompleted(false)
     setStepIndex(0)
     setRun(false)
     navigate('/')
@@ -54,8 +96,9 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     setRun(false)
     localStorage.setItem(TUTORIAL_KEY, 'true')
     setIsCompleted(true)
+    persistTutorialCompletion()
     navigate('/')
-  }, [navigate])
+  }, [navigate, persistTutorialCompletion])
 
   const handleCallback = useCallback((data: EventData) => {
     const { action, index, status, type } = data
