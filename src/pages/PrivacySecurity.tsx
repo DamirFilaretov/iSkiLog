@@ -8,18 +8,18 @@ export default function PrivacySecurity() {
   const [noticeOpen, setNoticeOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-10">
-      <div className="mb-6">
-        <BackButton
-          onClick={() => navigate("/settings", { replace: true })}
-          className="mb-3"
-        />
+    <div className="min-h-screen bg-slate-50 pb-10">
+      <div className="px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+        <div className="flex items-center gap-3">
+          <BackButton onClick={() => navigate("/settings", { replace: true })} />
 
-        <h1 className="text-xl font-semibold text-slate-900">Privacy & Security</h1>
-        <p className="text-sm text-slate-500">Control your data and security</p>
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">Privacy & Security</h1>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 px-5">
         <div className="rounded-2xl bg-white p-5 shadow-lg shadow-slate-200/60">
           <div className="flex items-start gap-4">
             <div className="h-12 w-12 min-w-12 rounded-2xl bg-blue-100 flex items-center justify-center">
