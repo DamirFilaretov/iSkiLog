@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from 'react'
 import { Joyride, ACTIONS, EVENTS, STATUS, type EventData } from 'react-joyride'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
 import { useAuth } from '../../auth/AuthProvider'
 import { supabase } from '../../lib/supabaseClient'
@@ -29,8 +29,10 @@ export const TutorialContext = createContext<TutorialContextValue>({
 
 export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const [run, setRun] = useState(false)
+  const [routeReady, setRouteReady] = useState(true)
   const [stepIndex, setStepIndex] = useState(0)
   const [isCompleted, setIsCompleted] = useState(
     () => hasCompletedTutorial(user) || Boolean(localStorage.getItem(TUTORIAL_KEY))
@@ -79,14 +81,40 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [navigate, persistTutorialCompletion, user])
 
+  useEffect(() => {
+    if (!run) {
+      setRouteReady(true)
+      return
+    }
+
+    const currentStep = tutorialSteps[stepIndex] as TutorialStep | undefined
+    if (!currentStep) return
+
+    const currentRoute = `${location.pathname}${location.search}`
+    if (currentStep.route !== currentRoute) {
+      setRouteReady(false)
+      navigate(currentStep.route)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      window.scrollTo(0, 0)
+      setRouteReady(true)
+    }, 150)
+
+    return () => clearTimeout(timer)
+  }, [location.pathname, location.search, navigate, run, stepIndex])
+
   const startTutorial = useCallback(() => {
     setStepIndex(0)
+    setRouteReady(false)
     navigate('/')
     setTimeout(() => setRun(true), 400)
   }, [navigate])
 
   const restartTutorial = useCallback(() => {
     setStepIndex(0)
+    setRouteReady(false)
     setRun(false)
     navigate('/')
     setTimeout(() => setRun(true), 400)
@@ -94,6 +122,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
 
   const completeTour = useCallback(() => {
     setRun(false)
+    setRouteReady(true)
     localStorage.setItem(TUTORIAL_KEY, 'true')
     setIsCompleted(true)
     persistTutorialCompletion()
@@ -115,21 +144,8 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (nextIndex >= 0) {
-        const nextStep = tutorialSteps[nextIndex] as TutorialStep
-        const targetRoute = nextStep.route
-
-        const currentRoute = `${window.location.pathname}${window.location.search}`
-
-        if (targetRoute !== currentRoute) {
-          navigate(targetRoute)
-          setTimeout(() => {
-            window.scrollTo(0, 0)
-            setStepIndex(nextIndex)
-          }, 400)
-        } else {
-          window.scrollTo(0, 0)
-          setStepIndex(nextIndex)
-        }
+        setRouteReady(false)
+        setStepIndex(nextIndex)
       }
     }
 
@@ -137,14 +153,14 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     if (status === STATUS.SKIPPED || status === STATUS.FINISHED) {
       completeTour()
     }
-  }, [navigate, completeTour])
+  }, [completeTour])
 
   return (
     <TutorialContext.Provider value={{ startTutorial, restartTutorial, isCompleted }}>
       <Joyride
         continuous
         scrollToFirstStep
-        run={run}
+        run={run && routeReady}
         stepIndex={stepIndex}
         steps={tutorialSteps}
         onEvent={handleCallback}
