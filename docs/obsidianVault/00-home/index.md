@@ -50,6 +50,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[one-page-handles-both-create-and-edit]]
 - [[analytics-are-computed-client-side]]
 - [[handled-errors-must-be-captured-to-sentry]]
+- [[tutorial-uses-react-joyride-with-controlled-step-index]]
 
 ### Patterns
 - [[a-set-is-a-discriminated-union-narrow-by-event]]
@@ -67,5 +68,6 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ## Logs & loose ends
 
+- [[2026-06-24-onboarding-tutorial]] — onboarding tutorial session
 - [[2026-06-19-built-the-knowledge-vault]] — session log
 - [[unprocessed-items]] — inbox for things not yet filed
