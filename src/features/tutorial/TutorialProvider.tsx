@@ -75,7 +75,9 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         const nextStep = tutorialSteps[nextIndex] as TutorialStep
         const targetRoute = nextStep.route
 
-        if (targetRoute !== window.location.pathname) {
+        const currentRoute = `${window.location.pathname}${window.location.search}`
+
+        if (targetRoute !== currentRoute) {
           navigate(targetRoute)
           setTimeout(() => {
             window.scrollTo(0, 0)

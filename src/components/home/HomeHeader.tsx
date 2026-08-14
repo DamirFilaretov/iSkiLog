@@ -20,6 +20,7 @@ export default function HomeHeader() {
           onClick={() => navigate("/history")}
           className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:text-slate-900 hover:shadow-md"
           aria-label="History"
+          data-tutorial="history-button"
         >
           <History className="h-[18px] w-[18px]" />
         </button>

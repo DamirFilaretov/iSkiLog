@@ -28,11 +28,19 @@ export const tutorialSteps: TutorialStep[] = [
     skipBeacon: true,
   },
   {
-    target: '[data-tutorial="tasks-block"]',
+    target: '[data-tutorial="goals-header"]',
     placement: 'top',
     route: '/',
     title: 'Season Goals',
     content: 'Set goals for your season and check them off as you work through them.',
+    skipBeacon: true,
+  },
+  {
+    target: '[data-tutorial="history-button"]',
+    placement: 'bottom',
+    route: '/',
+    title: 'Find Your History',
+    content: 'Use this button to open your training history whenever you want to review past sets.',
     skipBeacon: true,
   },
   {
@@ -49,6 +57,14 @@ export const tutorialSteps: TutorialStep[] = [
     route: '/insights',
     title: 'Insights',
     content: 'Track your progress over time — event breakdowns, weekly activity, and more.',
+    skipBeacon: true,
+  },
+  {
+    target: '[data-tutorial="tricks-library-button"]',
+    placement: 'top',
+    route: '/insights?event=tricks',
+    title: 'Find Tricks Library',
+    content: 'From Insights, choose Tricks, then use this button to manage learned and in-progress tricks.',
     skipBeacon: true,
   },
   {

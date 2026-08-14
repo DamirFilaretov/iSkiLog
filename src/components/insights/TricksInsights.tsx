@@ -396,6 +396,7 @@ export default function TricksInsights({ sets, dataSource, range, customStart, c
         <button
           type="button"
           onClick={() => navigate("/insights/tricks-library")}
+          data-tutorial="tricks-library-button"
           className="w-full rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-sm font-medium text-fuchsia-700 shadow-sm"
         >
           Manage Learned Tricks
