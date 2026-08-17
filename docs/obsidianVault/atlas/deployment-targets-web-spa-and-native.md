@@ -1,5 +1,5 @@
 ---
-title: Deployment targets web SPA and Android
+title: Deployment targets web SPA and native
 date: 2026-06-19
 tags:
   - atlas
@@ -7,9 +7,9 @@ tags:
   - native
 ---
 
-# Deployment targets web SPA and Android
+# Deployment targets web SPA and native
 
-Two first-class runtimes. There is **no tracked iOS project**.
+The app ships as a web SPA and has tracked Capacitor projects for both Android and iOS.
 
 ## Web SPA
 - Built with Vite (`npm run build` → `dist/`).
@@ -21,6 +21,14 @@ Two first-class runtimes. There is **no tracked iOS project**.
 - Project lives in `./android/`.
 - **After any web change affecting native: `npx cap sync android`.**
 - More: [[capacitor-wraps-the-app-for-android]] and [[google-oauth-uses-capacitor-browser-and-deep-links]].
+
+## iOS (Capacitor)
+
+- Project lives in `./ios/App/`; app id is `com.damir.iskilog`.
+- Current Xcode marketing version is `1.0.1`, build `25` (commit `0988db6`).
+- The tracked launch storyboard displays the `Loading` asset.
+- After web changes affecting native: `npx cap sync ios`.
+- Native authentication includes Google deep-link OAuth and Apple Sign In.
 
 ## Source maps / releases
 Sentry source-map upload runs through the Vite plugin when build-time vars are present: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`. See [[sentry-captures-handled-and-unhandled-errors]].

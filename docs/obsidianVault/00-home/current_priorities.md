@@ -21,11 +21,12 @@ status: active
 
 ## Recently shipped (this session)
 
-- [x] Onboarding tutorial — 8-step cross-route tour via react-joyride; auto-starts for new users, restartable from Settings ([[tutorial-uses-react-joyride-with-controlled-step-index]], [[2026-06-24-onboarding-tutorial]])
+- [x] Onboarding tutorial merged in PRs #39 and #40 — 10-step cross-route tour, durable completion metadata, and mobile Safari route synchronization ([[tutorial-uses-react-joyride-with-controlled-step-index]], [[2026-08-14-tutorial-release-and-reliability]])
+- [x] Set create/update reliability — 8-second per-attempt timeout and one automatic retry for transport failures ([[set-writes-time-out-and-retry-transport-failures]])
+- [x] iOS release version advanced to `1.0.1` build `25` ([[deployment-targets-web-spa-and-native]])
 
 ## In flight
 
-- [ ] Branch `tutorial` — tutorial branch, needs PR + cap sync before merge
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
 
 ## Watch list / known gaps

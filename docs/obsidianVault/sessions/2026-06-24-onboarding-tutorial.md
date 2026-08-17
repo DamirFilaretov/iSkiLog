@@ -11,7 +11,7 @@ tags:
 
 ## What shipped
 
-Added a full cross-route guided tour using **react-joyride** (v3, named exports). Auto-starts for new users immediately after the auth → welcome → policy gates clear; can be restarted from Settings.
+Added the original 8-step cross-route guided tour using **react-joyride** (v3, named exports). It auto-started after the auth → welcome → policy gates and could be restarted from Settings. The merged implementation was later expanded and hardened; see [[2026-08-14-tutorial-release-and-reliability]].
 
 ### New files
 
@@ -49,5 +49,8 @@ Added a full cross-route guided tour using **react-joyride** (v3, named exports)
 
 - Key: `iskilog:tutorial:completed` (follows `iskilog:` prefix)
 - Auto-cleared on sign-out via `clearAppLocalCaches()` — tour restarts on next login
+
+> [!note] Historical behavior
+> This describes the June implementation. PR #39 later added Supabase user-metadata persistence and two navigation-discovery steps; PR #40 replaced timer-driven route advancement with location-driven route readiness for mobile Safari.
 
 See [[tutorial-uses-react-joyride-with-controlled-step-index]].
