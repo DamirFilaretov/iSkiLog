@@ -48,5 +48,5 @@ When debugging data problems, always think in two layers:
 
 - [[the-stack-is-react19-vite-supabase-capacitor]]
 - [[the-database-is-postgres-with-rls-and-subtype-tables]]
-- [[deployment-targets-web-spa-and-android]]
+- [[deployment-targets-web-spa-and-native]]
 - Business framing: [[iskilog-serves-tournament-style-waterski-skiers]]

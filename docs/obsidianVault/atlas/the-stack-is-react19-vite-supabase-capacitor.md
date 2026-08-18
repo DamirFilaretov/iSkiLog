@@ -43,4 +43,4 @@ Source of truth for versions: [`package.json`](../../../package.json).
 
 ## Related
 - [[the-app-is-a-react19-supabase-capacitor-training-log]]
-- [[deployment-targets-web-spa-and-android]]
+- [[deployment-targets-web-spa-and-native]]

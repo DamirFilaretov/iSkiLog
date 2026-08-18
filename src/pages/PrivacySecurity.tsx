@@ -2,10 +2,13 @@ import { useState } from "react"
 import { ExternalLink, FileText, Mail, Shield, Trash2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import BackButton from "../components/nav/BackButton"
+import PolicyModal from "../components/auth/PolicyModal"
+import { isNativeRuntime } from "../lib/nativeOAuth"
 
 export default function PrivacySecurity() {
   const navigate = useNavigate()
   const [noticeOpen, setNoticeOpen] = useState(false)
+  const [policyOpen, setPolicyOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
@@ -51,6 +54,11 @@ export default function PrivacySecurity() {
             href="/policy.html"
             target="_blank"
             rel="noreferrer"
+            onClick={event => {
+              if (!isNativeRuntime()) return
+              event.preventDefault()
+              setPolicyOpen(true)
+            }}
             className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 py-3 text-sm font-semibold text-blue-700"
           >
             <ExternalLink className="h-4 w-4" />
@@ -131,6 +139,8 @@ export default function PrivacySecurity() {
           </div>
         </div>
       ) : null}
+
+      <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
     </div>
   )
 }

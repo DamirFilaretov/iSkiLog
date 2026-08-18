@@ -31,5 +31,5 @@ Capacitor 8 wraps the web build into a native Android app. App id `com.damir.isk
 Code checks `isNativeRuntime()` to choose native vs browser behavior (e.g. export = file write + share on native, download on web).
 
 ## Related
-- [[deployment-targets-web-spa-and-android]]
+- [[deployment-targets-web-spa-and-native]]
 - [[sentry-captures-handled-and-unhandled-errors]]

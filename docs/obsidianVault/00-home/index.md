@@ -24,7 +24,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[the-database-is-postgres-with-rls-and-subtype-tables]]
 - [[hydration-is-centralized-in-authprovider]]
 - [[state-lives-in-a-reducer-based-setsstore]]
-- [[deployment-targets-web-spa-and-android]]
+- [[deployment-targets-web-spa-and-native]]
 
 ## Knowledge
 
@@ -51,6 +51,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[analytics-are-computed-client-side]]
 - [[handled-errors-must-be-captured-to-sentry]]
 - [[tutorial-uses-react-joyride-with-controlled-step-index]]
+- [[set-writes-time-out-and-retry-transport-failures]]
 
 ### Patterns
 - [[a-set-is-a-discriminated-union-narrow-by-event]]
@@ -68,6 +69,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ## Logs & loose ends
 
+- [[2026-08-14-tutorial-release-and-reliability]] — tutorial PRs, save reliability, and iOS version bump
 - [[2026-06-24-onboarding-tutorial]] — onboarding tutorial session
 - [[2026-06-19-built-the-knowledge-vault]] — session log
 - [[unprocessed-items]] — inbox for things not yet filed
