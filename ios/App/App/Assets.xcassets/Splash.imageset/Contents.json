@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "iSkiLogLogo (1).png",
+      "filename" : "newlogoios.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "iSkiLogLogo (1) 1.png",
+      "filename" : "newlogo2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "iSkiLogLogo (1) 2.png",
+      "filename" : "newlogo3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }
