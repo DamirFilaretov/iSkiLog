@@ -93,6 +93,7 @@ iskilog:in-progress-tricks:<userId>  # in-progress tricks
 - `src/data/setsWriteApi.ts` — `createSet()` via `create_set_with_subtype` (transactional create of set + subtype row)
 - `src/data/setsUpdateDeleteApi.ts` — update/delete/favorite; update via `update_set_with_subtype` (transactional)
 - `src/data/setSubtypeRpcPayload.ts` — shapes event-specific RPC payloads; **read before touching set CRUD**
+- `src/data/withTimeoutRetry.ts` — wraps `createSet()` and `updateSetInDb()` with an 8s per-attempt timeout + one automatic retry. **Only transport-class failures are retried** (timeout/abort/network/connection); server responses (validation/constraint) are never retried to avoid duplicate writes. Delete/favorite writes are intentionally not wrapped.
 - `src/data/seasonsApi.ts` — season CRUD; `setActiveSeason()` via `set_active_season_atomic` (atomic)
 - `src/data/tasksApi.ts` — task CRUD with localStorage cache
 - `src/data/tricksLearnedApi.ts` — learned/in-progress trick toggles
@@ -107,7 +108,9 @@ Schema source of truth: `tests/e2e/db/schema.sql`
 
 Hydration states: `idle | loading | success | error`. On error, user sees retry screen (not broken shell).
 
-Onboarding metadata (Supabase `user_metadata`): `welcome_completed`, `welcome_completed_at`, `policy_accepted`, `policy_accepted_at`. Future onboarding changes must stay compatible unless a migration is added.
+**Sign-in methods**: email/password, Google OAuth (all platforms), and **Apple Sign In** (native iOS via `@capacitor-community/apple-sign-in` + `supabase.auth.signInWithIdToken()` with a nonce). Apple logic lives in `src/pages/Auth.tsx`; the plugin is patched for Capacitor 8 (`patches/@capacitor-community+apple-sign-in+7.1.0.patch`, applied via patch-package). The policy gate covers both Google and Apple users.
+
+Onboarding metadata (Supabase `user_metadata`): `welcome_completed`, `welcome_completed_at`, `policy_accepted`, `policy_accepted_at`, `tutorial_completed`, `tutorial_completed_at`. Future onboarding changes must stay compatible unless a migration is added.
 
 ### TypeScript Types
 
@@ -137,12 +140,15 @@ Always narrow by `event` before accessing `data`.
 - `src/features/tricks/` — trick catalog (`trickCatalog.ts`) + versioned toggle logic (`learnedToggle.ts`)
 - `src/features/tasks/` — task sort helpers
 - `src/features/dateRange/` — date range filter utilities
+- `src/features/tutorial/` — onboarding tour via **react-joyride** with a manually controlled `stepIndex` (`TutorialProvider.tsx`, `tutorialSteps.ts`, `useTutorial.ts`). 10-step cross-route tour; pauses Joyride until React Router reports the step's exact `pathname + search` and the target is geometrically stable. Steps anchor to `data-tutorial="..."` attributes across Home/AddSet/History/TricksLibrary/BottomTabBar — **do not remove those attributes**. Auto-starts once after all gates pass; restartable from Settings. Completion persists to localStorage (`iskilog:tutorial:completed`) and user metadata.
 
 ### Native / Capacitor
 
 - App ID: `com.damir.iskilog`. Tracked native projects: Android (`./android/`) and iOS (`./ios/`).
 - iOS builds via **Xcode Cloud** (`ios/App/ci_scripts/ci_post_clone.sh`); Xcode project at `ios/App/App.xcodeproj`.
-- Google OAuth: Capacitor Browser opens OAuth → deep-link callback → `supabase.auth.exchangeCodeForSession()`. Handled in `App.tsx` via `CapacitorApp.addListener("appUrlOpen")`.
+- Google OAuth: Capacitor Browser opens OAuth → deep-link callback → `supabase.auth.exchangeCodeForSession()`. Handled in `App.tsx` via `CapacitorApp.addListener("appUrlOpen")`. The OAuth deep-link URL scheme must stay registered in iOS `Info.plist`.
+- Apple Sign In: native iOS only, via `@capacitor-community/apple-sign-in` + `signInWithIdToken` (see Auth & Hydration). Plugin is patched for Capacitor 8 via patch-package.
+- On native, external links that must render in-app (e.g. the Privacy Policy) use a modal (`src/components/auth/PolicyModal.tsx`) gated by `isNativeRuntime()` rather than opening a browser tab.
 - **After any web change affecting native**: run `npx cap sync android` and `npx cap sync ios`.
 
 ### Sentry
@@ -159,6 +165,7 @@ Always narrow by `event` before accessing `data`.
 
 - Do not change season-to-calendar-year semantics.
 - Do not bypass RPC for set CRUD — use `setsWriteApi`/`setsUpdateDeleteApi`.
+- Do not retry non-transport (server) write failures — reissuing after a server response can duplicate a completed write. Keep the retry boundary in `withTimeoutRetry.ts`.
 - Do not remove `captureHandledException` calls from handled error flows.
 - The app targets Android and iOS native (both tracked); after web changes run `npx cap sync` for the affected platform(s).
 - Browser zoom is intentionally disabled via viewport meta in `index.html`.
