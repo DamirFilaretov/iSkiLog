@@ -137,7 +137,6 @@ export default function ProfileSettings() {
 
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Personal Information</h1>
-            <p className="text-sm text-slate-500">Update your details</p>
           </div>
         </div>
       </div>

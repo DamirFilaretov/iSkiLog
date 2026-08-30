@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "newlogoios.png",
+      "filename" : "loadingScreen.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "newlogo2x.png",
+      "filename" : "loading2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "newlogo3x.png",
+      "filename" : "loading3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

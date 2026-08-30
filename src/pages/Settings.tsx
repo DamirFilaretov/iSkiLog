@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabaseClient"
 import { clearAppLocalCaches } from "../lib/localCache"
+import { useTutorial } from "../features/tutorial/useTutorial"
 
 
 export default function Settings() {
   const navigate = useNavigate()
+  const { restartTutorial } = useTutorial()
 
   async function handleLogout() {
     // Sign out from Supabase
@@ -73,7 +75,13 @@ export default function Settings() {
       </p>
 
       {/* Logout */}
-      <div className="mt-8">
+      <div className="mt-8 space-y-3">
+        <button
+          onClick={restartTutorial}
+          className="w-full rounded-full border border-blue-200 bg-white py-3 text-blue-600 shadow-lg shadow-blue-100/60"
+        >
+          Restart Tutorial
+        </button>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={handleLogout}

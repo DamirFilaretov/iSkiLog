@@ -21,6 +21,7 @@ import PrivacySecurity from "../pages/PrivacySecurity"
 import Welcome from "../pages/Welcome"
 
 import BottomTabBar from "../components/nav/BottomTabBar"
+import { TutorialProvider } from "../features/tutorial/TutorialProvider"
 
 import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
@@ -333,6 +334,7 @@ function AppContent() {
 
   return (
     <BrowserRouter>
+      <TutorialProvider>
       <SentryRoutes>
         <Route element={<TabLayout />}>
           <Route path="/" element={<Home />} />
@@ -353,6 +355,7 @@ function AppContent() {
 
         <Route path="*" element={<Navigate to="/" />} />
       </SentryRoutes>
+      </TutorialProvider>
     </BrowserRouter>
   )
 }

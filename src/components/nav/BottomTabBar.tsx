@@ -37,6 +37,7 @@ export default function BottomTabBar() {
             label="Insights"
             active={isInsights}
             onClick={() => go("/insights")}
+            tutorialTarget="insights-tab"
             icon={
               <InsightsIcon active={isInsights} />
             }
@@ -61,9 +62,10 @@ type TabButtonProps = {
   active: boolean
   onClick: () => void
   icon: React.ReactNode
+  tutorialTarget?: string
 }
 
-function TabButton({ label, active, onClick, icon }: TabButtonProps) {
+function TabButton({ label, active, onClick, icon, tutorialTarget }: TabButtonProps) {
   const color = active ? "text-blue-600" : "text-gray-400"
 
   return (
@@ -72,6 +74,7 @@ function TabButton({ label, active, onClick, icon }: TabButtonProps) {
       onClick={onClick}
       className="flex w-24 flex-col items-center justify-center gap-1"
       aria-label={label}
+      data-tutorial={tutorialTarget}
     >
       <div className={color}>
         {icon}

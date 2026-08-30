@@ -19,6 +19,12 @@ status: active
 - [x] Insights timeline overview card synced to selected time range — see [[analytics-are-computed-client-side]]
 - [x] Structured notes shipped — six-section notes via `set_notes` ([[notes-are-stored-as-six-structured-sections]])
 
+## Recently shipped (this session)
+
+- [x] Onboarding tutorial merged in PRs #39 and #40 — 10-step cross-route tour, durable completion metadata, and mobile Safari route synchronization ([[tutorial-uses-react-joyride-with-controlled-step-index]], [[2026-08-14-tutorial-release-and-reliability]])
+- [x] Set create/update reliability — 8-second per-attempt timeout and one automatic retry for transport failures ([[set-writes-time-out-and-retry-transport-failures]])
+- [x] iOS release version advanced to `1.0.1` build `25` ([[deployment-targets-web-spa-and-native]])
+
 ## In flight
 
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass

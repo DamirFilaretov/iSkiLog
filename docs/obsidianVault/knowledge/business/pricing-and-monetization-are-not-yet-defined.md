@@ -16,7 +16,7 @@ status: unknown
 ## What we can infer
 - The app is currently a **single-user, self-hosted-data-on-Supabase** product with no account tiers.
 - All features (logging, insights, export, tricks library) appear available to any authenticated user.
-- Distribution targets are web + Android ([[deployment-targets-web-spa-and-android]]).
+- Distribution targets are web, Android, and iOS ([[deployment-targets-web-spa-and-native]]).
 
 ## Open questions to resolve with the owner
 - [ ] Free vs paid? One-time vs subscription?

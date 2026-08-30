@@ -10,12 +10,10 @@ export default function About() {
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
       <div className="px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
-        <div className="h-4" />
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3">
           <BackButton onClick={() => navigate("/settings", { replace: true })} />
           <div>
-            <h1 className="text-slate-900">About iSkiLog</h1>
-            <p className="text-slate-500 text-sm">App information</p>
+            <h1 className="text-xl font-semibold text-slate-900">About iSkiLog</h1>
           </div>
         </div>
       </div>

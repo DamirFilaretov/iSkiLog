@@ -1,25 +1,28 @@
 import { useState } from "react"
-import { ExternalLink, Mail, Shield, Trash2 } from "lucide-react"
+import { ExternalLink, FileText, Mail, Shield, Trash2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import BackButton from "../components/nav/BackButton"
+import PolicyModal from "../components/auth/PolicyModal"
+import { isNativeRuntime } from "../lib/nativeOAuth"
 
 export default function PrivacySecurity() {
   const navigate = useNavigate()
   const [noticeOpen, setNoticeOpen] = useState(false)
+  const [policyOpen, setPolicyOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-10">
-      <div className="mb-6">
-        <BackButton
-          onClick={() => navigate("/settings", { replace: true })}
-          className="mb-3"
-        />
+    <div className="min-h-screen bg-slate-50 pb-10">
+      <div className="px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+        <div className="flex items-center gap-3">
+          <BackButton onClick={() => navigate("/settings", { replace: true })} />
 
-        <h1 className="text-xl font-semibold text-slate-900">Privacy & Security</h1>
-        <p className="text-sm text-slate-500">Control your data and security</p>
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">Privacy & Security</h1>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 px-5">
         <div className="rounded-2xl bg-white p-5 shadow-lg shadow-slate-200/60">
           <div className="flex items-start gap-4">
             <div className="h-12 w-12 min-w-12 rounded-2xl bg-blue-100 flex items-center justify-center">
@@ -32,6 +35,35 @@ export default function PrivacySecurity() {
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl bg-white p-5 shadow-lg shadow-slate-200/60">
+          <div className="flex items-start gap-4">
+            <div className="h-12 w-12 min-w-12 rounded-2xl bg-slate-100 flex items-center justify-center">
+              <FileText className="h-6 w-6 text-slate-700" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900">Terms & Privacy Policy</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Review how iSkiLog handles your account and training data.
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="/policy.html"
+            target="_blank"
+            rel="noreferrer"
+            onClick={event => {
+              if (!isNativeRuntime()) return
+              event.preventDefault()
+              setPolicyOpen(true)
+            }}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 py-3 text-sm font-semibold text-blue-700"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open Policy
+          </a>
         </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-lg shadow-slate-200/60">
@@ -107,6 +139,8 @@ export default function PrivacySecurity() {
           </div>
         </div>
       ) : null}
+
+      <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
     </div>
   )
 }

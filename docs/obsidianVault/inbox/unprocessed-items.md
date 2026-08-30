@@ -13,7 +13,7 @@ tags:
 ## To process
 
 - [ ] **Pricing / monetization** — undecided. Stub at [[pricing-and-monetization-are-not-yet-defined]]; promote to a decision once the owner chooses.
-- [ ] **iOS** — explicitly untracked today. If/when an iOS target is added, add an atlas note and update [[deployment-targets-web-spa-and-android]].
+- [x] **iOS** — tracked under `ios/App/`; deployment details are recorded in [[deployment-targets-web-spa-and-native]].
 - [ ] **Edge Functions** — none exist; if introduced, document them and revisit "no custom backend" in [[supabase-provides-auth-postgres-and-rpc]].
 - [ ] **Bundle size** — client export inflates the bundle; large-chunk warnings expected. Worth a dedicated perf note if it becomes a problem. See [[recharts-and-jspdf-power-charts-and-exports]].
 - [ ] **Insights timeline overview card** — recent feature (spec in `docs/superpowers/specs/`); fold details into [[analytics-are-computed-client-side]] if it grows.
