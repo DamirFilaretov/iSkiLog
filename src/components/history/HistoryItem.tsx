@@ -2,36 +2,8 @@ import { useNavigate } from "react-router-dom"
 import type { SkiSet } from "../../types/sets"
 import { usePreferences } from "../../lib/preferences"
 import { formatRopeLength, formatSpeed, formatJumpDistance } from "../../lib/skiFormat"
-import { Star, Route, Shuffle, Rocket, Zap, Wind } from "lucide-react"
-
-function eventIcon(set: SkiSet) {
-  if (set.event === "slalom") return <Route className="h-5 w-5 text-white" strokeWidth={2} />
-  if (set.event === "tricks") return <Shuffle className="h-5 w-5 text-white" strokeWidth={2} />
-  if (set.event === "jump") {
-    return set.data.subEvent === "cuts"
-      ? <Wind className="h-5 w-5 text-white" strokeWidth={2} />
-      : <Rocket className="h-5 w-5 text-white" strokeWidth={2} />
-  }
-  return <Zap className="h-5 w-5 text-white" strokeWidth={2} />
-}
-
-function eventIconBgClass(set: SkiSet) {
-  if (set.event === "slalom") return "bg-blue-600"
-  if (set.event === "tricks") return "bg-purple-600"
-  if (set.event === "jump") {
-    return set.data.subEvent === "cuts" ? "bg-amber-500" : "bg-orange-500"
-  }
-  return "bg-emerald-500"
-}
-
-function eventLabel(set: SkiSet) {
-  if (set.event === "slalom") return "Slalom"
-  if (set.event === "tricks") return "Tricks"
-  if (set.event === "jump") {
-    return set.data.subEvent === "cuts" ? "Cuts" : "Jump"
-  }
-  return "Other"
-}
+import { eventIcon, eventBgClass, eventLabel } from "../../lib/eventVisuals"
+import { Star } from "lucide-react"
 
 function highlight(set: SkiSet, ropeUnit: "meters" | "feet", speedUnit: "kmh" | "mph") {
   if (set.event === "slalom") {
@@ -89,7 +61,7 @@ export default function HistoryItem({
       <div
         className={[
           "flex h-10 w-10 items-center justify-center rounded-xl text-white",
-          eventIconBgClass(set)
+          eventBgClass(set)
         ].join(" ")}
       >
         {eventIcon(set)}
