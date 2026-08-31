@@ -46,7 +46,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-28">
+    <div className="flex min-h-screen flex-col bg-slate-50 px-4 pt-safe pb-28">
       {/* Settings Cards */}
       <div className="space-y-4">
         <SettingsCard

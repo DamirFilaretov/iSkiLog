@@ -61,6 +61,8 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ### Debugging
 - [[out-of-order-toggle-responses-can-clobber-state]]
+- [[tutorial-restart-loop-from-user-object-in-effect-deps]]
+- [[native-safe-area-inset-stacked-on-fixed-top-gap]]
 
 ### Business
 - [[iskilog-serves-tournament-style-waterski-skiers]]

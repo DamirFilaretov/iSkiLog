@@ -30,6 +30,7 @@ status: active
 ## Recently shipped (2026-08-30)
 
 - [x] Fixed tutorial restart loop on fresh iOS accounts — auto-start `useEffect` no longer re-runs on `user` object churn from onboarding `updateUser` writes ([[tutorial-restart-loop-from-user-object-in-effect-deps]], [[2026-08-30-tutorial-restart-loop-fix]])
+- [x] Fixed oversized grey band at the top of every native screen — safe-area inset was being *added* to a fixed `2.5rem` gap; replaced with a `pt-safe` utility using `max()` ([[native-safe-area-inset-stacked-on-fixed-top-gap]])
 
 ## In flight
 

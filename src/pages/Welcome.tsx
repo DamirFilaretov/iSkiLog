@@ -88,7 +88,7 @@ export default function Welcome({ onComplete }: Props) {
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
       {currentSlide < slides.length - 1 && (
-        <div className="px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-2">
+        <div className="px-5 pt-safe pb-2">
           <div className="h-4" />
           <div className="flex justify-end">
             <button

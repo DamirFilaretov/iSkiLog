@@ -11,7 +11,7 @@ export default function AddSetHeader({ disabled = false, rightAction }: Props) {
   const navigate = useNavigate()
 
   return (
-    <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+    <div className="px-4 pt-safe pb-4">
       <div className="flex items-center justify-between gap-3">
         <BackButton onClick={() => navigate(-1)} disabled={disabled} />
 

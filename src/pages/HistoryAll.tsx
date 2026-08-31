@@ -25,7 +25,7 @@ export default function HistoryAll() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4 bg-slate-50 rounded-b-3xl">
+      <div className="px-4 pt-safe pb-4 bg-slate-50 rounded-b-3xl">
         <div className="flex items-center gap-3">
           <BackButton onClick={() => navigate("/history", { replace: true })} />
 

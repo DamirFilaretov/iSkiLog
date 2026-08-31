@@ -9,7 +9,7 @@ export default function About() {
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
-      <div className="px-5 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+      <div className="px-5 pt-safe pb-4">
         <div className="flex items-center gap-3">
           <BackButton onClick={() => navigate("/settings", { replace: true })} />
           <div>

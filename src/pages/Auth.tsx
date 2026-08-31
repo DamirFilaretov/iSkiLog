@@ -323,12 +323,12 @@ export default function Auth() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-slate-50 px-6 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-10">
+    <div className="flex min-h-screen flex-col items-center bg-slate-50 px-6 pt-safe pb-10">
       {toast ? (
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-[calc(1rem+env(safe-area-inset-top))] z-50 w-[min(92vw,360px)] rounded-xl bg-slate-900/95 px-4 py-3 text-sm text-white shadow-xl"
+          className="fixed top-[max(1rem,env(safe-area-inset-top))] z-50 w-[min(92vw,360px)] rounded-xl bg-slate-900/95 px-4 py-3 text-sm text-white shadow-xl"
         >
           {toast}
         </div>
