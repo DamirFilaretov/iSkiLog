@@ -46,7 +46,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-10">
+    <div className="flex min-h-screen flex-col bg-slate-50 px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-28">
       {/* Settings Cards */}
       <div className="space-y-4">
         <SettingsCard
@@ -68,11 +68,6 @@ export default function Settings() {
           onClick={() => navigate("/about")}
         />
       </div>
-
-      {/* Version */}
-      <p className="mt-8 text-center text-xs text-slate-400">
-        iSkiLog Version 1.0.0
-      </p>
 
       {/* Logout */}
       <div className="mt-8 space-y-3">
@@ -97,6 +92,11 @@ export default function Settings() {
           </button>
         </div>
       </div>
+
+      {/* Version */}
+      <p className="mt-auto pt-8 text-center text-xs text-slate-400">
+        iSkiLog Version 1.0.0
+      </p>
     </div>
   )
 }
