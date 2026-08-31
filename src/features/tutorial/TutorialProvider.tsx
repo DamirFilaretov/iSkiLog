@@ -191,17 +191,18 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     }
   }, [persistTutorialCompletion, user])
 
-  // Auto-start the tour once for users who haven't seen it yet.
+  // Auto-start the tour once, on mount, for users who haven't seen it yet.
   // TutorialProvider is rendered only after all gates pass and hydration
   // succeeds, so the app is ready by the time this fires.
   //
-  // `user` and `persistTutorialCompletion` are intentionally NOT dependencies.
-  // `navigate` is stable in react-router v7, so this runs once on mount.
-  // Previously `user` was a dependency: onboarding metadata writes from the
-  // Welcome / policy gates resolve a few seconds later, each producing a new
-  // `user` object that re-ran this effect and fired navigate('/') on top of the
-  // tour's own step-3 navigation to /add — throwing a fresh account into a
-  // redirect loop that looked like the tutorial restarting.
+  // Dependencies MUST stay empty. The app uses <BrowserRouter>, so react-router
+  // hands us the *unstable* `useNavigate`: `navigate` gets a new identity every
+  // time the pathname changes. Any effect that lists `navigate` (or a value
+  // derived from it) therefore re-runs on every route change. When this effect
+  // listed `navigate`, the moment the tour navigated to /add for step 3 it
+  // re-ran and fired navigate('/') again, fighting the tour's own navigation in
+  // an infinite / <-> /add redirect loop that looked like the tutorial
+  // restarting.
   useEffect(() => {
     const remoteCompleted = hasCompletedTutorial(user)
     const localCompleted = localStorage.getItem(TUTORIAL_KEY) === 'true'
@@ -211,7 +212,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     const t = setTimeout(() => setRun(true), 600)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate])
+  }, [])
 
   useEffect(() => {
     if (!run) {

@@ -214,7 +214,8 @@ export default function Auth() {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
-            redirectTo: webRedirectTo
+            redirectTo: webRedirectTo,
+            queryParams: { prompt: "select_account" }
           }
         })
 
@@ -228,7 +229,8 @@ export default function Auth() {
         provider: "google",
         options: {
           redirectTo,
-          skipBrowserRedirect: true
+          skipBrowserRedirect: true,
+          queryParams: { prompt: "select_account" }
         }
       })
 
