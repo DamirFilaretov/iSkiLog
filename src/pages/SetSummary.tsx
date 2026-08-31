@@ -4,35 +4,12 @@ import { deleteSetFromDb } from "../data/setsUpdateDeleteApi"
 import { captureHandledException } from "../lib/sentryHandled"
 
 import { useSetsStore } from "../store/setsStore"
-import type { SkiSet, StructuredNotes } from "../types/sets"
+import type { StructuredNotes } from "../types/sets"
 import { TRICK_TYPE_LABELS } from "../types/sets"
 import { usePreferences } from "../lib/preferences"
 import { formatRopeLength, formatSpeed, formatJumpDistance } from "../lib/skiFormat"
+import { eventIcon, eventGradientClass, eventLabel } from "../lib/eventVisuals"
 import BackButton from "../components/nav/BackButton"
-
-/**
- * Small UI helper to keep event icons consistent.
- */
-function eventIcon(set: SkiSet) {
-  if (set.event === "slalom") return "🌉"
-  if (set.event === "tricks") return "🏆"
-  if (set.event === "jump") {
-    return set.data.subEvent === "cuts" ? "💨" : "✈️"
-  }
-  return "➕"
-}
-
-/**
- * Small UI helper to show a readable event label.
- */
-function eventLabel(set: SkiSet) {
-  if (set.event === "slalom") return "Slalom"
-  if (set.event === "tricks") return "Tricks"
-  if (set.event === "jump") {
-    return set.data.subEvent === "cuts" ? "Cuts" : "Jump"
-  }
-  return "Other"
-}
 
 
 /**
@@ -85,8 +62,8 @@ export default function SetSummary() {
 
   if (!skiSet) {
     return (
-      <div className="min-h-screen bg-gray-100">
-        <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="px-4 pt-safe pb-4">
           <div className="flex items-center gap-3">
             <BackButton onClick={goBackSafe} />
 
@@ -201,8 +178,8 @@ export default function SetSummary() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="px-4 pt-safe pb-4">
         <div className="flex items-center gap-3">
           <BackButton onClick={goBackSafe} disabled={isDeleting} />
 
@@ -214,9 +191,9 @@ export default function SetSummary() {
       </div>
 
       <div className="px-4 space-y-5 pb-28">
-        <div className="rounded-2xl bg-blue-600 p-5 shadow-md flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-white/15 flex items-center justify-center text-white text-lg">
-            {eventIcon(skiSet)}
+        <div className={`rounded-2xl ${eventGradientClass(skiSet)} p-5 shadow-lg flex items-center gap-4`}>
+          <div className="h-12 w-12 rounded-2xl bg-white/15 flex items-center justify-center text-white">
+            {eventIcon(skiSet, "h-6 w-6 text-white")}
           </div>
 
           <div className="flex-1">
@@ -332,7 +309,7 @@ export default function SetSummary() {
         </div>
       ) : null}
 
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-100 px-4 pb-4 pt-2">
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-100 px-4 pb-4 pt-2">
         <div className="grid grid-cols-2 gap-3">
           <button
             disabled={isDeleting}

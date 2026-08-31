@@ -26,6 +26,7 @@ Use **react-joyride** (v3) with a manually controlled `stepIndex` for the onboar
 - **Full-page-height targets break the overlay** — steps targeting `min-h-screen` root divs push the tooltip to the bottom and strip the grey background; use `target: 'body'` + `placement: 'center'` instead
 - **Do not advance Joyride while a route is mounting** — set `routeReady` false when the step changes; the location effect navigates, waits 150 ms after the exact pathname + search match, scrolls to top, then resumes Joyride
 - **Compare pathname and query string** — the Tricks Library discovery step depends on `/insights?event=tricks`
+- **Keep `user` out of the auto-start effect's deps** — the effect calls `navigate('/')`; if it re-runs when the Supabase `user` object gets a new reference (every `USER_UPDATED` / `TOKEN_REFRESHED`), it yanks a fresh account off step 3 into a restart loop. Deps are `[navigate]` only; flag-only completion sync lives in a separate effect that may watch `user`. See [[tutorial-restart-loop-from-user-object-in-effect-deps]]
 
 ## Persistence
 
@@ -33,7 +34,7 @@ Completion is stored both in localStorage (`iskilog:tutorial:completed`) and Sup
 
 ## Entry points
 
-- Auto-start: `TutorialProvider` `useEffect` on mount (fires once, 600 ms after mount)
+- Auto-start: `TutorialProvider` `useEffect` on mount (fires once, 600 ms after mount; deps `[navigate]` only — must not react to `user` changes)
 - Manual restart: `restartTutorial()` from `useTutorial()`, surfaced in Settings
 
 ## Current flow

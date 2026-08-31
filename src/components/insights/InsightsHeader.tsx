@@ -19,7 +19,7 @@ export default function InsightsHeader({
   const disableDropdown = seasons.length <= 1
 
   return (
-    <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+    <div className="px-4 pt-safe pb-4">
       <div className="flex items-center gap-3">
         <select
           value={selectedEvent}

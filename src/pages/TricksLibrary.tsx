@@ -349,7 +349,7 @@ export default function TricksLibrary() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28" data-tutorial="tricks-library-page">
-      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+      <div className="px-4 pt-safe pb-4">
         <div className="flex items-center gap-3">
           <BackButton
             onClick={() => navigate("/insights?event=tricks")}

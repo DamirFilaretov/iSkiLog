@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/*
+ * Top spacing that clears the status bar / notch on native without stacking.
+ *
+ * On the web `env(safe-area-inset-top)` is 0, so this is a flat 2.5rem.
+ * On native the WebView draws edge-to-edge (viewport-fit=cover), so we take
+ * the LARGER of the design gap and the real inset + a small breathing space,
+ * instead of ADDING them (which produced a huge grey band above every page).
+ */
+@utility pt-safe {
+  padding-top: max(2.5rem, calc(env(safe-area-inset-top) + 1rem));
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
