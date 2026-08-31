@@ -63,7 +63,7 @@ export default function SetSummary() {
   if (!skiSet) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+        <div className="px-4 pt-safe pb-4">
           <div className="flex items-center gap-3">
             <BackButton onClick={goBackSafe} />
 
@@ -179,7 +179,7 @@ export default function SetSummary() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="px-4 pt-[calc(2.5rem+env(safe-area-inset-top))] pb-4">
+      <div className="px-4 pt-safe pb-4">
         <div className="flex items-center gap-3">
           <BackButton onClick={goBackSafe} disabled={isDeleting} />
 
