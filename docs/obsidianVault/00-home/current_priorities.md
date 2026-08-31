@@ -27,9 +27,19 @@ status: active
 - [x] Brand refresh — new app logo across iOS AppIcon, Splash + Loading imagesets, simplified `LaunchScreen.storyboard`, and browser favicon (`public/newlogobrowser.png`)
 - [x] Native Privacy Policy link opens an in-app `PolicyModal` (gated by `isNativeRuntime()`) instead of a browser tab that fails inside the Capacitor webview
 
+## Recently shipped (2026-08-30)
+
+- [x] Fixed tutorial restart loop on fresh iOS accounts — auto-start `useEffect` no longer re-runs on `user` object churn from onboarding `updateUser` writes ([[tutorial-restart-loop-from-user-object-in-effect-deps]], [[2026-08-30-tutorial-restart-loop-fix]])
+
 ## In flight
 
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
+- [ ] Branch `fix/tutorial-visual-polish` — header / event-visuals refactor (concurrent work; tutorial loop fix landed on this branch)
+
+## Follow-ups queued
+
+- [ ] `App.tsx` Welcome / policy gates read stale `previousMeta`; use `supabase.auth.getUser()` before each `updateUser` to stop the two writes clobbering each other
+- [ ] Playwright E2E for the tutorial, fresh-account path past step 3
 
 ## Watch list / known gaps
 

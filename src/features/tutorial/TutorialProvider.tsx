@@ -173,27 +173,45 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     })
   }, [user])
 
-  // Auto-start on mount for users who haven't seen the tour yet.
-  // TutorialProvider is rendered only after all gates pass and hydration
-  // succeeds, so the app is ready by the time this fires.
+  // Keep the local + remote "tutorial completed" flags in sync. This effect is
+  // allowed to react to `user` changing (e.g. metadata arriving after an
+  // onboarding write, or from another device) because it only updates flags —
+  // it never navigates or toggles the running tour.
   useEffect(() => {
     const remoteCompleted = hasCompletedTutorial(user)
     const localCompleted = localStorage.getItem(TUTORIAL_KEY) === 'true'
 
-    if (remoteCompleted || localCompleted) {
-      localStorage.setItem(TUTORIAL_KEY, 'true')
-      setIsCompleted(true)
+    if (!remoteCompleted && !localCompleted) return
 
-      if (localCompleted && !remoteCompleted) {
-        persistTutorialCompletion()
-      }
-      return
+    localStorage.setItem(TUTORIAL_KEY, 'true')
+    setIsCompleted(true)
+
+    if (localCompleted && !remoteCompleted) {
+      persistTutorialCompletion()
     }
+  }, [persistTutorialCompletion, user])
+
+  // Auto-start the tour once for users who haven't seen it yet.
+  // TutorialProvider is rendered only after all gates pass and hydration
+  // succeeds, so the app is ready by the time this fires.
+  //
+  // `user` and `persistTutorialCompletion` are intentionally NOT dependencies.
+  // `navigate` is stable in react-router v7, so this runs once on mount.
+  // Previously `user` was a dependency: onboarding metadata writes from the
+  // Welcome / policy gates resolve a few seconds later, each producing a new
+  // `user` object that re-ran this effect and fired navigate('/') on top of the
+  // tour's own step-3 navigation to /add — throwing a fresh account into a
+  // redirect loop that looked like the tutorial restarting.
+  useEffect(() => {
+    const remoteCompleted = hasCompletedTutorial(user)
+    const localCompleted = localStorage.getItem(TUTORIAL_KEY) === 'true'
+    if (remoteCompleted || localCompleted) return
 
     navigate('/')
     const t = setTimeout(() => setRun(true), 600)
     return () => clearTimeout(t)
-  }, [navigate, persistTutorialCompletion, user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate])
 
   useEffect(() => {
     if (!run) {
