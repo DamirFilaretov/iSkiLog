@@ -46,7 +46,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 px-4 pt-safe pb-28">
+    <div className="min-h-screen bg-slate-50 px-4 pt-safe pb-28">
       {/* Settings Cards */}
       <div className="space-y-4">
         <SettingsCard
@@ -92,11 +92,6 @@ export default function Settings() {
           </button>
         </div>
       </div>
-
-      {/* Version */}
-      <p className="mt-auto pt-8 text-center text-xs text-slate-400">
-        iSkiLog Version 1.0.0
-      </p>
     </div>
   )
 }
