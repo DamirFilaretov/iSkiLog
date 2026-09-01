@@ -53,6 +53,8 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[tutorial-uses-react-joyride-with-controlled-step-index]]
 - [[set-writes-time-out-and-retry-transport-failures]]
 - [[groups-tables-are-unreachable-and-rpcs-are-the-only-path]]
+- [[browse-is-not-a-membership-list]]
+- [[the-kill-switch-stops-spread-not-escape]]
 - [[the-client-mirrors-the-servers-whitespace-rules-exactly]]
 
 ### Patterns
@@ -67,6 +69,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[tutorial-restart-loop-from-navigate-in-effect-deps]]
 - [[native-safe-area-inset-stacked-on-fixed-top-gap]]
 - [[a-denylist-trigger-on-the-sign-in-path-locks-users-out]]
+- [[e2e-serves-the-app-from-the-wrong-supabase]]
 
 ### Business
 - [[iskilog-serves-tournament-style-waterski-skiers]]
@@ -75,6 +78,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ## Logs & loose ends
 
+- [[2026-09-01-groups-directory-and-joining]] — Groups Part 3: the tab, the directory, create and join, consent
 - [[2026-09-01-groups-client-data-layer]] — Groups Part 2: types, API modules, hint mapping, Unicode mirror
 - [[2026-09-01-groups-database-foundation]] — Groups Part 1: the server-side security boundary
 - [[2026-08-14-tutorial-release-and-reliability]] — tutorial PRs, save reliability, and iOS version bump
