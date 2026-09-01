@@ -1339,3 +1339,15 @@ $fn$;
 
 revoke execute on function public.fetch_group_leaderboard(uuid, text, text) from public, anon;
 grant  execute on function public.fetch_group_leaderboard(uuid, text, text) to authenticated;
+
+-- Internal helpers: reachable only from inside definer functions and triggers.
+-- Postgres grants EXECUTE to PUBLIC by default, so without these revokes any
+-- signed-in user could call them directly - lock_group in particular would let
+-- anyone take advisory locks.
+revoke execute on function public.canonical_group_name(text)  from public, anon, authenticated;
+revoke execute on function public.lock_group(uuid)            from public, anon, authenticated;
+revoke execute on function public.lock_creator(uuid)          from public, anon, authenticated;
+revoke execute on function public.groups_enabled()            from public, anon, authenticated;
+revoke execute on function public.groups_policy_version()     from public, anon, authenticated;
+revoke execute on function public.reap_empty_group()          from public, anon, authenticated;
+revoke execute on function public.normalise_profile_name()    from public, anon, authenticated;

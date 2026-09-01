@@ -51,6 +51,19 @@ export async function cleanupTestData() {
     await client.query("delete from public.user_tasks where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
     await client.query("delete from public.sets where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
     await client.query("delete from public.seasons where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    // Groups. group_members goes first so the reap trigger clears most groups;
+    // the explicit groups delete then catches any created by a test user that
+    // another account still belongs to.
+    await client.query("delete from public.abuse_reports where reporter_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    await client.query("delete from public.user_blocks where blocker_id::text in (select id::text from auth.users where email like $1) or blocked_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    await client.query("delete from public.policy_acceptances where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    await client.query("delete from public.group_creation_log where creator_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    await client.query("delete from public.group_members where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    await client.query("delete from public.groups where created_by::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
+    // A zero-member group is invalid by design, and once its creator's account
+    // is gone created_by is null so the clause above can never match it.
+    await client.query("delete from public.groups g where not exists (select 1 from public.group_members m where m.group_id = g.id)")
+
     await client.query("delete from public.profiles where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
     if (hasAuthIdentities) {
       await client.query("delete from auth.identities where user_id::text in (select id::text from auth.users where email like $1)", [`%@${emailDomain}`])
