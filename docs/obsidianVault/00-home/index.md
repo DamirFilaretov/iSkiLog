@@ -52,12 +52,14 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[handled-errors-must-be-captured-to-sentry]]
 - [[tutorial-uses-react-joyride-with-controlled-step-index]]
 - [[set-writes-time-out-and-retry-transport-failures]]
+- [[groups-tables-are-unreachable-and-rpcs-are-the-only-path]]
 
 ### Patterns
 - [[a-set-is-a-discriminated-union-narrow-by-event]]
 - [[optimistic-ui-uses-versioned-reconciliation]]
 - [[per-user-localstorage-caches-carry-a-version]]
 - [[subtype-rpc-payloads-are-shaped-in-one-place]]
+- [[a-concurrency-test-must-be-proven-by-removing-the-lock]]
 
 ### Debugging
 - [[out-of-order-toggle-responses-can-clobber-state]]

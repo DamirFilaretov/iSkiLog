@@ -32,17 +32,26 @@ status: active
 - [x] Fixed tutorial restart loop at step 3 on fresh accounts (browser + native) — auto-start `useEffect` had `navigate` in its deps and `<BrowserRouter>`'s `useNavigate` is unstable, so it re-fired `navigate('/')` on every route change; deps now `[]` ([[tutorial-restart-loop-from-navigate-in-effect-deps]], [[2026-08-30-tutorial-restart-loop-fix]])
 - [x] Fixed oversized grey band at the top of every native screen — safe-area inset was being *added* to a fixed `2.5rem` gap; replaced with a `pt-safe` utility using `max()` ([[native-safe-area-inset-stacked-on-fixed-top-gap]])
 
+## Recently shipped (2026-09-01)
+
+- [x] **Groups — Part 1 of 6 complete**: the entire server-side security boundary. Eight tables, 21 functions, two triggers, all privileges revoked, 119 database tests. Ships behind `groups_enabled = false` ([[2026-09-01-groups-database-foundation]], [[groups-tables-are-unreachable-and-rpcs-are-the-only-path]])
+
 ## In flight
 
+- [ ] Branch `feature/groups-workflow` — **Part 2 next**: client data layer (types, API modules, hint-token mapping, pure helpers). Parts 3–6 follow: directory and consent, leaderboard and blocking, moderation and policy, E2E and staged release
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
-- [ ] Branch `fix/tutorial-visual-polish` — header / event-visuals refactor (concurrent work; tutorial loop fix landed on this branch)
 
 ## Follow-ups queued
 
 - [ ] `App.tsx` Welcome / policy gates read stale `previousMeta`; use `supabase.auth.getUser()` before each `updateUser` to stop the two writes clobbering each other
 - [ ] Playwright E2E for the tutorial, fresh-account path past step 3
+- [ ] `auth.spec.ts` "flow 2" fails on `main` too — `logoutUser` waits for a Settings heading `Settings.tsx` does not have. Blocks Groups Part 6
+- [ ] No component-test harness (no jsdom / testing-library); Playwright runs only desktop 1280×900 while the Groups row layout is driven by a 360px constraint. Needed before Groups Part 6
 
 ## Watch list / known gaps
+
+> [!warning] Groups is not deployed
+> Everything from Part 1 exists on the **local Docker Supabase only**. The hosted project is untouched until the staged release in Parts 5–6: schema with the flag off → policy and moderation live → client shipped → flip one row. Moderation is an ongoing commitment, not a build task.
 
 > [!warning] Carry-over risks from the handoff
 > - Report export is client-generated and can produce **large bundles**; large-chunk build warnings are expected. See [[recharts-and-jspdf-power-charts-and-exports]].
@@ -55,5 +64,6 @@ status: active
 - [[seasons-are-calendar-year-only]]
 - [[set-crud-must-go-through-rpcs]]
 - [[handled-errors-must-be-captured-to-sentry]]
+- [[groups-tables-are-unreachable-and-rpcs-are-the-only-path]]
 
 Back to [[index]].
