@@ -683,3 +683,12 @@ create table if not exists public.group_members (
 
 create index if not exists idx_group_members_user_id
   on public.group_members (user_id);
+
+-- Privileges first, RLS second. In Supabase a grant is a public API, so the
+-- only safe posture is granting nothing: the RPCs are the sole way in or out.
+revoke all on public.groups        from anon, authenticated;
+revoke all on public.group_members from anon, authenticated;
+
+alter table public.groups        enable row level security;
+alter table public.group_members enable row level security;
+-- No policies: no table carries a grant, so none needs one.
