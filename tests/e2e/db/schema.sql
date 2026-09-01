@@ -814,98 +814,6 @@ create index if not exists idx_group_creation_log_creator_created
 revoke all on public.group_creation_log from anon, authenticated;
 alter table public.group_creation_log enable row level security;
 
-create or replace function public.create_group(
-  p_name        text,
-  p_description text default ''
-)
-returns public.groups
-language plpgsql security definer set search_path = '' as $fn$
-declare
-  v_display     text;
-  v_canonical   text;
-  v_description text;
-  v_live        integer;
-  v_recent      integer;
-  v_group       public.groups;
-begin
-  if auth.uid() is null then
-    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
-  end if;
-
-  if not public.groups_enabled() then
-    raise exception 'groups is not available' using errcode = '22023', hint = 'groups.disabled';
-  end if;
-
-  if not exists (
-    select 1 from public.policy_acceptances a
-     where a.user_id = auth.uid() and a.policy_key = 'groups'
-       and a.version >= public.groups_policy_version()
-  ) then
-    raise exception 'policy not accepted' using errcode = '42501', hint = 'groups.consent_required';
-  end if;
-
-  -- Serialises the quota check below against a concurrent create by the same
-  -- user; without it two calls can both see nine live groups and produce
-  -- eleven.
-  perform public.lock_creator(auth.uid());
-
-  v_display     := btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g'));
-  v_canonical   := public.canonical_group_name(p_name);
-  v_description := btrim(coalesce(p_description, ''));
-
-  if char_length(v_display) < 2 or char_length(v_display) > 40 then
-    raise exception 'group name must be 2-40 characters'
-      using errcode = '22023', hint = 'groups.invalid_name';
-  end if;
-
-  if char_length(v_description) > 200 then
-    raise exception 'description must be 200 characters or fewer'
-      using errcode = '22023', hint = 'groups.invalid_description';
-  end if;
-
-  if exists (
-    select 1 from public.moderation_terms t where v_canonical like '%' || t.term || '%'
-  ) then
-    raise exception 'group name is not allowed'
-      using errcode = '22023', hint = 'groups.name_rejected';
-  end if;
-
-  select count(*)::integer into v_live
-    from public.groups g where g.created_by = auth.uid();
-  if v_live >= 10 then
-    raise exception 'group limit reached'
-      using errcode = '22023', hint = 'groups.quota_exceeded';
-  end if;
-
-  select count(*)::integer into v_recent
-    from public.group_creation_log l
-   where l.creator_id = auth.uid()
-     and l.created_at > timezone('utc', now()) - interval '1 hour';
-  if v_recent >= 5 then
-    raise exception 'too many groups created recently'
-      using errcode = '22023', hint = 'groups.rate_limited';
-  end if;
-
-  begin
-    insert into public.groups (name, description, created_by)
-    values (v_display, v_description, auth.uid())
-    returning * into v_group;
-  exception when unique_violation then
-    raise exception 'group name already taken'
-      using errcode = '23505', hint = 'groups.name_taken';
-  end;
-
-  -- Same transaction: the membership guarantees a group never exists with zero
-  -- members, the log makes the rate limit real.
-  insert into public.group_members (group_id, user_id) values (v_group.id, auth.uid());
-  insert into public.group_creation_log (creator_id) values (auth.uid());
-
-  return v_group;
-end;
-$fn$;
-
-revoke execute on function public.create_group(text, text) from public, anon;
-grant  execute on function public.create_group(text, text) to authenticated;
 
 create or replace function public.join_group(p_group_id uuid)
 returns void language plpgsql security definer set search_path = '' as $fn$
@@ -1351,3 +1259,199 @@ revoke execute on function public.groups_enabled()            from public, anon,
 revoke execute on function public.groups_policy_version()     from public, anon, authenticated;
 revoke execute on function public.reap_empty_group()          from public, anon, authenticated;
 revoke execute on function public.normalise_profile_name()    from public, anon, authenticated;
+
+-- ------------------------------------------------------------------
+-- Review fixes: description filtering, literal denylist matching, and a
+-- response shape that carries no auth identifiers.
+-- ------------------------------------------------------------------
+
+-- Literal substring matching, so a stored term containing % or _ cannot
+-- silently widen the filter to match everything.
+create or replace function public.contains_denylisted_term(p_text text)
+returns boolean language sql stable security definer set search_path = '' as $fn$
+  select exists (
+    select 1 from public.moderation_terms t
+     where pg_catalog.strpos(pg_catalog.lower(coalesce(p_text, '')),
+                             pg_catalog.lower(t.term)) > 0)
+$fn$;
+
+revoke execute on function public.contains_denylisted_term(text) from public, anon, authenticated;
+
+-- A named composite so the response is a single object (a RETURNS TABLE would
+-- come back as an array) while still excluding created_by.
+do $$
+begin
+  if not exists (select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
+                  where n.nspname = 'public' and t.typname = 'group_public') then
+    create type public.group_public as (
+      id          uuid,
+      name        text,
+      description text,
+      logo_key    text,
+      created_at  timestamptz
+    );
+  end if;
+end
+$$;
+
+drop function if exists public.create_group(text, text);
+create function public.create_group(
+  p_name        text,
+  p_description text default ''
+)
+returns public.group_public
+language plpgsql security definer set search_path = '' as $fn$
+declare
+  v_display     text;
+  v_description text;
+  v_live        integer;
+  v_recent      integer;
+  v_group       public.groups;
+  v_result      public.group_public;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  if not public.groups_enabled() then
+    raise exception 'groups is not available' using errcode = '22023', hint = 'groups.disabled';
+  end if;
+
+  if not exists (
+    select 1 from public.policy_acceptances a
+     where a.user_id = auth.uid() and a.policy_key = 'groups'
+       and a.version >= public.groups_policy_version()
+  ) then
+    raise exception 'policy not accepted' using errcode = '42501', hint = 'groups.consent_required';
+  end if;
+
+  perform public.lock_creator(auth.uid());
+
+  v_display     := btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g'));
+  v_description := btrim(regexp_replace(coalesce(p_description, ''), '\s+', ' ', 'g'));
+
+  if char_length(v_display) < 2 or char_length(v_display) > 40 then
+    raise exception 'group name must be 2-40 characters'
+      using errcode = '22023', hint = 'groups.invalid_name';
+  end if;
+
+  if char_length(v_description) > 200 then
+    raise exception 'description must be 200 characters or fewer'
+      using errcode = '22023', hint = 'groups.invalid_description';
+  end if;
+
+  if public.contains_denylisted_term(v_display) then
+    raise exception 'group name is not allowed'
+      using errcode = '22023', hint = 'groups.name_rejected';
+  end if;
+
+  -- The description is published by list_groups and search_groups just as the
+  -- name is, so filtering only the name leaves the denylist trivially
+  -- bypassable.
+  if public.contains_denylisted_term(v_description) then
+    raise exception 'group description is not allowed'
+      using errcode = '22023', hint = 'groups.description_rejected';
+  end if;
+
+  select count(*)::integer into v_live
+    from public.groups g where g.created_by = auth.uid();
+  if v_live >= 10 then
+    raise exception 'group limit reached'
+      using errcode = '22023', hint = 'groups.quota_exceeded';
+  end if;
+
+  select count(*)::integer into v_recent
+    from public.group_creation_log l
+   where l.creator_id = auth.uid()
+     and l.created_at > timezone('utc', now()) - interval '1 hour';
+  if v_recent >= 5 then
+    raise exception 'too many groups created recently'
+      using errcode = '22023', hint = 'groups.rate_limited';
+  end if;
+
+  begin
+    insert into public.groups (name, description, created_by)
+    values (v_display, v_description, auth.uid())
+    returning * into v_group;
+  exception when unique_violation then
+    raise exception 'group name already taken'
+      using errcode = '23505', hint = 'groups.name_taken';
+  end;
+
+  insert into public.group_members (group_id, user_id) values (v_group.id, auth.uid());
+  insert into public.group_creation_log (creator_id) values (auth.uid());
+
+  v_result := (v_group.id, v_group.name, v_group.description,
+               v_group.logo_key, v_group.created_at)::public.group_public;
+  return v_result;
+end;
+$fn$;
+
+revoke execute on function public.create_group(text, text) from public, anon;
+grant  execute on function public.create_group(text, text) to authenticated;
+
+-- Literal substring search. Interpolating the query into a LIKE pattern made
+-- '%' match every group and '_' match nearly all of them.
+drop function if exists public.search_groups(text);
+create function public.search_groups(p_query text)
+returns table (
+  group_id          uuid,
+  group_name        text,
+  group_description text,
+  group_logo_key    text,
+  member_count      bigint,
+  is_member         boolean
+)
+language plpgsql security definer set search_path = '' as $fn$
+declare
+  v_query text;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  v_query := public.canonical_group_name(p_query);
+  if v_query = '' then
+    return;
+  end if;
+
+  return query
+  select g.id, g.name, g.description, g.logo_key,
+         (select count(*) from public.group_members m where m.group_id = g.id),
+         exists (select 1 from public.group_members me
+                  where me.group_id = g.id and me.user_id = auth.uid())
+    from public.groups g
+   where pg_catalog.strpos(public.canonical_group_name(g.name), v_query) > 0
+     and (g.created_by is null
+          or g.created_by = auth.uid()
+          or not exists (
+            select 1 from public.user_blocks b
+             where (b.blocker_id = auth.uid() and b.blocked_id = g.created_by)
+                or (b.blocker_id = g.created_by and b.blocked_id = auth.uid())))
+   order by (select count(*) from public.group_members m where m.group_id = g.id) desc,
+            public.canonical_group_name(g.name) asc
+   limit 200;
+end;
+$fn$;
+
+revoke execute on function public.search_groups(text) from public, anon;
+grant  execute on function public.search_groups(text) to authenticated;
+
+-- Normalise and length-cap existing profile rows, then constrain. The trigger
+-- only governs future writes, so without this a name already in the database
+-- at 120 characters would be published to leaderboards exactly as stored.
+update public.profiles
+   set full_name = left(
+     btrim(regexp_replace(
+       regexp_replace(coalesce(full_name, ''), '[[:cntrl:]]', '', 'g'),
+       '\s+', ' ', 'g')),
+     60)
+ where full_name is distinct from left(
+     btrim(regexp_replace(
+       regexp_replace(coalesce(full_name, ''), '[[:cntrl:]]', '', 'g'),
+       '\s+', ' ', 'g')),
+     60);
+
+alter table public.profiles drop constraint if exists profiles_full_name_length;
+alter table public.profiles
+  add constraint profiles_full_name_length check (char_length(full_name) <= 60);

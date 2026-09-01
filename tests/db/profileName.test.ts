@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
 import { createTestUser } from "./helpers/users"
+import { runSqlFromFile } from "./helpers/schema"
 
 async function nameOf(userId: string): Promise<string> {
   return withAdmin(async c => {
@@ -105,5 +106,59 @@ describe("sets index for the leaderboard aggregate", () => {
       return r.rows[0].n
     })
     expect(found).toBe(1)
+  })
+})
+
+describe("profile name migration path", () => {
+  it("has the length constraint, so a bad row cannot survive in the table", async () => {
+    const constraint = await withAdmin(async c => {
+      const r = await c.query(
+        `select conname from pg_constraint
+          where conrelid = 'public.profiles'::regclass
+            and conname = 'profiles_full_name_length'`
+      )
+      return r.rows.length
+    })
+    expect(constraint).toBe(1)
+  })
+
+  it("normalises a pre-existing row that predates the trigger", async () => {
+    const user = await createTestUser()
+
+    // Simulate production: a row written before the trigger and constraint
+    // existed. Both are disabled to plant it, exactly as a legacy row would be.
+    await withAdmin(async c => {
+      await c.query("alter table public.profiles disable trigger profiles_normalise_name")
+      await c.query(
+        "alter table public.profiles drop constraint if exists profiles_full_name_length"
+      )
+      await c.query(
+        `insert into public.profiles (user_id, full_name) values ($1, $2)
+         on conflict (user_id) do update set full_name = excluded.full_name`,
+        [user.userId, "  Legacy   " + "x".repeat(120) + "  "]
+      )
+      await c.query("alter table public.profiles enable trigger profiles_normalise_name")
+    })
+
+    const before = await nameOf(user.userId)
+    expect(before.length).toBeGreaterThan(60)
+
+    // Run the real migration rather than a copy of it: schema.sql carries the
+    // backfill and the constraint, and re-running it is the deployment step.
+    await runSqlFromFile()
+
+    const after = await nameOf(user.userId)
+    expect(after.length).toBeLessThanOrEqual(60)
+    expect(after).not.toMatch(/^\s|\s$|\s\s/)
+
+    const constraint = await withAdmin(async c => {
+      const r = await c.query(
+        `select conname from pg_constraint
+          where conrelid = 'public.profiles'::regclass
+            and conname = 'profiles_full_name_length'`
+      )
+      return r.rows.length
+    })
+    expect(constraint).toBe(1)
   })
 })

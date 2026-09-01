@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
 import { createTestUser, anonClient, type TestUser } from "./helpers/users"
+import { openAsUser, closeQuietly } from "./helpers/asUser"
 
 const unique = (label: string) =>
   `${label} ${Date.now()}-${Math.floor(Math.random() * 1e6)}`
@@ -208,5 +209,142 @@ describe("create_group", () => {
       p_description: ""
     })
     expect(error).not.toBeNull()
+  })
+})
+
+describe("create_group content filtering", () => {
+  it("refuses a denylisted description, which list_groups would otherwise publish", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      await withAdmin(c =>
+        c.query("insert into public.moderation_terms (term) values ('bannedword') on conflict do nothing")
+      )
+      try {
+        const { error } = await user.client.rpc("create_group", {
+          p_name: unique("Innocent Name"),
+          p_description: "Come join us bannedword and friends"
+        })
+        expect(error?.hint).toBe("groups.description_rejected")
+      } finally {
+        await withAdmin(c =>
+          c.query("delete from public.moderation_terms where term = 'bannedword'")
+        )
+      }
+    })
+  })
+
+  it("matches denylist terms case-insensitively", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      await withAdmin(c =>
+        c.query("insert into public.moderation_terms (term) values ('bannedword') on conflict do nothing")
+      )
+      try {
+        const { error } = await user.client.rpc("create_group", {
+          p_name: `My BANNEDWORD crew`,
+          p_description: ""
+        })
+        expect(error?.hint).toBe("groups.name_rejected")
+      } finally {
+        await withAdmin(c =>
+          c.query("delete from public.moderation_terms where term = 'bannedword'")
+        )
+      }
+    })
+  })
+
+  it("treats a denylist term containing % as a literal, not a wildcard", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      await withAdmin(c =>
+        c.query("insert into public.moderation_terms (term) values ('%') on conflict do nothing")
+      )
+      try {
+        // A literal '%' must not match every name.
+        const { error } = await user.client.rpc("create_group", {
+          p_name: unique("Perfectly Fine"),
+          p_description: ""
+        })
+        expect(error).toBeNull()
+      } finally {
+        await withAdmin(c => c.query("delete from public.moderation_terms where term = '%'"))
+      }
+    })
+  })
+
+  it("returns only public fields, never an auth user id", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      const { data } = await user.client.rpc("create_group", {
+        p_name: unique("Shape Club"),
+        p_description: "hello"
+      })
+      expect(Object.keys(data).sort()).toEqual(
+        ["created_at", "description", "id", "logo_key", "name"].sort()
+      )
+      expect(JSON.stringify(data)).not.toContain(user.userId)
+    })
+  })
+})
+
+describe("create_group concurrency", () => {
+  it("cannot exceed the quota when two creates overlap at the boundary", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      await withAdmin(async c => {
+        for (let i = 0; i < 9; i++) {
+          const g = await c.query(
+            "insert into public.groups (name, created_by) values ($1, $2) returning id",
+            [unique(`Race Quota ${i}`), user.userId]
+          )
+          await c.query(
+            "insert into public.group_members (group_id, user_id) values ($1, $2)",
+            [g.rows[0].id, user.userId]
+          )
+        }
+      })
+
+      // Two real transactions held open across the contended window. Two
+      // overlapping supabase-js calls do not achieve this - they serialise at
+      // the HTTP layer and the test passes with or without the lock.
+      const first = await openAsUser(user.userId)
+      const second = await openAsUser(user.userId)
+      const outcomes: string[] = []
+
+      try {
+        await first.query("select public.create_group($1, $2)", [unique("Racer A"), ""])
+        outcomes.push("first-created")
+
+        const secondCall = second
+          .query("select public.create_group($1, $2)", [unique("Racer B"), ""])
+          .then(() => {
+            outcomes.push("second-created")
+          })
+          .catch((e: { hint?: string }) => {
+            outcomes.push(e.hint === "groups.quota_exceeded" ? "second-refused" : `second-error`)
+          })
+
+        // Without lock_creator the second transaction proceeds immediately,
+        // still sees nine live groups, and creates an eleventh.
+        await new Promise(resolve => setTimeout(resolve, 300))
+        await first.query("commit")
+        await secondCall
+        await second.query("commit").catch(() => undefined)
+      } finally {
+        await closeQuietly(first)
+        await closeQuietly(second)
+      }
+
+      expect(outcomes).toEqual(["first-created", "second-refused"])
+
+      const live = await withAdmin(async c => {
+        const r = await c.query(
+          "select count(*)::int as n from public.groups where created_by = $1",
+          [user.userId]
+        )
+        return r.rows[0].n
+      })
+      expect(live).toBe(10)
+    })
   })
 })

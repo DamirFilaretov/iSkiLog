@@ -124,3 +124,91 @@ describe("search_groups", () => {
     expect(error).not.toBeNull()
   })
 })
+
+describe("search_groups wildcard safety", () => {
+  it("treats % as a literal character, not a wildcard", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      const name = unique("Wildcard Bait")
+      await user.client.rpc("create_group", { p_name: name, p_description: "" })
+
+      // A wildcard would match this group; a literal '%' must not.
+      const { data } = await user.client.rpc("search_groups", { p_query: "%" })
+      expect(data.map((r: any) => r.group_name)).not.toContain(name)
+    })
+  })
+
+  it("treats _ as a literal character, not a wildcard", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      const name = unique("Underscore Bait")
+      await user.client.rpc("create_group", { p_name: name, p_description: "" })
+
+      const { data } = await user.client.rpc("search_groups", { p_query: "_" })
+      expect(data.map((r: any) => r.group_name)).not.toContain(name)
+    })
+  })
+
+  it("still finds a group whose name genuinely contains a percent sign", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      const marker = `Pct${Date.now()}`
+      await user.client.rpc("create_group", {
+        p_name: `${marker} 100% Effort`,
+        p_description: ""
+      })
+
+      const { data } = await user.client.rpc("search_groups", { p_query: `${marker} 100% Effort` })
+      expect(data.length).toBe(1)
+    })
+  })
+})
+
+describe("directory cap with a full directory", () => {
+  it("browses exactly 200 and leaves the rest reachable only by search", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await ready()
+      const marker = `Deep${Date.now()}`
+
+      // 201 groups, all with one member so member_count cannot rank them above
+      // the target, and the target named to sort last alphabetically.
+      const targetId = await withAdmin(async c => {
+        const filler = await c.query(
+          `insert into public.groups (name)
+           select 'AAA Filler ' || $1::text || ' ' || gs
+             from generate_series(1, 200) gs
+           returning id`,
+          [marker]
+        )
+        for (const row of filler.rows) {
+          await c.query(
+            "insert into public.group_members (group_id, user_id) values ($1, $2)",
+            [row.id, user.userId]
+          )
+        }
+        const target = await c.query(
+          "insert into public.groups (name) values ($1) returning id",
+          [`zzz ${marker} Hidden Target`]
+        )
+        await c.query("insert into public.group_members (group_id, user_id) values ($1, $2)", [
+          target.rows[0].id,
+          user.userId
+        ])
+        return target.rows[0].id as string
+      })
+
+      const browse = await user.client.rpc("list_groups")
+      expect(browse.data.length).toBe(200)
+      expect(browse.data.find((r: any) => r.group_id === targetId)).toBeUndefined()
+
+      const search = await user.client.rpc("search_groups", { p_query: `${marker} Hidden Target` })
+      expect(search.data.map((r: any) => r.group_id)).toContain(targetId)
+
+      // Seeded groups would otherwise occupy the browse cap for every other
+      // test in this file.
+      await withAdmin(c =>
+        c.query("delete from public.groups where name like $1", [`%${marker}%`])
+      )
+    })
+  })
+})
