@@ -1,0 +1,63 @@
+import { supabase } from "../lib/supabaseClient"
+import type { GroupPeriod, LeaderboardRow } from "../types/groups"
+
+/**
+ * The board is fetched fresh on mount and on every period change (D15).
+ *
+ * The call sends a period and a timezone, never dates. The server resolves the
+ * window, which is what stops a member asking about a single day and learning
+ * who trained which discipline on it.
+ */
+
+type LeaderboardRowResponse = {
+  membership_id: string
+  member_name: string
+  is_self: boolean
+  slalom_count: number | string
+  tricks_count: number | string
+  jump_count: number | string
+  other_count: number | string
+  total_count: number | string
+}
+
+/** Read per fetch, not cached: a device can change zone between two loads. */
+export function resolveTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+  } catch {
+    return "UTC"
+  }
+}
+
+/**
+ * Rows arrive ranked by total descending, name ascending, with members who
+ * logged nothing at the bottom. The order is the server's; the client renders
+ * it as given.
+ *
+ * A non-member and a group that no longer exists both raise
+ * `groups.not_a_member` — deliberately indistinguishable (EC-7).
+ */
+export async function fetchGroupLeaderboard(
+  groupId: string,
+  period: GroupPeriod,
+  timezone: string = resolveTimezone()
+): Promise<LeaderboardRow[]> {
+  const { data, error } = await supabase.rpc("fetch_group_leaderboard", {
+    p_group_id: groupId,
+    p_period: period,
+    p_timezone: timezone
+  })
+  if (error) throw error
+
+  return ((data ?? []) as LeaderboardRowResponse[]).map(row => ({
+    membershipId: row.membership_id,
+    memberName: row.member_name,
+    isSelf: row.is_self,
+    // bigint arrives as a string once it exceeds the JS safe range.
+    slalomCount: Number(row.slalom_count),
+    tricksCount: Number(row.tricks_count),
+    jumpCount: Number(row.jump_count),
+    otherCount: Number(row.other_count),
+    totalCount: Number(row.total_count)
+  }))
+}
