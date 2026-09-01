@@ -1058,3 +1058,74 @@ revoke execute on function public.list_groups()      from public, anon;
 grant  execute on function public.list_groups()      to authenticated;
 revoke execute on function public.search_groups(text) from public, anon;
 grant  execute on function public.search_groups(text) to authenticated;
+
+-- Blocking works on opaque membership handles so no auth.users uuid ever
+-- reaches a client. list_blocks is not optional: blocking is mutual, so the
+-- blocked person vanishes from every board and this is the only way back.
+create or replace function public.block_group_member(p_membership_id uuid)
+returns void language plpgsql security definer set search_path = '' as $fn$
+declare
+  v_target uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  select m.user_id into v_target
+    from public.group_members m
+   where m.id = p_membership_id
+     and exists (select 1 from public.group_members me
+                  where me.group_id = m.group_id and me.user_id = auth.uid());
+
+  if v_target is null then
+    raise exception 'unknown member' using errcode = '42501', hint = 'groups.invalid_handle';
+  end if;
+
+  if v_target = auth.uid() then
+    raise exception 'cannot block yourself' using errcode = '22023', hint = 'groups.invalid_handle';
+  end if;
+
+  insert into public.user_blocks (blocker_id, blocked_id)
+  values (auth.uid(), v_target)
+  on conflict do nothing;
+end;
+$fn$;
+
+drop function if exists public.list_blocks();
+create function public.list_blocks()
+returns table (block_id uuid, display_name text, blocked_at timestamptz)
+language plpgsql security definer set search_path = '' as $fn$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  return query
+  select b.id,
+         coalesce(nullif(btrim(p.full_name), ''), 'Skier'),
+         b.created_at
+    from public.user_blocks b
+    left join public.profiles p on p.user_id = b.blocked_id
+   where b.blocker_id = auth.uid()
+   order by b.created_at desc;
+end;
+$fn$;
+
+create or replace function public.unblock(p_block_id uuid)
+returns void language plpgsql security definer set search_path = '' as $fn$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  delete from public.user_blocks
+   where id = p_block_id and blocker_id = auth.uid();
+end;
+$fn$;
+
+revoke execute on function public.block_group_member(uuid) from public, anon;
+grant  execute on function public.block_group_member(uuid) to authenticated;
+revoke execute on function public.list_blocks()            from public, anon;
+grant  execute on function public.list_blocks()            to authenticated;
+revoke execute on function public.unblock(uuid)            from public, anon;
+grant  execute on function public.unblock(uuid)            to authenticated;
