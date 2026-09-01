@@ -64,6 +64,20 @@ export async function listGroups(): Promise<Group[]> {
   return ((data ?? []) as GroupRow[]).map(mapGroupRow)
 }
 
+/**
+ * The caller's own memberships — unfiltered by blocks and uncapped.
+ *
+ * `listGroups` is a directory, not a membership list: it hides groups whose
+ * creator is blocked in either direction and stops at 200. Either rule can hide
+ * a group the user is standing inside, and Leave is only reachable from a row
+ * naming that group, so browse alone would trap a member blocked by a creator.
+ */
+export async function listMyGroups(): Promise<Group[]> {
+  const { data, error } = await supabase.rpc("list_my_groups")
+  if (error) throw error
+  return ((data ?? []) as GroupRow[]).map(mapGroupRow)
+}
+
 /** Server-side name search across every group, so a browse cap cannot hide one. */
 export async function searchGroups(query: string): Promise<Group[]> {
   const { data, error } = await supabase.rpc("search_groups", { p_query: query })

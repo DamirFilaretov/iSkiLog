@@ -9,6 +9,7 @@ const CLIENT_FUNCTIONS = [
   "join_group",
   "leave_group",
   "list_groups",
+  "list_my_groups",
   "search_groups",
   "fetch_group_leaderboard",
   "report_group",

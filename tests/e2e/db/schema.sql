@@ -1455,3 +1455,48 @@ update public.profiles
 alter table public.profiles drop constraint if exists profiles_full_name_length;
 alter table public.profiles
   add constraint profiles_full_name_length check (char_length(full_name) <= 60);
+
+-- Your own memberships, unfiltered and uncapped.
+--
+-- list_groups is a directory, not a membership list: it hides groups whose
+-- creator is blocked in either direction and stops at 200 rows. Either rule
+-- can hide a group the caller is standing inside, and leave_group is only
+-- reachable from a row that names the group - so a member blocked by their
+-- group's creator would have been trapped there permanently.
+--
+-- Deliberately not block-filtered: blocking hides a person's *other* groups
+-- from browse, and must never hide the one you are in. Deliberately uncapped:
+-- a cap would recreate the same trap for anyone in more than 200 groups, and
+-- the response is the caller's own membership list, so its size is theirs.
+-- Not flag-gated either, matching list_groups and leave_group: flipping the
+-- kill switch must not strand somebody inside a group.
+drop function if exists public.list_my_groups();
+create function public.list_my_groups()
+returns table (
+  group_id          uuid,
+  group_name        text,
+  group_description text,
+  group_logo_key    text,
+  member_count      bigint,
+  is_member         boolean
+)
+language plpgsql security definer set search_path = '' as $fn$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  return query
+  select g.id, g.name, g.description, g.logo_key,
+         (select count(*) from public.group_members m where m.group_id = g.id),
+         true
+    from public.groups g
+    join public.group_members me
+      on me.group_id = g.id and me.user_id = auth.uid()
+   order by (select count(*) from public.group_members m where m.group_id = g.id) desc,
+            public.canonical_group_name(g.name) asc;
+end;
+$fn$;
+
+revoke execute on function public.list_my_groups() from public, anon;
+grant  execute on function public.list_my_groups() to authenticated;
