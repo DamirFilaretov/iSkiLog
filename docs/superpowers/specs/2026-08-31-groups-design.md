@@ -19,10 +19,10 @@ This is **the first cross-user feature in iSkiLog**. Every existing table is
 locked to `auth.uid() = user_id`; hydration, caching and RLS all assume "your
 data, only yours." Nearly all the risk is in breaking that assumption safely.
 
-**Core safety rule:** no table here is client-reachable except `user_blocks`.
-Every read goes through a `security definer` RPC that verifies membership and
-returns **aggregates only** — a display name and five counts. Set rows,
-individual dates, notes, scores and auth identifiers never cross the boundary.
+**Core safety rule:** no Groups table is client-reachable at all. Every read goes
+through an RPC that verifies membership and returns **aggregates only** — a
+display name and five counts, keyed by opaque handles. Set rows, individual
+dates, notes, scores and `auth.users` identifiers never cross the boundary.
 
 ---
 
@@ -42,16 +42,19 @@ individual dates, notes, scores and auth identifiers never cross the boundary.
 | D10 | Group logo | Deferred. Initials avatar; `logo_key` reserved |
 | D11 | Members with 0 sets | Shown at the bottom, not hidden |
 | D12 | Tab order | Home · Insights · Groups · Settings |
-| D13 | Pagination | None on a board. Directory hard-capped at 200 |
+| D13 | Directory reach | Browse shows top 200 by members; **server-side name search reaches every group** |
 | D14 | Rejoining | Immediate, no cooldown |
 | D15 | Caching | None at all — no localStorage, no memo. `CACHE_VERSION` unchanged |
 | D16 | Reporting | Groups **and** profile names; snapshots retained |
-| D17 | Blocking | Mutual — neither party sees the other |
+| D17 | Blocking | Mutual, managed from a blocked-users screen via opaque block ids |
 | D18 | Retry wrapper | Not used. Create reconciles instead |
-| D19 | Abuse limits | 10 live groups per creator, 5 creations/hour, directory cap 200 |
-| D20 | Consent | Versioned, in a table, gated at first create-or-join |
-| D21 | Name length | `profiles.full_name` capped at 60 chars in the database |
+| D19 | Abuse limits | 10 live groups per creator, 5 creations/hour counted from a **non-deletable creation log** |
+| D20 | Consent | Versioned, server-owned, gated at first create-or-join |
+| D21 | Profile names | Normalised, capped at 60 chars, **and denylist-filtered in the database** |
 | D22 | Row layout | Two lines: name + total, then the discipline breakdown |
+| D23 | Function privilege | `security invoker` by default; `definer` only where cross-user reads require it |
+| D24 | Rollout | Ships behind a server-side feature flag that doubles as a kill switch |
+| D25 | Client reachability | **Zero** Groups tables are client-reachable, without exception |
 
 **D8** — the client sends the period and its IANA timezone, never dates. Accepting
 `p_start`/`p_end` would let any member call with `p_start = p_end` and learn who
@@ -65,8 +68,30 @@ Joining retroactively reveals recent volume and disciplines; named in the consen
 **D15** — a memo keyed by period goes stale across midnight (header shows today's
 dates, rows are yesterday's window) and misses sets logged while mounted.
 
-**D17** — one-way hiding leaves the blocked party still seeing the blocker's name
-and volume, which defeats the purpose when the motive is harassment.
+**D17 / D25** — an earlier draft left `user_blocks` client-readable, which
+contradicted two other rules at once: `blocked_id` *is* an `auth.users` UUID, so
+reading your own blocks handed you a stable cross-group identifier for everyone
+you had blocked, and insert permission gave a UUID-existence oracle through the
+foreign key. Making it private removes the exception entirely — the invariant is
+now "no Groups table is reachable, full stop" — and forces the blocked-users
+screen that mutual blocking needs anyway. Without that screen, blocking someone
+removes the only row you could have unblocked them from.
+
+**D19** — counting recent creations from live `groups` rows does not work: a
+creator can make a group, leave as sole member, and the reap trigger deletes the
+evidence, so the hourly count never rises. The limit is defeated by exactly the
+churn it exists to stop. Counts come from an append-only creation log that is
+never deleted, and check-and-insert is serialised by a per-creator lock so two
+concurrent creates cannot both see nine.
+
+**D21** — capping the length is not filtering. `profiles.full_name` is directly
+writable and renders on every leaderboard, so an abusive display name bypasses
+the group-name denylist completely and publishes to every shared group. The
+filter has to run in the database, on every write, because the existing
+`ProfileSettings` upsert and `AuthProvider`'s OAuth hydration both write it.
+
+**D23** — pure helpers have no reason to run as the table owner. Only functions
+that must read another user's rows are `definer`.
 
 **D18** — `leave_group` is idempotent in final state, so it isn't the risk;
 `create_group` is. If it commits but the response is lost, a manual retry returns
@@ -136,12 +161,29 @@ create unique index if not exists abuse_reports_one_per_profile
   on public.abuse_reports (reporter_id, target_user_id) where target_type = 'profile';
 
 create table if not exists public.user_blocks (
+  id         uuid not null unique default extensions.gen_random_uuid(),
   blocker_id uuid not null references auth.users(id) on delete cascade,
   blocked_id uuid not null references auth.users(id) on delete cascade,
   created_at timestamptz not null default timezone('utc', now()),
   primary key (blocker_id, blocked_id),
   constraint user_blocks_no_self check (blocker_id <> blocked_id)
 );
+
+-- Append-only. Never deleted, so leaving a group cannot erase a creation (D19).
+create table if not exists public.group_creation_log (
+  id         uuid primary key default extensions.gen_random_uuid(),
+  creator_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default timezone('utc', now())
+);
+create index if not exists idx_group_creation_log_creator_created
+  on public.group_creation_log (creator_id, created_at desc);
+
+-- Server-owned feature flag and policy version (D20, D24)
+create table if not exists public.app_settings (
+  key   text primary key,
+  value text not null
+);
+-- seed: ('groups_enabled','false'), ('groups_policy_version','1')
 
 create table if not exists public.policy_acceptances (
   user_id     uuid not null references auth.users(id) on delete cascade,
@@ -160,6 +202,31 @@ update public.profiles
 alter table public.profiles drop constraint if exists profiles_full_name_length;
 alter table public.profiles
   add constraint profiles_full_name_length check (char_length(full_name) <= 60);
+
+-- Profile names are public UGC once Groups ships (D21). A BEFORE trigger, not an
+-- RPC, because ProfileSettings and AuthProvider's OAuth hydration both write
+-- this column directly and neither can be migrated without breaking old clients.
+-- It normalises, strips control characters, and rejects denylisted terms.
+create or replace function public.normalise_profile_name()
+returns trigger language plpgsql security definer set search_path = '' as $fn$
+begin
+  NEW.full_name := left(btrim(regexp_replace(
+    regexp_replace(coalesce(NEW.full_name, ''), '[ -]', '', 'g'),
+    '\s+', ' ', 'g')), 60);
+
+  if exists (select 1 from public.moderation_terms t
+              where lower(NEW.full_name) like '%' || t.term || '%') then
+    raise exception 'name is not allowed' using errcode = '22023';
+  end if;
+
+  return NEW;
+end;
+$fn$;
+
+drop trigger if exists profiles_normalise_name on public.profiles;
+create trigger profiles_normalise_name
+  before insert or update of full_name on public.profiles
+  for each row execute function public.normalise_profile_name();
 
 create index if not exists idx_sets_user_id_date on public.sets (user_id, date);
 ```
@@ -188,7 +255,9 @@ revoke all on public.group_members      from anon, authenticated;
 revoke all on public.abuse_reports      from anon, authenticated;
 revoke all on public.policy_acceptances from anon, authenticated;
 revoke all on public.moderation_terms   from anon, authenticated;
-grant select, insert, delete on public.user_blocks to authenticated;
+revoke all on public.user_blocks        from anon, authenticated;
+revoke all on public.group_creation_log from anon, authenticated;
+revoke all on public.app_settings       from anon, authenticated;
 
 alter table public.groups              enable row level security;
 alter table public.group_members       enable row level security;
@@ -196,59 +265,68 @@ alter table public.abuse_reports       enable row level security;
 alter table public.user_blocks         enable row level security;
 alter table public.policy_acceptances  enable row level security;
 alter table public.moderation_terms    enable row level security;
-
--- Only user_blocks carries policies, because only it carries grants.
-drop policy if exists user_blocks_select on public.user_blocks;
-create policy user_blocks_select on public.user_blocks
-  for select to authenticated using (auth.uid() = blocker_id);
-drop policy if exists user_blocks_insert on public.user_blocks;
-create policy user_blocks_insert on public.user_blocks
-  for insert to authenticated with check (auth.uid() = blocker_id);
-drop policy if exists user_blocks_delete on public.user_blocks;
-create policy user_blocks_delete on public.user_blocks
-  for delete to authenticated using (auth.uid() = blocker_id);
+alter table public.group_creation_log  enable row level security;
+alter table public.app_settings        enable row level security;
 ```
 
-Every `create policy` is preceded by a drop, matching the 43 existing drops in
-`schema.sql`; `global.setup.ts` re-applies the file each run, so a bare create
-fails on the second run.
+**No table carries a policy, because no table carries a grant** (D25). Every
+`create policy` elsewhere in `schema.sql` is preceded by a drop — the file is
+re-applied on each E2E run — but Groups adds none.
 
-**Why nothing else is reachable.** A `select` policy on `groups` would still expose
-`created_by` for every row — RLS is row-level, not column-level. A write policy
-would bypass the RPCs entirely, skipping name normalisation, the quota, the
-denylist and the transactional membership insert, leaving an unreachable
-zero-member group in the directory forever. Granting nothing makes the definer
-RPCs the only path in or out. RLS stays enabled as defence in depth.
-
-`user_blocks` is the exception: each write is self-scoped and harmless — the
-primary key makes it idempotent, the check constraint prevents self-blocking, the
-FK requires a real user — and the client needs `select` to undo its own blocks.
+**Why nothing is reachable.** A `select` policy on `groups` would still expose
+`created_by` for every row: RLS is row-level, not column-level. A write policy
+would bypass the RPCs entirely, skipping normalisation, quota, denylist and the
+transactional membership insert, leaving an unreachable zero-member group in the
+directory forever. And a readable `user_blocks` would hand back `blocked_id` —
+an `auth.users` UUID — defeating the opaque-identifier rule that the rest of the
+design maintains, while its foreign key gave a UUID-existence oracle on insert.
+Granting nothing makes the RPCs the only path in or out. RLS stays enabled
+underneath as defence in depth.
 
 ---
 
 ## 6. Helpers, trigger and RPCs
 
-All functions are `security definer`, `set search_path = ''`, every relation fully
-qualified, and each is followed by `revoke execute ... from public, anon` plus
-`grant execute ... to authenticated`. Postgres grants `EXECUTE` to `PUBLIC` by
-default; without the revoke, the in-function `auth.uid() is null` guard is the only
-thing between an anonymous caller and a function running as the table owner. The
-guards stay, but must not be load-bearing alone. Where a signature or return type
-changes, the migration issues `drop function if exists` first — `create or replace`
-cannot change a `RETURNS TABLE` shape.
+All functions use `set search_path = ''` with every relation fully qualified, and
+each is followed by `revoke execute ... from public, anon` plus `grant execute
+... to authenticated`. Postgres grants `EXECUTE` to `PUBLIC` by default, so
+without the revoke an anonymous caller could enter the function.
+
+**`security invoker` is the default (D23).** Only these are `definer`, because
+only these must read rows the caller does not own: `create_group`, `join_group`,
+`leave_group`, `list_groups`, `search_groups`, `fetch_group_leaderboard`,
+`report_group`, `report_profile`, `block_group_member`, `list_blocks`,
+`unblock`, `accept_groups_policy`, `groups_status`, `reap_empty_group` and
+`normalise_profile_name`. The two pure helpers in 6.0 are `invoker`.
+
+**On the `auth.uid() is null` guards.** They stay as defence in depth, but they
+are not observable through the API: with `EXECUTE` revoked from `anon`, an
+anonymous request is rejected at the privilege layer and never enters the
+function body, so a client can never receive `28000`. It is not part of the
+client contract (see §10).
+
+Where a signature or return type changes, the migration issues `drop function if
+exists` first — `create or replace` cannot change a `RETURNS TABLE` shape.
 
 ### 6.0 Shared helpers
 
 ```sql
 create or replace function public.canonical_group_name(p_name text)
-returns text language sql immutable set search_path = '' as $fn$
+returns text language sql immutable security invoker set search_path = '' as $fn$
   select lower(btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g')))
 $fn$;
 
+-- Two lock namespaces: one keyed by group, one by creator (D19).
 create or replace function public.lock_group(p_group_id uuid)
-returns void language sql set search_path = '' as $fn$
+returns void language sql security invoker set search_path = '' as $fn$
   select pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(p_group_id::text, 0))
+    1, pg_catalog.hashtext(p_group_id::text))
+$fn$;
+
+create or replace function public.lock_creator(p_user_id uuid)
+returns void language sql security invoker set search_path = '' as $fn$
+  select pg_catalog.pg_advisory_xact_lock(
+    2, pg_catalog.hashtext(p_user_id::text))
 $fn$;
 ```
 
@@ -292,18 +370,24 @@ a transaction and the subsequent delete matches nothing.
 
 ### 6.2 `create_group(p_name text, p_description text default '')`
 
-1. Reject if unauthenticated (`28000`) or if the current Groups policy version is
-   unaccepted (`42501`, D20).
-2. Compare on `canonical_group_name(p_name)`; store the display form
+1. Reject if the feature flag is off (`hint = groups.disabled`) or the current
+   policy version is unaccepted (`hint = groups.consent_required`).
+2. `perform lock_creator(auth.uid())` — serialises the quota check below.
+3. Compare on `canonical_group_name(p_name)`; store the display form
    `btrim(regexp_replace(p_name, '\s+', ' ', 'g'))`.
-3. Validate name 2–40 chars, description ≤ 200 (`22023`). Null coalesces to `''`
-   and fails the length check as `22023`, not `23502`.
-4. Reject names matching `moderation_terms` (`22023`).
-5. Quota (D19): ≥ 10 live groups by this creator, or ≥ 5 in the past hour →
-   `22023`. Served by `idx_groups_created_by_created_at`.
-6. Insert, catching `unique_violation` → `23505`.
-7. **In the same transaction**, insert the creator's membership — this is what
-   guarantees a group can never exist with zero members.
+4. Validate name 2–40 chars, description ≤ 200 (`hint = groups.invalid_name` /
+   `groups.invalid_description`). Null coalesces to `''` and fails the length
+   check, not a not-null violation.
+5. Reject names matching `moderation_terms` (`hint = groups.name_rejected`).
+6. Quota (D19): ≥ 10 live groups in `groups` → `hint = groups.quota_exceeded`;
+   ≥ 5 rows in `group_creation_log` for this creator in the past hour →
+   `hint = groups.rate_limited`. **The hourly count comes from the log, not from
+   `groups`** — a live-row count is defeated by creating and immediately leaving,
+   which reaps the row and erases the evidence.
+7. Insert the group, catching `unique_violation` → `23505`.
+8. **In the same transaction**, insert the creator's membership *and* a
+   `group_creation_log` row. The membership is what guarantees a group can never
+   exist with zero members; the log is what makes the rate limit real.
 
 ### 6.3 `join_group(p_group_id uuid)` / `leave_group(p_group_id uuid)`
 
@@ -323,9 +407,16 @@ returns table (group_id uuid, group_name text, group_description text,
                group_logo_key text, member_count bigint, is_member boolean)
 ```
 
-`order by member_count desc, canonical_group_name asc`, **hard `limit 200`** (D19).
-Excludes groups whose creator the caller has blocked. `member_count` counts all
-members including blocked ones (EC-12).
+`order by member_count desc, canonical_group_name asc`, `limit 200`. Excludes
+groups whose creator is blocked in **either** direction, matching D17.
+`member_count` counts all members including blocked ones (EC-12).
+
+**`search_groups(p_query text)`** takes the same return shape, matches on
+`canonical_group_name(name) like '%' || canonical_group_name(p_query) || '%'`,
+and is also capped at 200. It exists because a browse-only cap is not a
+directory: without it, group 201 would be invisible *and* unfindable, and
+20 accounts at the 10-group quota could bury every legitimate group beneath
+padding. Browse shows what is popular; search reaches everything (D13).
 
 ### 6.5 `fetch_group_leaderboard(p_group_id uuid, p_period text, p_timezone text)`
 
@@ -383,11 +474,19 @@ order by count(s.id) desc,
   description, truncates the reason to 500 chars, `on conflict do nothing`.
 - **`report_profile(p_membership_id, p_reason)`** — resolves the membership to a
   user internally; requires a shared group; snapshots the reported name.
-- **`block_group_member(p_membership_id)`** — resolves internally, requires a shared
-  group. **`unblock_user(p_blocked_id)`** takes an id from the caller's own readable
-  `user_blocks` rows.
-- **`accept_policy(p_policy_key, p_version)`** — `on conflict do nothing`;
-  `accepted_at` defaults server-side, so the timestamp isn't client-supplied.
+- **`block_group_member(p_membership_id)`** — resolves the membership to a user
+  internally, requires a shared group.
+- **`list_blocks()`** — returns `(block_id uuid, display_name text, blocked_at
+  timestamptz)`. No user id. This is the only way to see who you have blocked,
+  and it is required, not optional: mutual blocking removes the blocked person
+  from every board, so without this screen there is no row left to unblock from.
+- **`unblock(p_block_id uuid)`** — takes the opaque id from `list_blocks`, not a
+  user id.
+- **`accept_groups_policy()`** — takes no version. It reads the current version
+  from `app_settings` and records that, so the client never holds a version
+  constant that can drift from the server's.
+- **`groups_status()`** — returns `(enabled boolean, consent_needed boolean)`.
+  The client asks this instead of duplicating the flag or version logic.
 
 ---
 
@@ -418,7 +517,12 @@ src/components/groups/LeaderboardRow.tsx
 src/components/groups/GroupsConsentGate.tsx
 src/pages/Groups.tsx                   directory
 src/pages/GroupLeaderboard.tsx         board
+src/pages/BlockedUsers.tsx             manage + undo blocks (D17)
 ```
+
+`groupsApi` calls `groups_status()` on directory mount and stores nothing about
+the flag or policy version locally — the server owns both, so there is no
+constant to drift.
 
 `groupPeriod.ts` computes no dates — the server owns the window (D8); it maps the
 period to a label and renders the range the RPC reports back. `groupName.ts`
@@ -448,8 +552,15 @@ already a member), and a **Report** link. First create-or-join routes through
 `GroupsConsentGate` (D20).
 
 **Create modal** — name and description with live counters (40 / 200), client
-validation mirroring the server. On `23505` the client first checks whether the
-caller already belongs to a group of that name and navigates there (D18).
+validation mirroring the server. On `groups.name_taken` the client reconciles
+**only if the caller is currently a member** of a group by that name, and opens
+the join modal otherwise. Being the original creator is not sufficient: there are
+no owners (D4), so a creator who left while others stayed would be navigated to a
+board they cannot read.
+
+**Blocked-users screen**, reached from Settings, backed by `list_blocks` and
+`unblock`. Not optional: blocking is mutual, so the blocked person vanishes from
+every board, and this is the only remaining place to undo it.
 
 **Leaderboard**, two-line rows (D22):
 
@@ -487,18 +598,21 @@ viewer. `logo_key` is read and currently always null.
 
 ### 9.1 Versioned consent (D20)
 
-The existing gate fails this change twice. `hasAcceptedPolicy` reads an unversioned
-flag, so every existing user passes forever without seeing the new terms — they
-accepted a policy that said there were no social features. And the gate is wrapped
-in `(isGoogleUser(user) || isAppleUser(user))`, so **email and password users have
-never seen it at all.**
+Both existing paths collect agreement, and neither is usable here. Email sign-up
+requires the policy checkbox at `Auth.tsx:108`; OAuth users get the gate in
+`App.tsx` instead, because they never see the sign-up form. The problem is not
+that anyone escaped consent — it is that **what they consented to was not
+recorded**. `hasAcceptedPolicy` reads an unversioned boolean, so every existing
+user passes forever, having agreed to a policy that said there were no social
+features.
 
-Rather than re-gate the whole app at launch, consent is taken at the point of the
-actual sharing: the first `create_group` or `join_group`. `GroupsConsentGate`
-presents the terms and calls `accept_policy('groups', N)`; both RPCs reject with
-`42501` until that row exists. This covers all three sign-in methods by
-construction, and the record lives in a table with a server-set timestamp rather
-than in user-editable `user_metadata`.
+Consent is therefore taken at the point of the actual sharing: the first
+`create_group` or `join_group`. `GroupsConsentGate` presents the terms and calls
+`accept_groups_policy()`, which records **the server's current version** — the
+client never holds a version constant of its own, so the two cannot drift. Both
+RPCs reject an unconsented caller with `hint = groups.consent_required`, and that
+rejection is enforced in the database, not the UI, so a crafted call cannot skip
+it. This is tested directly, not only through the screen.
 
 ### 9.2 Policy copy — ships in the same release
 
@@ -517,12 +631,13 @@ Play's UGC policy both require filtering, reporting, blocking and a timely respo
 
 | Requirement | Implementation |
 |---|---|
-| Filter before publication | `moderation_terms` denylist in `create_group` |
+| Filter before publication | `moderation_terms` denylist on **both** surfaces: `create_group`, and the `profiles` trigger (D21). Group names alone are not the whole attack surface — a display name reaches every shared board |
 | Report content | `report_group` |
 | Report users | `report_profile` — profile names are UGC too |
-| Block abusive users | `block_group_member`, symmetric (D17) |
-| Terms before posting | `accept_policy` gate (9.1) |
+| Block abusive users | `block_group_member`, mutual, undoable via `list_blocks` / `unblock` (D17) |
+| Terms before posting | `accept_groups_policy` gate, enforced in the database (9.1) |
 | Evidence retention | Non-cascading `abuse_reports` with text snapshots |
+| Takedown | Delete the group in the dashboard, or flip `groups_enabled` off for a live incident (D24) |
 | Timely response | Runbook: daily dashboard check, 24-hour target, contact address in About |
 
 Report volume is expected to be near zero, so there is no in-app queue. Removing a
@@ -535,15 +650,34 @@ group is a manual delete; the report survives it.
 Every RPC call gets a user-facing failure state and `captureHandledException`.
 `withTimeoutRetry` is not used (D18).
 
-| Code | Meaning | Copy |
-|---|---|---|
-| `23505` | duplicate name | Reconcile first (§8); else "That name is already taken." |
-| `22023` | validation / quota / denylist | Field-level message from the RPC |
-| `42501` | not a member, or unconsented | Join prompt, or the consent gate |
-| `P0002` | group not found | "This group no longer exists." |
-| `28000` | not authenticated | Falls through to the auth gate |
-| `23503` | lost a lifecycle race | Treated as `P0002`; unreachable given the lock |
-| network | offline / timeout | "Couldn't reach the server." + Retry |
+**SQLSTATE alone is not a contract.** An earlier draft mapped `42501` to both
+"not a member" and "policy not accepted", which produces a real bug: a member
+with stale consent is shown "Join this group" instead of the consent screen. And
+`22023` covered validation, quota, rate limit and denylist alike, so the UI could
+not tell "name too long" from "you have made too many groups". Every RPC
+therefore raises with a stable machine token in `HINT`, which `supabase-js`
+surfaces as `error.hint`. **The client branches on the token, never the
+SQLSTATE.**
+
+| `hint` token | Client behaviour |
+|---|---|
+| `groups.disabled` | "Groups isn't available right now." Hide entry points |
+| `groups.consent_required` | Open the consent screen |
+| `groups.not_a_member` | "Join this group to see its leaderboard." |
+| `groups.name_taken` | Reconcile first (§8); else "That name is already taken." |
+| `groups.invalid_name` / `groups.invalid_description` | Field-level message |
+| `groups.name_rejected` | "That name isn't allowed." |
+| `groups.quota_exceeded` | "You've reached the limit of 10 groups." |
+| `groups.rate_limited` | "You've created several groups recently. Try later." |
+| `groups.not_found` | "This group no longer exists." Refresh the directory |
+| `groups.invalid_handle` | Stale screen — refetch and retry |
+| *(no hint)* | Network or unexpected — "Couldn't reach the server." + Retry |
+
+`28000` is deliberately absent. With `EXECUTE` revoked from `anon`, an anonymous
+call is refused at the privilege layer and never reaches the function body, so
+the client cannot observe it; that path surfaces as a PostgREST permission error
+and falls through to the auth gate. The in-function guards remain as defence in
+depth only.
 
 ---
 
@@ -571,8 +705,14 @@ Every RPC call gets a user-facing failure state and `captureHandledException`.
 | EC-18 | Crafted or absent timezone | Validated against `pg_timezone_names`; worst case shifts the window one day |
 | EC-19 | Rejoining after leaving | Immediate; backfill restores the real count (D9, D14) |
 | EC-20 | Members in different timezones | Each viewer's board is computed in their own zone; `sets.date` is already a local calendar date |
-| EC-21 | One account creates 50,000 groups | Blocked at 10 live / 5 per hour (D19); directory capped at 200 regardless |
+| EC-21 | One account creates 50,000 groups | Blocked at 10 live / 5 per hour (D19); browse capped at 200, but search still reaches every group (D13) |
 | EC-22 | Self-block attempted | Rejected by the RPC guard and `user_blocks_no_self` |
+| EC-28 | Creator makes a group, leaves, repeats | The hourly limit counts `group_creation_log`, which is never deleted, so the fifth attempt is refused even though no group survives |
+| EC-29 | Two creates at once at nine live groups | `lock_creator` serialises check-and-insert; the second sees ten and is refused |
+| EC-30 | Blocking someone removes their row | The blocked-users screen (`list_blocks`) is the unblock path; without it the block would be irreversible |
+| EC-31 | Abusive `profiles.full_name` | Rejected on write by the profiles trigger — the group-name denylist alone does not cover it (D21) |
+| EC-32 | Direct PostgREST write to `profiles` | Still passes through the trigger; filtering cannot be bypassed by skipping the UI |
+| EC-33 | Abuse incident after launch | `app_settings.groups_enabled` is flipped false; every RPC refuses with `groups.disabled` and no app release is needed (D24) |
 | EC-23 | Abuser reported, then leaves as last member | Group reaped; report survives with its snapshot and a null `target_group_id` |
 | EC-24 | Existing user who accepted the old policy | Must pass `GroupsConsentGate` before their first create or join (D20) |
 | EC-25 | Emoji name passing client but failing server | Server's `22023` surfaced verbatim; the client is not authoritative |
@@ -583,21 +723,42 @@ Every RPC call gets a user-facing failure state and `captureHandledException`.
 
 ## 12. Testing
 
-**Database boundary tests — new, and gating.** Run against the database with real
-`anon` and `authenticated` JWTs, not through the UI. A policy or grant hole can
-expose data while every Playwright test passes, because the client never attempts
-the forbidden request.
+**Database boundary tests — new, and gating.** These need **two layers**, because
+they answer different questions and neither substitutes for the other:
 
-- Direct `select` on `groups`, `group_members`, `abuse_reports`,
-  `policy_acceptances` fails for `authenticated`; so does every direct write.
+*Layer 1 — direct Postgres* (`pg`, admin connection). Locks, triggers, the
+concurrency cases, and catalogue assertions. Two real connections are required
+for the race tests; a single-threaded version passes whether or not the bug
+exists.
+
+*Layer 2 — through PostgREST* (`supabase-js` with real user sessions). Grants,
+JWT handling, schema-cache exposure, and — critically — **the exact error shape
+the client will branch on.** A SQL-level test can confirm a function raises with
+a given hint while the real API returns a permission error the client never
+handles.
+
+Coverage:
+
+- Direct `select` and every direct write on all eight Groups tables fails for
+  `authenticated` — `user_blocks` included, since it is no longer an exception.
 - Direct cross-user reads of `profiles` and `sets` fail.
-- Every RPC fails for `anon`; a non-member calling `fetch_group_leaderboard` gets `42501`.
+- Every RPC is unreachable for `anon`, asserted through the API, not by expecting
+  an in-function error code.
+- A non-member calling `fetch_group_leaderboard` gets `groups.not_a_member`.
+- **Consent cannot be bypassed:** a crafted `create_group` / `join_group` from an
+  unconsented user is refused at the database, without the screen involved.
 - Only `'7d'` and `'30d'` are accepted; an invalid timezone is rejected.
-- ACL catalogue assertions: no `EXECUTE` for `public`/`anon` on any Groups function;
-  no table privileges for `authenticated` outside `user_blocks`.
+- No response from any RPC contains an `auth.users` UUID.
+- ACL catalogue: no `EXECUTE` for `public`/`anon` on any Groups function; no table
+  privileges for either role on any Groups table; every helper is `invoker` and
+  only the listed functions are `definer`.
+- Profile-name filtering holds on a direct PostgREST update and on an
+  OAuth-shaped write, not only through `ProfileSettings`.
 - **Concurrency:** two sessions leaving a two-member group simultaneously leave no
-  orphan; a join racing the last leave returns `P0002`, never `23503`;
-  account-deletion cascade reaps correctly.
+  orphan; two concurrent creates at the quota edge produce ten, not eleven;
+  create-leave-repeat still trips the hourly limit; a join racing the last leave
+  returns `groups.not_found`; account-deletion cascade reaps correctly.
+- Flipping `groups_enabled` false makes every mutating RPC refuse.
 
 **Unit (vitest).** `groupPeriod` labels; `groupName` trim / whitespace / bounds plus
 a shared Unicode corpus checked against the server rules; `groupAvatar` initials and
@@ -628,10 +789,23 @@ would have broken exactly that.
 
 ## 13. Rollout
 
-Migration first, in one transaction: privileges, tables, helpers, trigger, RPCs,
-grants, and the `profiles.full_name` clean-then-constrain. Then consent and policy
-copy (§9) in the same release. Then the client. Then `npx cap sync android` and
-`npx cap sync ios` before native builds.
+**Staged, and reversible at every step (D24).** Shipping the schema with working
+grants would expose create/join/report to any crafted client before the terms and
+moderation path exist — and on native that window is days, not minutes.
+
+1. **Schema, disabled.** Tables, helpers, triggers, RPCs, the
+   `profiles.full_name` clean-then-constrain, and `groups_enabled = false`.
+   Every RPC refuses. Nothing is reachable.
+2. **Policy and moderation live** — copy published, contact address up, runbook
+   written, denylist seeded.
+3. **Client shipped**, web and both native builds, still seeing `disabled`
+   and hiding its entry points.
+4. **Flip the flag.** One row in `app_settings`, reversible in seconds.
+
+This repo has no Supabase CLI migration directory; schema is applied by
+re-running `schema.sql`, so each stage must be independently re-runnable.
+`npx cap sync android` and `npx cap sync ios` before native builds. Run the
+Supabase security advisors and re-check effective grants before step 4.
 
 | Phase | Contents |
 |---|---|
@@ -655,6 +829,13 @@ onward. Phase 7 is independent and can land early behind an unreferenced route.
 
 - **The membership check in §6.5 step 5 is the whole privacy posture.** It gets a
   dedicated database-level test, not just UI coverage.
+- **No component-test harness exists.** There is no `@testing-library`, no jsdom,
+  and no vitest `environment` — so UI-state coverage has nowhere to live today.
+  Rather than introduce a DOM stack to a repo with none, keep pure view-model
+  logic in vitest and put UI behaviour in Playwright.
+- **Playwright runs one desktop project at 1280×900.** The two-line row exists
+  because of a 360px constraint that currently has no automated coverage at all.
+  A 360×800 project is required, not optional.
 - **Public UGC carries ongoing cost.** Filtering, reporting, blocking and retention
   are implemented, but response is a manual runbook. Both stores expect timely
   action — a commitment of your time.
