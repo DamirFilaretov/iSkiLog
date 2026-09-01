@@ -960,3 +960,101 @@ revoke execute on function public.join_group(uuid)  from public, anon;
 grant  execute on function public.join_group(uuid)  to authenticated;
 revoke execute on function public.leave_group(uuid) from public, anon;
 grant  execute on function public.leave_group(uuid) to authenticated;
+
+-- Private like every other Groups table. blocked_id is an auth.users uuid, so
+-- a readable user_blocks would hand clients a stable cross-group identifier
+-- and give a uuid-existence oracle through the foreign key (D25).
+create table if not exists public.user_blocks (
+  id         uuid not null unique default extensions.gen_random_uuid(),
+  blocker_id uuid not null references auth.users(id) on delete cascade,
+  blocked_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default timezone('utc', now()),
+  primary key (blocker_id, blocked_id),
+  constraint user_blocks_no_self check (blocker_id <> blocked_id)
+);
+
+revoke all on public.user_blocks from anon, authenticated;
+alter table public.user_blocks enable row level security;
+
+-- Browse: the popular 200. Search reaches everything, which is what stops a
+-- cap from making group 201 both invisible and unfindable (D13).
+drop function if exists public.list_groups();
+create function public.list_groups()
+returns table (
+  group_id          uuid,
+  group_name        text,
+  group_description text,
+  group_logo_key    text,
+  member_count      bigint,
+  is_member         boolean
+)
+language plpgsql security definer set search_path = '' as $fn$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  return query
+  select g.id, g.name, g.description, g.logo_key,
+         (select count(*) from public.group_members m where m.group_id = g.id),
+         exists (select 1 from public.group_members me
+                  where me.group_id = g.id and me.user_id = auth.uid())
+    from public.groups g
+   where g.created_by is null
+      or g.created_by = auth.uid()
+      or not exists (
+        select 1 from public.user_blocks b
+         where (b.blocker_id = auth.uid() and b.blocked_id = g.created_by)
+            or (b.blocker_id = g.created_by and b.blocked_id = auth.uid()))
+   order by (select count(*) from public.group_members m where m.group_id = g.id) desc,
+            public.canonical_group_name(g.name) asc
+   limit 200;
+end;
+$fn$;
+
+drop function if exists public.search_groups(text);
+create function public.search_groups(p_query text)
+returns table (
+  group_id          uuid,
+  group_name        text,
+  group_description text,
+  group_logo_key    text,
+  member_count      bigint,
+  is_member         boolean
+)
+language plpgsql security definer set search_path = '' as $fn$
+declare
+  v_query text;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  v_query := public.canonical_group_name(p_query);
+  if v_query = '' then
+    return;
+  end if;
+
+  return query
+  select g.id, g.name, g.description, g.logo_key,
+         (select count(*) from public.group_members m where m.group_id = g.id),
+         exists (select 1 from public.group_members me
+                  where me.group_id = g.id and me.user_id = auth.uid())
+    from public.groups g
+   where public.canonical_group_name(g.name) like '%' || v_query || '%'
+     and (g.created_by is null
+          or g.created_by = auth.uid()
+          or not exists (
+            select 1 from public.user_blocks b
+             where (b.blocker_id = auth.uid() and b.blocked_id = g.created_by)
+                or (b.blocker_id = g.created_by and b.blocked_id = auth.uid())))
+   order by (select count(*) from public.group_members m where m.group_id = g.id) desc,
+            public.canonical_group_name(g.name) asc
+   limit 200;
+end;
+$fn$;
+
+revoke execute on function public.list_groups()      from public, anon;
+grant  execute on function public.list_groups()      to authenticated;
+revoke execute on function public.search_groups(text) from public, anon;
+grant  execute on function public.search_groups(text) to authenticated;
