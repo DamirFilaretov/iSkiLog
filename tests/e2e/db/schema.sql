@@ -771,3 +771,31 @@ revoke execute on function public.groups_status()         from public, anon;
 revoke execute on function public.accept_groups_policy()  from public, anon;
 grant  execute on function public.groups_status()         to authenticated;
 grant  execute on function public.accept_groups_policy()  to authenticated;
+
+-- A trigger rather than logic inside leave_group, because it must also fire
+-- when a user deletes their account and memberships cascade away - a path no
+-- RPC ever sees.
+--
+-- The lock is not optional. Under Read Committed, two members leaving
+-- concurrently each still see the other's uncommitted row, so neither deletes
+-- the group: it survives with zero members, in the public directory, and can
+-- never be reaped because no future delete will fire for it.
+create or replace function public.reap_empty_group()
+returns trigger language plpgsql security definer set search_path = '' as $fn$
+begin
+  perform public.lock_group(OLD.group_id);
+
+  if not exists (
+    select 1 from public.group_members m where m.group_id = OLD.group_id
+  ) then
+    delete from public.groups where id = OLD.group_id;
+  end if;
+
+  return null;
+end;
+$fn$;
+
+drop trigger if exists group_members_reap_empty on public.group_members;
+create trigger group_members_reap_empty
+  after delete on public.group_members
+  for each row execute function public.reap_empty_group();
