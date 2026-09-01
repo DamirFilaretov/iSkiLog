@@ -692,3 +692,82 @@ revoke all on public.group_members from anon, authenticated;
 alter table public.groups        enable row level security;
 alter table public.group_members enable row level security;
 -- No policies: no table carries a grant, so none needs one.
+
+-- Server-owned feature flag and policy version (D20, D24). Seeded with
+-- on-conflict-do-nothing so re-running this file never resets a flipped flag.
+create table if not exists public.app_settings (
+  key   text primary key,
+  value text not null
+);
+
+insert into public.app_settings (key, value) values
+  ('groups_enabled', 'false'),
+  ('groups_policy_version', '1')
+on conflict (key) do nothing;
+
+create table if not exists public.policy_acceptances (
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  policy_key  text not null,
+  version     integer not null,
+  accepted_at timestamptz not null default timezone('utc', now()),
+  primary key (user_id, policy_key, version)
+);
+
+create table if not exists public.moderation_terms (term text primary key);
+
+revoke all on public.app_settings       from anon, authenticated;
+revoke all on public.policy_acceptances from anon, authenticated;
+revoke all on public.moderation_terms   from anon, authenticated;
+
+alter table public.app_settings       enable row level security;
+alter table public.policy_acceptances enable row level security;
+alter table public.moderation_terms   enable row level security;
+
+create or replace function public.groups_policy_version()
+returns integer language sql stable security definer set search_path = '' as $fn$
+  select coalesce(
+    (select value::integer from public.app_settings where key = 'groups_policy_version'),
+    1)
+$fn$;
+
+create or replace function public.groups_enabled()
+returns boolean language sql stable security definer set search_path = '' as $fn$
+  select coalesce(
+    (select value = 'true' from public.app_settings where key = 'groups_enabled'),
+    false)
+$fn$;
+
+-- The client asks for status rather than holding its own copy of the flag or
+-- the policy version, so the two can never drift apart.
+create or replace function public.groups_status()
+returns json language sql stable security definer set search_path = '' as $fn$
+  select json_build_object(
+    'enabled', public.groups_enabled(),
+    'consent_needed', not exists (
+      select 1 from public.policy_acceptances a
+       where a.user_id = auth.uid()
+         and a.policy_key = 'groups'
+         and a.version >= public.groups_policy_version()))
+$fn$;
+
+-- Records the server's version. accepted_at is defaulted server-side, so the
+-- timestamp is never client-supplied.
+create or replace function public.accept_groups_policy()
+returns void language plpgsql security definer set search_path = '' as $fn$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000';
+  end if;
+
+  insert into public.policy_acceptances (user_id, policy_key, version)
+  values (auth.uid(), 'groups', public.groups_policy_version())
+  on conflict do nothing;
+end;
+$fn$;
+
+revoke execute on function public.groups_policy_version() from public, anon;
+revoke execute on function public.groups_enabled()        from public, anon;
+revoke execute on function public.groups_status()         from public, anon;
+revoke execute on function public.accept_groups_policy()  from public, anon;
+grant  execute on function public.groups_status()         to authenticated;
+grant  execute on function public.accept_groups_policy()  to authenticated;
