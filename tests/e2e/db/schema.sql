@@ -656,3 +656,30 @@ create or replace function public.lock_creator(p_user_id uuid)
 returns void language sql security invoker set search_path = '' as $fn$
   select pg_catalog.pg_advisory_xact_lock(2, pg_catalog.hashtext(p_user_id::text))
 $fn$;
+
+create table if not exists public.groups (
+  id          uuid primary key default extensions.gen_random_uuid(),
+  name        text not null,
+  description text not null default '',
+  logo_key    text null,
+  created_by  uuid null references auth.users(id) on delete set null,
+  created_at  timestamptz not null default timezone('utc', now())
+);
+
+-- Built on the helper, so dashboard and import writes collide too (EC-1).
+create unique index if not exists groups_name_unique
+  on public.groups (public.canonical_group_name(name));
+
+create index if not exists idx_groups_created_by_created_at
+  on public.groups (created_by, created_at desc);
+
+create table if not exists public.group_members (
+  id        uuid not null unique default extensions.gen_random_uuid(),
+  group_id  uuid not null references public.groups(id) on delete cascade,
+  user_id   uuid not null references auth.users(id) on delete cascade,
+  joined_at timestamptz not null default timezone('utc', now()),
+  primary key (group_id, user_id)
+);
+
+create index if not exists idx_group_members_user_id
+  on public.group_members (user_id);
