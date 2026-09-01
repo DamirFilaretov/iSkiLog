@@ -1129,3 +1129,89 @@ revoke execute on function public.list_blocks()            from public, anon;
 grant  execute on function public.list_blocks()            to authenticated;
 revoke execute on function public.unblock(uuid)            from public, anon;
 grant  execute on function public.unblock(uuid)            to authenticated;
+
+-- Reports outlive what they describe. Both target FKs are set null and the
+-- offending text is snapshotted, because with a cascade an abuser could
+-- destroy the evidence simply by leaving as the last member.
+create table if not exists public.abuse_reports (
+  id                   uuid primary key default extensions.gen_random_uuid(),
+  reporter_id          uuid not null references auth.users(id) on delete cascade,
+  target_type          text not null check (target_type in ('group', 'profile')),
+  target_group_id      uuid null references public.groups(id) on delete set null,
+  target_user_id       uuid null references auth.users(id) on delete set null,
+  snapshot_name        text not null default '',
+  snapshot_description text not null default '',
+  reason               text not null default '',
+  created_at           timestamptz not null default timezone('utc', now())
+);
+
+create unique index if not exists abuse_reports_one_per_group
+  on public.abuse_reports (reporter_id, target_group_id) where target_type = 'group';
+create unique index if not exists abuse_reports_one_per_profile
+  on public.abuse_reports (reporter_id, target_user_id) where target_type = 'profile';
+
+revoke all on public.abuse_reports from anon, authenticated;
+alter table public.abuse_reports enable row level security;
+
+create or replace function public.report_group(p_group_id uuid, p_reason text)
+returns void language plpgsql security definer set search_path = '' as $fn$
+declare
+  v_name text;
+  v_desc text;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  select g.name, g.description into v_name, v_desc
+    from public.groups g where g.id = p_group_id;
+
+  if v_name is null then
+    raise exception 'group not found' using errcode = 'P0002', hint = 'groups.not_found';
+  end if;
+
+  insert into public.abuse_reports (
+    reporter_id, target_type, target_group_id,
+    snapshot_name, snapshot_description, reason)
+  values (
+    auth.uid(), 'group', p_group_id,
+    v_name, v_desc, left(coalesce(p_reason, ''), 500))
+  on conflict do nothing;
+end;
+$fn$;
+
+create or replace function public.report_profile(p_membership_id uuid, p_reason text)
+returns void language plpgsql security definer set search_path = '' as $fn$
+declare
+  v_target uuid;
+  v_name   text;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  select m.user_id into v_target
+    from public.group_members m
+   where m.id = p_membership_id
+     and exists (select 1 from public.group_members me
+                  where me.group_id = m.group_id and me.user_id = auth.uid());
+
+  if v_target is null then
+    raise exception 'unknown member' using errcode = '42501', hint = 'groups.invalid_handle';
+  end if;
+
+  select p.full_name into v_name from public.profiles p where p.user_id = v_target;
+
+  insert into public.abuse_reports (
+    reporter_id, target_type, target_user_id, snapshot_name, reason)
+  values (
+    auth.uid(), 'profile', v_target,
+    coalesce(v_name, ''), left(coalesce(p_reason, ''), 500))
+  on conflict do nothing;
+end;
+$fn$;
+
+revoke execute on function public.report_group(uuid, text)   from public, anon;
+grant  execute on function public.report_group(uuid, text)   to authenticated;
+revoke execute on function public.report_profile(uuid, text) from public, anon;
+grant  execute on function public.report_profile(uuid, text) to authenticated;
