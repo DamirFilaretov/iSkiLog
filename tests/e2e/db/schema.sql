@@ -1253,3 +1253,89 @@ create trigger profiles_normalise_name
   for each row execute function public.normalise_profile_name();
 
 create index if not exists idx_sets_user_id_date on public.sets (user_id, date);
+
+-- The client sends a period and a timezone, never dates. Accepting start and
+-- end dates would let any member ask about a single day and learn who trained
+-- which discipline on it; 365 cheap calls reconstruct a year of everyone's
+-- schedule (D8).
+--
+-- Reading is not gated by the feature flag: a kill switch should stop new
+-- activity, not hide existing members' data from each other.
+drop function if exists public.fetch_group_leaderboard(uuid, text, text);
+create function public.fetch_group_leaderboard(
+  p_group_id uuid,
+  p_period   text,
+  p_timezone text
+)
+returns table (
+  membership_id uuid,
+  member_name   text,
+  is_self       boolean,
+  slalom_count  bigint,
+  tricks_count  bigint,
+  jump_count    bigint,
+  other_count   bigint,
+  total_count   bigint
+)
+language plpgsql security definer set search_path = '' as $fn$
+declare
+  v_days  integer;
+  v_start date;
+  v_end   date;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  v_days := case p_period when '7d' then 6 when '30d' then 29 else null end;
+  if v_days is null then
+    raise exception 'unsupported period' using errcode = '22023', hint = 'groups.invalid_period';
+  end if;
+
+  if p_timezone is null or not exists (
+    select 1 from pg_catalog.pg_timezone_names z where z.name = p_timezone
+  ) then
+    raise exception 'unknown timezone' using errcode = '22023', hint = 'groups.invalid_timezone';
+  end if;
+
+  v_end   := (pg_catalog.now() at time zone p_timezone)::date;
+  v_start := v_end - v_days;
+
+  -- The single most important line in the feature: without it, security
+  -- definer exposes every group's data to everyone. A non-member and a
+  -- non-existent group are deliberately indistinguishable.
+  if not exists (
+    select 1 from public.group_members m
+     where m.group_id = p_group_id and m.user_id = auth.uid()
+  ) then
+    raise exception 'not a member of this group'
+      using errcode = '42501', hint = 'groups.not_a_member';
+  end if;
+
+  return query
+  select m.id,
+         coalesce(nullif(btrim(p.full_name), ''), 'Skier'),
+         (m.user_id = auth.uid()),
+         count(s.id) filter (where s.event_type = 'slalom'),
+         count(s.id) filter (where s.event_type = 'tricks'),
+         count(s.id) filter (where s.event_type = 'jump'),
+         count(s.id) filter (where s.event_type = 'other'),
+         count(s.id)
+    from public.group_members m
+    left join public.profiles p on p.user_id = m.user_id
+    left join public.sets s on s.user_id = m.user_id
+                           and s.date between v_start and v_end
+   where m.group_id = p_group_id
+     and (m.user_id = auth.uid()
+          or not exists (
+            select 1 from public.user_blocks b
+             where (b.blocker_id = auth.uid() and b.blocked_id = m.user_id)
+                or (b.blocker_id = m.user_id and b.blocked_id = auth.uid())))
+   group by m.id, m.user_id, p.full_name
+   order by count(s.id) desc,
+            coalesce(nullif(btrim(p.full_name), ''), 'Skier') asc;
+end;
+$fn$;
+
+revoke execute on function public.fetch_group_leaderboard(uuid, text, text) from public, anon;
+grant  execute on function public.fetch_group_leaderboard(uuid, text, text) to authenticated;
