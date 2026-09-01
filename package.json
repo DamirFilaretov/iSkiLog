@@ -10,6 +10,7 @@
     "test": "vitest src",
     "test:ui": "vitest --ui src",
     "test:run": "vitest run src",
+    "test:db": "vitest run --config vitest.db.config.ts",
     "e2e": "playwright test",
     "e2e:flow1": "playwright test -g \"flow 1:\"",
     "e2e:rest": "playwright test --grep-invert \"flow 1:\"",
