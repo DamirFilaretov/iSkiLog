@@ -634,3 +634,25 @@ create policy set_notes_select on public.set_notes for select to authenticated u
 create policy set_notes_insert on public.set_notes for insert to authenticated with check (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
 create policy set_notes_update on public.set_notes for update to authenticated using (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid())) with check (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
 create policy set_notes_delete on public.set_notes for delete to authenticated using (exists (select 1 from public.sets s where s.id = set_notes.set_id and s.user_id = auth.uid()));
+
+-- ============================================================
+-- Groups feature
+-- ============================================================
+
+-- Canonical name: the single definition of "the same name" (D3).
+-- Immutable so it can back the unique index; invoker because it reads nothing.
+create or replace function public.canonical_group_name(p_name text)
+returns text language sql immutable security invoker set search_path = '' as $fn$
+  select lower(btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g')))
+$fn$;
+
+-- Two advisory-lock namespaces so group and creator locks never collide.
+create or replace function public.lock_group(p_group_id uuid)
+returns void language sql security invoker set search_path = '' as $fn$
+  select pg_catalog.pg_advisory_xact_lock(1, pg_catalog.hashtext(p_group_id::text))
+$fn$;
+
+create or replace function public.lock_creator(p_user_id uuid)
+returns void language sql security invoker set search_path = '' as $fn$
+  select pg_catalog.pg_advisory_xact_lock(2, pg_catalog.hashtext(p_user_id::text))
+$fn$;
