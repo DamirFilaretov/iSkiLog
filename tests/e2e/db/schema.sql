@@ -1215,3 +1215,41 @@ revoke execute on function public.report_group(uuid, text)   from public, anon;
 grant  execute on function public.report_group(uuid, text)   to authenticated;
 revoke execute on function public.report_profile(uuid, text) from public, anon;
 grant  execute on function public.report_profile(uuid, text) to authenticated;
+
+-- Profile names become public UGC the moment Groups ships: they render on
+-- every shared leaderboard. Filtering only group names is trivially bypassed
+-- by setting an abusive display name instead (D21).
+--
+-- A BEFORE trigger rather than moving writes to an RPC, because ProfileSettings
+-- and AuthProvider's OAuth hydration both write this column directly and
+-- neither can be migrated without breaking existing clients.
+--
+-- Length truncates rather than raising: this sits on the sign-in path, and
+-- rejecting a long name from an OAuth provider would break login.
+create or replace function public.normalise_profile_name()
+returns trigger language plpgsql security definer set search_path = '' as $fn$
+begin
+  NEW.full_name := left(
+    btrim(regexp_replace(
+      regexp_replace(coalesce(NEW.full_name, ''), '[[:cntrl:]]', '', 'g'),
+      '\s+', ' ', 'g')),
+    60);
+
+  if NEW.full_name <> '' and exists (
+    select 1 from public.moderation_terms t
+     where lower(NEW.full_name) like '%' || t.term || '%'
+  ) then
+    raise exception 'display name is not allowed'
+      using errcode = '22023', hint = 'groups.name_rejected';
+  end if;
+
+  return NEW;
+end;
+$fn$;
+
+drop trigger if exists profiles_normalise_name on public.profiles;
+create trigger profiles_normalise_name
+  before insert or update of full_name on public.profiles
+  for each row execute function public.normalise_profile_name();
+
+create index if not exists idx_sets_user_id_date on public.sets (user_id, date);
