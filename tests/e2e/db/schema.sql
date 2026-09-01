@@ -906,3 +906,57 @@ $fn$;
 
 revoke execute on function public.create_group(text, text) from public, anon;
 grant  execute on function public.create_group(text, text) to authenticated;
+
+create or replace function public.join_group(p_group_id uuid)
+returns void language plpgsql security definer set search_path = '' as $fn$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  if not public.groups_enabled() then
+    raise exception 'groups is not available' using errcode = '22023', hint = 'groups.disabled';
+  end if;
+
+  if not exists (
+    select 1 from public.policy_acceptances a
+     where a.user_id = auth.uid() and a.policy_key = 'groups'
+       and a.version >= public.groups_policy_version()
+  ) then
+    raise exception 'policy not accepted' using errcode = '42501', hint = 'groups.consent_required';
+  end if;
+
+  -- Lock first, then check existence: this is what turns a race against the
+  -- last member's leave into a clean not_found rather than a raw 23503.
+  perform public.lock_group(p_group_id);
+
+  if not exists (select 1 from public.groups g where g.id = p_group_id) then
+    raise exception 'group not found' using errcode = 'P0002', hint = 'groups.not_found';
+  end if;
+
+  insert into public.group_members (group_id, user_id)
+  values (p_group_id, auth.uid())
+  on conflict do nothing;
+end;
+$fn$;
+
+-- Deliberately not gated by the feature flag: flipping the kill switch must
+-- never trap somebody inside a group they want to leave.
+create or replace function public.leave_group(p_group_id uuid)
+returns void language plpgsql security definer set search_path = '' as $fn$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  perform public.lock_group(p_group_id);
+
+  delete from public.group_members
+   where group_id = p_group_id and user_id = auth.uid();
+end;
+$fn$;
+
+revoke execute on function public.join_group(uuid)  from public, anon;
+grant  execute on function public.join_group(uuid)  to authenticated;
+revoke execute on function public.leave_group(uuid) from public, anon;
+grant  execute on function public.leave_group(uuid) to authenticated;
