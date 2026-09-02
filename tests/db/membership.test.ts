@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
 import { createTestUser, anonClient, type TestUser } from "./helpers/users"
+import { withFeatureDisabled, withFeatureEnabled } from "./helpers/featureFlag"
 
 const unique = (label: string) =>
   `${label} ${Date.now()}-${Math.floor(Math.random() * 1e6)}`
@@ -9,19 +10,6 @@ async function ready(): Promise<TestUser> {
   const user = await createTestUser()
   await user.client.rpc("accept_groups_policy")
   return user
-}
-
-async function withFeatureEnabled<T>(fn: () => Promise<T>): Promise<T> {
-  await withAdmin(c =>
-    c.query("update public.app_settings set value = 'true' where key = 'groups_enabled'")
-  )
-  try {
-    return await fn()
-  } finally {
-    await withAdmin(c =>
-      c.query("update public.app_settings set value = 'false' where key = 'groups_enabled'")
-    )
-  }
 }
 
 async function memberCount(groupId: string): Promise<number> {
@@ -67,24 +55,28 @@ describe("join_group", () => {
   })
 
   it("refuses when the feature flag is off", async () => {
-    const owner = await ready()
-    const groupId = await withAdmin(async c => {
-      const r = await c.query(
-        "insert into public.groups (name, created_by) values ($1, $2) returning id",
-        [unique("Flag Join"), owner.userId]
+    await withFeatureDisabled(async () => {
+      const owner = await ready()
+      const groupId = await withAdmin(async c => {
+        const r = await c.query(
+          "insert into public.groups (name, created_by) values ($1, $2) returning id",
+          [unique("Flag Join"), owner.userId]
+        )
+        await c.query("insert into public.group_members (group_id, user_id) values ($1, $2)", [
+          r.rows[0].id,
+          owner.userId
+        ])
+        return r.rows[0].id as string
+      })
+
+      const joiner = await ready()
+      const { error } = await joiner.client.rpc("join_group", { p_group_id: groupId })
+      expect(error?.hint).toBe("groups.disabled")
+
+      await withAdmin(c =>
+        c.query("delete from public.group_members where group_id = $1", [groupId])
       )
-      await c.query("insert into public.group_members (group_id, user_id) values ($1, $2)", [
-        r.rows[0].id,
-        owner.userId
-      ])
-      return r.rows[0].id as string
     })
-
-    const joiner = await ready()
-    const { error } = await joiner.client.rpc("join_group", { p_group_id: groupId })
-    expect(error?.hint).toBe("groups.disabled")
-
-    await withAdmin(c => c.query("delete from public.group_members where group_id = $1", [groupId]))
   })
 
   it("reports a missing group rather than a raw foreign-key violation", async () => {
@@ -167,21 +159,23 @@ describe("leave_group", () => {
   })
 
   it("works even when the feature flag is off, so nobody is trapped in a group", async () => {
-    const owner = await ready()
-    const groupId = await withAdmin(async c => {
-      const r = await c.query(
-        "insert into public.groups (name, created_by) values ($1, $2) returning id",
-        [unique("Trapped"), owner.userId]
-      )
-      await c.query("insert into public.group_members (group_id, user_id) values ($1, $2)", [
-        r.rows[0].id,
-        owner.userId
-      ])
-      return r.rows[0].id as string
-    })
+    await withFeatureDisabled(async () => {
+      const owner = await ready()
+      const groupId = await withAdmin(async c => {
+        const r = await c.query(
+          "insert into public.groups (name, created_by) values ($1, $2) returning id",
+          [unique("Trapped"), owner.userId]
+        )
+        await c.query("insert into public.group_members (group_id, user_id) values ($1, $2)", [
+          r.rows[0].id,
+          owner.userId
+        ])
+        return r.rows[0].id as string
+      })
 
-    const { error } = await owner.client.rpc("leave_group", { p_group_id: groupId })
-    expect(error).toBeNull()
-    expect(await memberCount(groupId)).toBe(0)
+      const { error } = await owner.client.rpc("leave_group", { p_group_id: groupId })
+      expect(error).toBeNull()
+      expect(await memberCount(groupId)).toBe(0)
+    })
   })
 })

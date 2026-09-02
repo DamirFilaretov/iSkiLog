@@ -76,7 +76,7 @@ export default function CreateGroupModal(props: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-6 sm:items-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center px-4 pb-6 sm:items-center">
       <button
         type="button"
         onClick={props.submitting ? () => {} : props.onClose}

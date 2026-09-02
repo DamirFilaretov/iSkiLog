@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
 import { createTestUser, anonClient, type TestUser } from "./helpers/users"
 import { openAsUser, closeQuietly } from "./helpers/asUser"
+import { withFeatureDisabled, withFeatureEnabled } from "./helpers/featureFlag"
 
 const unique = (label: string) =>
   `${label} ${Date.now()}-${Math.floor(Math.random() * 1e6)}`
@@ -11,19 +12,6 @@ async function ready(): Promise<TestUser> {
   const user = await createTestUser()
   await user.client.rpc("accept_groups_policy")
   return user
-}
-
-async function withFeatureEnabled<T>(fn: () => Promise<T>): Promise<T> {
-  await withAdmin(c =>
-    c.query("update public.app_settings set value = 'true' where key = 'groups_enabled'")
-  )
-  try {
-    return await fn()
-  } finally {
-    await withAdmin(c =>
-      c.query("update public.app_settings set value = 'false' where key = 'groups_enabled'")
-    )
-  }
 }
 
 describe("create_group", () => {
@@ -67,12 +55,14 @@ describe("create_group", () => {
   })
 
   it("refuses when the feature flag is off", async () => {
-    const user = await ready()
-    const { error } = await user.client.rpc("create_group", {
-      p_name: unique("Disabled Club"),
-      p_description: ""
+    await withFeatureDisabled(async () => {
+      const user = await ready()
+      const { error } = await user.client.rpc("create_group", {
+        p_name: unique("Disabled Club"),
+        p_description: ""
+      })
+      expect(error?.hint).toBe("groups.disabled")
     })
-    expect(error?.hint).toBe("groups.disabled")
   })
 
   it("refuses a caller who has not accepted the policy", async () => {

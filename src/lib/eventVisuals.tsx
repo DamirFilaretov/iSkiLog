@@ -43,6 +43,18 @@ export function eventGradientClass(set: SkiSet): string {
   return "bg-gradient-to-br from-emerald-500 to-green-400 shadow-emerald-500/20"
 }
 
+/**
+ * Discipline accent as a Tailwind text colour, for compact inline labels like
+ * the group leaderboard's breakdown line. Same hues as {@link eventBgClass}:
+ * slalom blue, tricks purple, jump orange, other emerald.
+ */
+export function eventTextClass(event: "slalom" | "tricks" | "jump" | "other"): string {
+  if (event === "slalom") return "text-blue-600"
+  if (event === "tricks") return "text-purple-600"
+  if (event === "jump") return "text-orange-600"
+  return "text-emerald-600"
+}
+
 export function eventLabel(set: SkiSet): string {
   if (set.event === "slalom") return "Slalom"
   if (set.event === "tricks") return "Tricks"

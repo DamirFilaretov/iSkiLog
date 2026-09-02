@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
 import { createTestUser, anonClient, type TestUser } from "./helpers/users"
+import { withFeatureDisabled, withFeatureEnabled } from "./helpers/featureFlag"
 
 const unique = (label: string) =>
   `${label} ${Date.now()}-${Math.floor(Math.random() * 1e6)}`
@@ -9,19 +10,6 @@ async function ready(): Promise<TestUser> {
   const user = await createTestUser()
   await user.client.rpc("accept_groups_policy")
   return user
-}
-
-async function withFeatureEnabled<T>(fn: () => Promise<T>): Promise<T> {
-  await withAdmin(c =>
-    c.query("update public.app_settings set value = 'true' where key = 'groups_enabled'")
-  )
-  try {
-    return await fn()
-  } finally {
-    await withAdmin(c =>
-      c.query("update public.app_settings set value = 'false' where key = 'groups_enabled'")
-    )
-  }
 }
 
 async function addSet(userId: string, event: string, daysAgo: number) {
@@ -44,12 +32,22 @@ async function setName(userId: string, name: string) {
   )
 }
 
-const board = (client: TestUser["client"], groupId: string, period = "7d") =>
+const board = (client: TestUser["client"], groupId: string, period = "7d", timezone = "UTC") =>
   client.rpc("fetch_group_leaderboard", {
     p_group_id: groupId,
     p_period: period,
-    p_timezone: "UTC"
+    p_timezone: timezone
   })
+
+/** Today's calendar date in a timezone, as YYYY-MM-DD — how Postgres returns a `date`. */
+const dateIn = (timezone: string) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date())
+
+/** Shift a YYYY-MM-DD calendar date by whole days, staying in calendar space. */
+function shiftDate(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number)
+  return new Date(Date.UTC(y, m - 1, d) + days * 86_400_000).toISOString().slice(0, 10)
+}
 
 describe("fetch_group_leaderboard access control", () => {
   it("refuses a non-member", async () => {
@@ -270,23 +268,84 @@ describe("fetch_group_leaderboard boundaries", () => {
     })
   })
 
-  it("keeps working when the feature flag is off, so a kill switch does not hide data from members", async () => {
-    const owner = await ready()
-    const groupId = await withAdmin(async c => {
-      const r = await c.query(
-        "insert into public.groups (name, created_by) values ($1, $2) returning id",
-        [unique("Flagged Board"), owner.userId]
-      )
-      await c.query("insert into public.group_members (group_id, user_id) values ($1, $2)", [
-        r.rows[0].id,
-        owner.userId
-      ])
-      return r.rows[0].id as string
+  it("returns the resolved window, sized by the period and repeated on every row", async () => {
+    await withFeatureEnabled(async () => {
+      const owner = await ready()
+      const other = await ready()
+      const { data: group } = await owner.client.rpc("create_group", {
+        p_name: unique("Window Board"),
+        p_description: ""
+      })
+      await other.client.rpc("join_group", { p_group_id: group.id })
+
+      const week = await board(owner.client, group.id, "7d", "UTC")
+      const end = dateIn("UTC")
+      expect(week.data).toHaveLength(2)
+      for (const row of week.data) {
+        expect(row.window_end).toBe(end)
+        expect(row.window_start).toBe(shiftDate(end, -6))
+      }
+
+      const month = await board(owner.client, group.id, "30d", "UTC")
+      expect(month.data[0].window_end).toBe(end)
+      expect(month.data[0].window_start).toBe(shiftDate(end, -29))
     })
+  })
 
-    const { error } = await board(owner.client, groupId)
-    expect(error).toBeNull()
+  it("is STABLE, so the membership gate and the row query share one snapshot", async () => {
+    const volatility = await withAdmin(async c => {
+      const r = await c.query(
+        `select p.provolatile from pg_proc p
+           join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'fetch_group_leaderboard'`
+      )
+      return r.rows[0]?.provolatile as string
+    })
+    // 's' = STABLE. A VOLATILE function resnapshots per internal statement, so a
+    // concurrent leave_group could land between the gate and RETURN QUERY.
+    expect(volatility).toBe("s")
+  })
 
-    await withAdmin(c => c.query("delete from public.group_members where group_id = $1", [groupId]))
+  it("resolves the window in the caller's timezone, not the server's", async () => {
+    await withFeatureEnabled(async () => {
+      const owner = await ready()
+      const { data: group } = await owner.client.rpc("create_group", {
+        p_name: unique("TZ Window Board"),
+        p_description: ""
+      })
+
+      // A 25-hour spread guarantees these do not all share one calendar date,
+      // so a function that ignored the timezone would fail at least one.
+      for (const tz of ["Pacific/Kiritimati", "UTC", "Pacific/Pago_Pago"]) {
+        const { data } = await board(owner.client, group.id, "7d", tz)
+        const end = dateIn(tz)
+        expect(data[0].window_end, tz).toBe(end)
+        expect(data[0].window_start, tz).toBe(shiftDate(end, -6))
+      }
+    })
+  })
+
+  it("keeps working when the feature flag is off, so a kill switch does not hide data from members", async () => {
+    await withFeatureDisabled(async () => {
+      const owner = await ready()
+      const groupId = await withAdmin(async c => {
+        const r = await c.query(
+          "insert into public.groups (name, created_by) values ($1, $2) returning id",
+          [unique("Flagged Board"), owner.userId]
+        )
+        await c.query("insert into public.group_members (group_id, user_id) values ($1, $2)", [
+          r.rows[0].id,
+          owner.userId
+        ])
+        return r.rows[0].id as string
+      })
+
+      const { error } = await board(owner.client, groupId)
+      expect(error).toBeNull()
+
+      await withAdmin(c =>
+        c.query("delete from public.group_members where group_id = $1", [groupId])
+      )
+    })
   })
 })

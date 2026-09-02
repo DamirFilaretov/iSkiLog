@@ -46,6 +46,22 @@ export type LeaderboardRow = {
 }
 
 /**
+ * A leaderboard fetch: the rows plus the window the server resolved them
+ * against. The client sends a period and a timezone, never dates; the server
+ * echoes the concrete window back so the header can show the range without the
+ * client recomputing it and risking drift (D8, D15).
+ *
+ * `windowStart` / `windowEnd` are `YYYY-MM-DD` calendar dates. They are `null`
+ * only when there are no rows at all — which cannot happen for a real member,
+ * since the caller is always in the board.
+ */
+export type GroupBoard = {
+  windowStart: string | null
+  windowEnd: string | null
+  rows: LeaderboardRow[]
+}
+
+/**
  * The server owns both the kill switch and the policy version, so the client
  * asks rather than holding constants of its own that could drift.
  */

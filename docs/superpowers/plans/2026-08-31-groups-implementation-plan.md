@@ -89,27 +89,59 @@ Cover, before writing any SQL: direct reads and writes of all eight tables fail;
 
 ---
 
-## Part 4 — The leaderboard and blocking
+## Part 4 — The leaderboard
 
-**Build:** the board page, the 7/30-day toggle, the two-line rows, the member sheet holding Block and Report, Leave, and the blocked-users screen in Settings.
+**Scope reduced (2026-09-01).** Blocking and reporting — the member sheet, the
+Block and Report controls, and the blocked-users screen in Settings — are
+**deferred indefinitely**, not moved to Part 5. They are a future addition, not
+a launch requirement. The Part 1 SQL for them (`block_group_member`,
+`list_blocks`, `unblock`, and the symmetric block-filter inside
+`fetch_group_leaderboard`) stays in place, dormant: nothing client-side calls
+it. Part 5 is now moderation *of names and groups only* — the denylist, the
+`report_group` / `report_profile` wiring, policy copy and the runbook.
 
-**Test first.** Vitest for row shaping: ranked by total descending, ties by name, members with nothing at the bottom, your own row marked, the four discipline numbers summing to the total, zeros omitted from the second line.
+**Build:** the board page, the 7/30-day toggle, the two-line rows, and Leave.
 
-**The blocked-users screen is required, not a nicety.** Blocking is mutual, so the moment you block someone they disappear from every board — including the row you would have unblocked them from. Without a dedicated screen, blocking is irreversible.
+**First task (decided 2026-09-01):** `fetch_group_leaderboard` gains
+`window_start` / `window_end`, returned repeated on every row, and the board
+header shows the range. A **drop-and-recreate** in `schema.sql`, since `create
+or replace` cannot change a `RETURNS TABLE` shape. The client still only sends a
+period and a timezone (D8 untouched); computing the dates in JS was rejected
+because the client's window could disagree with the server's (the drift D15
+cited). Database tests: the window matches the period and the caller's
+timezone, and is present on every row.
 
-**Recommendation on layout.** All five numbers on one line does not fit a 360px phone once the row needs a tappable control, and browser zoom is disabled app-wide, so large-text users have no escape. Hence two lines, with the whole row as the touch target. Keep it that way even when it looks roomy on a big phone.
+**Test first.** Vitest for the pure helpers: window-range formatting (same
+month, across months, across a year), and row shaping — server order preserved,
+1-based rank, the four discipline numbers with zeros omitted from the second
+line and summing to the total, own row marked, an all-zero row reading "no sets
+this period".
 
-**Milestone you can check:** with two accounts in one group, log a slalom set on one and watch the other's board show that discipline and the total each rise by one, other columns untouched. Switch to 30 days and see older sets appear. Block the other member; confirm they vanish from your board and you from theirs, then undo it from the blocked-users screen. Leave as the last member and watch the group disappear from the directory.
+**Layout.** All five numbers on one line does not fit a 360px phone, and
+browser zoom is disabled app-wide, so large-text users have no escape. Hence
+two lines. The row is static — with no member sheet there is nothing for it to
+open.
+
+**Milestone you can check:** with two accounts in one group, log a slalom set
+on one and watch the other's board show that discipline and the total each rise
+by one, other columns untouched. Switch to 30 days and see older sets appear,
+and the header range widen. Leave as the last member and watch the group
+disappear from the directory.
 
 ---
 
 ## Part 5 — Moderation and policy
 
-**Build:** report flows for groups and profile names, the denylist seeded and enforced on both surfaces, the policy text in all three places it appears, the contact address in About, and a written runbook.
+**Build:** report flows for groups and profile names (the `report_group` /
+`report_profile` RPCs exist and are tested; this wires the controls — the join
+modal's Report link and a member-level Report — and their copy), the denylist
+seeded and enforced on both surfaces, the policy text in all three places it
+appears, the contact address in About, and a written runbook. Blocking and the
+blocked-users screen are **not** in Part 5 either — see the note in Part 4.
 
 **Test first.** The database side is already covered in Part 1 — including that an abusive profile name is refused on a direct API write, not just through the settings screen. What is new here is copy and process, so the check is a read-through: confirm the policy names the discipline breakdown explicitly rather than saying "set counts". The breakdown reveals which disciplines someone trains, which is more than a bare total.
 
-**Recommendation:** both stores expect a timely response to reports, and there is deliberately no in-app queue — you read them in the dashboard. Decide before submission what "timely" means and write it down; a daily check with a 24-hour target is defensible, nothing written down is not. Update the store listings' UGC declarations and tell reviewers in the notes where the report and block controls live.
+**Recommendation:** both stores expect a timely response to reports, and there is deliberately no in-app queue — you read them in the dashboard. Decide before submission what "timely" means and write it down; a daily check with a 24-hour target is defensible, nothing written down is not. Update the store listings' UGC declarations and tell reviewers in the notes where the report controls live.
 
 **Milestone you can check:** report a group from the second account, then find that report in the dashboard with a copy of the group's name and description saved alongside. Delete the group and confirm the report is still there. Try to set an abusive display name and be refused. Read the updated policy in the app and confirm it describes what actually happens.
 
@@ -145,4 +177,7 @@ Part 1 gates everything. Parts 2 and 3 gate 4. Part 5 can run alongside 4. Part 
 - **The profiles trigger (Part 1).** It touches a column two existing code paths already write, including OAuth hydration at sign-in. A mistake here breaks login, not just Groups.
 - **Moderation is an ongoing commitment,** not a build task. Everything else ends when it ships; this one does not.
 
-**Deferred on purpose:** group logo images, a tutorial step for Groups, sorting the board by discipline, keyset pagination beyond the 200-row browse cap, and any in-app moderation queue.
+**Deferred on purpose:** blocking and the blocked-users screen (the Part 1 SQL
+stays dormant), group logo images, a tutorial step for Groups, sorting the board
+by discipline, keyset pagination beyond the 200-row browse cap, and any in-app
+moderation queue.

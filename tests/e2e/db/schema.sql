@@ -1167,6 +1167,13 @@ create index if not exists idx_sets_user_id_date on public.sets (user_id, date);
 -- which discipline on it; 365 cheap calls reconstruct a year of everyone's
 -- schedule (D8).
 --
+-- The resolved window is returned as window_start / window_end, repeated on
+-- every row, so the board header can show the range without the client
+-- recomputing it. Computing it client-side was rejected: the client's window
+-- could disagree with the server's, which is the drift D15 cited when it
+-- banned a period-keyed memo. A member almost always sees at least their own
+-- row, so the client reads the pair from row 0 and copes with an empty result.
+--
 -- Reading is not gated by the feature flag: a kill switch should stop new
 -- activity, not hide existing members' data from each other.
 drop function if exists public.fetch_group_leaderboard(uuid, text, text);
@@ -1183,9 +1190,16 @@ returns table (
   tricks_count  bigint,
   jump_count    bigint,
   other_count   bigint,
-  total_count   bigint
+  total_count   bigint,
+  window_start  date,
+  window_end    date
 )
-language plpgsql security definer set search_path = '' as $fn$
+-- STABLE, not the default VOLATILE: the membership gate and the data query must
+-- see one snapshot. A VOLATILE plpgsql function takes a fresh snapshot per
+-- internal statement, so a leave_group committing between the gate and the
+-- RETURN QUERY could let a just-left caller read the remaining rows, or return
+-- zero rows for a reaped group. STABLE pins both to the calling query's snapshot.
+language plpgsql stable security definer set search_path = '' as $fn$
 declare
   v_days  integer;
   v_start date;
@@ -1228,7 +1242,9 @@ begin
          count(s.id) filter (where s.event_type = 'tricks'),
          count(s.id) filter (where s.event_type = 'jump'),
          count(s.id) filter (where s.event_type = 'other'),
-         count(s.id)
+         count(s.id),
+         v_start,
+         v_end
     from public.group_members m
     left join public.profiles p on p.user_id = m.user_id
     left join public.sets s on s.user_id = m.user_id

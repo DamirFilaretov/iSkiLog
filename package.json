@@ -18,6 +18,8 @@
     "e2e:headed": "playwright test --headed",
     "e2e:db:prepare": "node tests/e2e/scripts/db-prepare.mjs",
     "e2e:db:cleanup": "node tests/e2e/scripts/db-cleanup.mjs",
+    "groups:on": "node tests/e2e/scripts/set-groups-flag.mjs true",
+    "groups:off": "node tests/e2e/scripts/set-groups-flag.mjs false",
     "postinstall": "patch-package"
   },
   "devDependencies": {

@@ -1,20 +1,27 @@
 import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
+import { withFeatureDisabled, withFeatureEnabled } from "./helpers/featureFlag"
 import { createTestUser, anonClient } from "./helpers/users"
 
 describe("app_settings", () => {
-  it("ships with Groups disabled and a policy version", async () => {
-    const rows = await withAdmin(async c => {
-      const r = await c.query(
-        "select key, value from public.app_settings where key = any($1) order by key",
-        [["groups_enabled", "groups_policy_version"]]
-      )
-      return r.rows
+  // The shipped default (`groups_enabled = 'false'`) is set by schema.sql's seed
+  // and guarded again by the staged rollout; a developer may leave the local
+  // flag on to use the app, so this pins the row shape and the policy version
+  // with the flag explicitly held off.
+  it("holds the Groups flag and a policy version", async () => {
+    await withFeatureDisabled(async () => {
+      const rows = await withAdmin(async c => {
+        const r = await c.query(
+          "select key, value from public.app_settings where key = any($1) order by key",
+          [["groups_enabled", "groups_policy_version"]]
+        )
+        return r.rows
+      })
+      expect(rows).toEqual([
+        { key: "groups_enabled", value: "false" },
+        { key: "groups_policy_version", value: "1" }
+      ])
     })
-    expect(rows).toEqual([
-      { key: "groups_enabled", value: "false" },
-      { key: "groups_policy_version", value: "1" }
-    ])
   })
 
   it("is not readable by a signed-in client", async () => {
@@ -26,10 +33,20 @@ describe("app_settings", () => {
 
 describe("groups_status", () => {
   it("reports the feature disabled and consent outstanding", async () => {
-    const user = await createTestUser()
-    const { data, error } = await user.client.rpc("groups_status")
-    expect(error).toBeNull()
-    expect(data).toMatchObject({ enabled: false, consent_needed: true })
+    await withFeatureDisabled(async () => {
+      const user = await createTestUser()
+      const { data, error } = await user.client.rpc("groups_status")
+      expect(error).toBeNull()
+      expect(data).toMatchObject({ enabled: false, consent_needed: true })
+    })
+  })
+
+  it("reports the feature enabled once the flag is flipped", async () => {
+    await withFeatureEnabled(async () => {
+      const user = await createTestUser()
+      const { data } = await user.client.rpc("groups_status")
+      expect(data).toMatchObject({ enabled: true })
+    })
   })
 
   it("reports consent satisfied once the current version is accepted", async () => {

@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient"
-import type { GroupPeriod, LeaderboardRow } from "../types/groups"
+import type { GroupBoard, GroupPeriod, LeaderboardRow } from "../types/groups"
 
 /**
  * The board is fetched fresh on mount and on every period change (D15).
@@ -18,6 +18,8 @@ type LeaderboardRowResponse = {
   jump_count: number | string
   other_count: number | string
   total_count: number | string
+  window_start: string | null
+  window_end: string | null
 }
 
 /** Read per fetch, not cached: a device can change zone between two loads. */
@@ -34,6 +36,10 @@ export function resolveTimezone(): string {
  * logged nothing at the bottom. The order is the server's; the client renders
  * it as given.
  *
+ * The resolved window comes back repeated on every row (the server owns the
+ * dates, D8); it is read off the first row and carried on the result so the
+ * header can show the range.
+ *
  * A non-member and a group that no longer exists both raise
  * `groups.not_a_member` — deliberately indistinguishable (EC-7).
  */
@@ -41,7 +47,7 @@ export async function fetchGroupLeaderboard(
   groupId: string,
   period: GroupPeriod,
   timezone: string = resolveTimezone()
-): Promise<LeaderboardRow[]> {
+): Promise<GroupBoard> {
   const { data, error } = await supabase.rpc("fetch_group_leaderboard", {
     p_group_id: groupId,
     p_period: period,
@@ -49,7 +55,9 @@ export async function fetchGroupLeaderboard(
   })
   if (error) throw error
 
-  return ((data ?? []) as LeaderboardRowResponse[]).map(row => ({
+  const response = (data ?? []) as LeaderboardRowResponse[]
+
+  const rows: LeaderboardRow[] = response.map(row => ({
     membershipId: row.membership_id,
     memberName: row.member_name,
     isSelf: row.is_self,
@@ -60,4 +68,10 @@ export async function fetchGroupLeaderboard(
     otherCount: Number(row.other_count),
     totalCount: Number(row.total_count)
   }))
+
+  return {
+    windowStart: response[0]?.window_start ?? null,
+    windowEnd: response[0]?.window_end ?? null,
+    rows
+  }
 }

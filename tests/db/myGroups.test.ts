@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
 import { createTestUser, anonClient, type TestUser } from "./helpers/users"
+import { withFeatureEnabled } from "./helpers/featureFlag"
 
 /**
  * `list_my_groups` exists because `list_groups` is not a membership list.
@@ -19,19 +20,6 @@ async function ready(): Promise<TestUser> {
   const user = await createTestUser()
   await user.client.rpc("accept_groups_policy")
   return user
-}
-
-async function withFeatureEnabled<T>(fn: () => Promise<T>): Promise<T> {
-  await withAdmin(c =>
-    c.query("update public.app_settings set value = 'true' where key = 'groups_enabled'")
-  )
-  try {
-    return await fn()
-  } finally {
-    await withAdmin(c =>
-      c.query("update public.app_settings set value = 'false' where key = 'groups_enabled'")
-    )
-  }
 }
 
 async function block(blockerId: string, blockedId: string) {
