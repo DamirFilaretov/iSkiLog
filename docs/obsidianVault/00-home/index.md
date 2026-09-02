@@ -56,6 +56,8 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[browse-is-not-a-membership-list]]
 - [[the-kill-switch-stops-spread-not-escape]]
 - [[the-client-mirrors-the-servers-whitespace-rules-exactly]]
+- [[blocking-and-reporting-are-deferred]]
+- [[a-gated-read-rpc-must-be-stable]]
 
 ### Patterns
 - [[a-set-is-a-discriminated-union-narrow-by-event]]
@@ -78,6 +80,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ## Logs & loose ends
 
+- [[2026-09-02-groups-leaderboard]] — Groups Part 4: the leaderboard, the 7/30-day toggle, Leave; blocking cut from the plan
 - [[2026-09-01-groups-directory-and-joining]] — Groups Part 3: the tab, the directory, create and join, consent
 - [[2026-09-01-groups-client-data-layer]] — Groups Part 2: types, API modules, hint mapping, Unicode mirror
 - [[2026-09-01-groups-database-foundation]] — Groups Part 1: the server-side security boundary
