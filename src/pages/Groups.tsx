@@ -15,7 +15,11 @@ import {
   listMyGroups,
   searchGroups
 } from "../data/groupsApi"
-import { buildDirectory, reconcileNameTaken } from "../features/groups/groupDirectory"
+import {
+  buildDirectory,
+  directoryCardTap,
+  reconcileNameTaken
+} from "../features/groups/groupDirectory"
 import { toGroupError, type GroupError } from "../features/groups/groupErrors"
 import { canonicalGroupName } from "../features/groups/groupName"
 import { useGroupsStatus } from "../features/groups/GroupsStatusProvider"
@@ -81,6 +85,8 @@ export default function Groups() {
   const [codeOpen, setCodeOpen] = useState(false)
   const [codeSubmitting, setCodeSubmitting] = useState(false)
   const [codeError, setCodeError] = useState<string | null>(null)
+  // The private group a code prompt was opened from; null for the generic link.
+  const [codeTarget, setCodeTarget] = useState<Group | null>(null)
 
   // A stale-row error (EC-4) closes the modal that would have shown it and
   // refetches, so the explanation has to live on the page to be seen at all.
@@ -191,8 +197,12 @@ export default function Groups() {
       }
       if (decision.action === "open_join") {
         setCreateOpen(false)
-        setJoinError(null)
-        setJoinTarget(decision.group)
+        if (decision.group.isPrivate) {
+          openPrivateCodePrompt(decision.group)
+        } else {
+          setJoinError(null)
+          setJoinTarget(decision.group)
+        }
         return
       }
       setCreateError(NAME_TAKEN)
@@ -367,13 +377,24 @@ export default function Groups() {
     }
   }
 
+  function openPrivateCodePrompt(group: Group) {
+    setCodeError(null)
+    setCodeTarget(group)
+    setCodeOpen(true)
+  }
+
   function openGroup(group: Group) {
     setNotice(null)
-    // A group you already belong to goes straight to its board. The join
-    // modal's "Open" state is for a row whose membership the screen learned
-    // late — the create-reconcile path, or a join made on another device.
-    if (group.isMember) {
+    // A membership goes straight to the board (the join modal's "Open" state is
+    // for a row whose membership the screen learned late). A private group you
+    // are not in routes to the code prompt — the lock is not a "join" button.
+    const tap = directoryCardTap(group)
+    if (tap === "open_board") {
       navigate(`/groups/${group.id}`)
+      return
+    }
+    if (tap === "join_private") {
+      openPrivateCodePrompt(group)
       return
     }
     setJoinError(null)
@@ -460,6 +481,7 @@ export default function Groups() {
         type="button"
         onClick={() => {
           setCodeError(null)
+          setCodeTarget(null)
           setCodeOpen(true)
         }}
         className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600"
@@ -546,9 +568,13 @@ export default function Groups() {
       <JoinByCodeModal
         open={codeOpen}
         submitting={codeSubmitting}
+        group={codeTarget}
         error={codeError}
         onSubmit={code => void submitJoinByCode(code)}
-        onClose={() => setCodeOpen(false)}
+        onClose={() => {
+          setCodeOpen(false)
+          setCodeTarget(null)
+        }}
         onClearError={() => setCodeError(null)}
       />
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import type { Group } from "../../types/groups"
-import { buildDirectory, reconcileNameTaken } from "./groupDirectory"
+import { buildDirectory, directoryCardTap, reconcileNameTaken } from "./groupDirectory"
 
 function group(partial: Partial<Group> & { id: string; name: string }): Group {
   return {
@@ -186,5 +186,26 @@ describe("reconcileNameTaken", () => {
       group({ id: "a", name: "Ski Club", isMember: true })
     ]
     expect(reconcileNameTaken("Ski Club", known).action).toBe("open_group")
+  })
+})
+
+describe("directoryCardTap", () => {
+  it("opens the board for a group the caller is already in", () => {
+    expect(directoryCardTap(group({ id: "a", name: "Ski Club", isMember: true }))).toBe("open_board")
+  })
+
+  it("opens the board for a private group the caller is in, not the code prompt", () => {
+    const g = group({ id: "a", name: "Ski Club", isMember: true, isPrivate: true })
+    expect(directoryCardTap(g)).toBe("open_board")
+  })
+
+  it("opens the join modal for a public group the caller is not in", () => {
+    expect(directoryCardTap(group({ id: "a", name: "Ski Club" }))).toBe("join_public")
+  })
+
+  it("opens the code prompt for a private group the caller is not in", () => {
+    expect(directoryCardTap(group({ id: "a", name: "Ski Club", isPrivate: true }))).toBe(
+      "join_private"
+    )
   })
 })

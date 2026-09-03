@@ -1,17 +1,25 @@
 import { useEffect, useState } from "react"
 
 import { isCompleteJoinCode, normalizeJoinCode } from "../../features/groups/joinCode"
+import type { Group } from "../../types/groups"
 
 /**
- * Join a private group by its 6-digit code (D26). The code is not a password —
- * it just keeps a private group out of the directory — but joining still shares
- * your name and set counts, so it routes through the consent gate on a first
- * join like any other.
+ * Join a private group by its 6-digit code (D26). Private groups are visible in
+ * the directory with a lock; the code is what a member shares to let someone in.
+ * Joining still shares your name and set counts, so it routes through the
+ * consent gate on a first join like any other.
+ *
+ * `group` is set when the modal was opened from a specific private group's card
+ * — the heading then names it. From the generic "join with a code" link it is
+ * null. Either way the code is looked up globally, so the entered code decides
+ * which group is joined.
  */
 
 type Props = {
   open: boolean
   submitting: boolean
+  /** The private group tapped in the directory, or null for the generic entry point. */
+  group?: Group | null
   /** Server message for a bad code; cleared as the input changes. */
   error: string | null
   onSubmit: (code: string) => void
@@ -46,9 +54,13 @@ export default function JoinByCodeModal(props: Props) {
         aria-label="Join with a code"
         className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"
       >
-        <h2 className="text-lg font-semibold text-slate-900">Join with a code</h2>
+        <h2 className="text-lg font-semibold text-slate-900">
+          {props.group ? props.group.name : "Join with a code"}
+        </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Enter the 6-digit code a member shared with you.
+          {props.group
+            ? "This group is private. Enter the 6-digit code a member shared with you."
+            : "Enter the 6-digit code a member shared with you."}
         </p>
 
         <input

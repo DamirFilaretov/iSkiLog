@@ -1,3 +1,5 @@
+import { Lock } from "lucide-react"
+
 import GroupAvatar from "./GroupAvatar"
 import type { Group } from "../../types/groups"
 
@@ -24,9 +26,10 @@ export default function GroupCard({ group, onSelect }: Props) {
         <div className="flex items-center gap-2">
           <p className="truncate text-sm font-semibold text-slate-900">{group.name}</p>
           {group.isPrivate ? (
-            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-              Private
-            </span>
+            <Lock
+              className="h-3.5 w-3.5 shrink-0 text-slate-400"
+              aria-label="Private group"
+            />
           ) : null}
           {group.isMember ? (
             <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">

@@ -100,19 +100,45 @@ describe("create_group — private", () => {
   })
 })
 
-describe("private groups are hidden from discovery", () => {
-  it("never appears in list_groups or search_groups, even to a member", async () => {
+describe("private groups are discoverable but still code-gated", () => {
+  it("appears in list_groups flagged private, without leaking its code", async () => {
+    await withFeatureEnabled(async () => {
+      const owner = await ready()
+      const group = await createPrivate(owner, unique("Disco"))
+
+      const browse = await owner.client.rpc("list_groups")
+      const row = browse.data.find((r: any) => r.group_id === group.id)
+      expect(row).toBeDefined()
+      expect(row.is_private).toBe(true)
+      expect(row).not.toHaveProperty("join_code")
+    })
+  })
+
+  it("is found by search_groups by name, flagged private", async () => {
     await withFeatureEnabled(async () => {
       const owner = await ready()
       const marker = `Zz${Date.now()}`
       const group = await createPrivate(owner, `${marker} Secret Crew`)
 
-      const browse = await owner.client.rpc("list_groups")
-      expect(browse.data.some((r: any) => r.group_id === group.id)).toBe(false)
-
       const search = await owner.client.rpc("search_groups", { p_query: marker })
       expect(search.error).toBeNull()
-      expect(search.data).toEqual([])
+      const row = search.data.find((r: any) => r.group_id === group.id)
+      expect(row).toBeDefined()
+      expect(row.is_private).toBe(true)
+      expect(row).not.toHaveProperty("join_code")
+    })
+  })
+
+  it("flags a public group is_private false in list_groups", async () => {
+    await withFeatureEnabled(async () => {
+      const owner = await ready()
+      const { data: pub } = await owner.client.rpc("create_group", {
+        p_name: unique("Open Discover"),
+        p_description: ""
+      })
+      const browse = await owner.client.rpc("list_groups")
+      const row = browse.data.find((r: any) => r.group_id === pub.id)
+      expect(row.is_private).toBe(false)
     })
   })
 

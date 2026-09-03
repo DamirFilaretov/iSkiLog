@@ -12,9 +12,11 @@
 --   sam@iskilog.dev      Sam Chen       tricks-focused
 --   jordan@iskilog.dev   Jordan Blake   all-rounder
 --
--- All three are in the group "Waterski Wednesdays"; Alex and Sam are also in
--- "Jump Squad". Sets are spread across the last ~30 days so the leaderboard's
--- 7-day / 30-day toggle shows different standings. Consent is pre-accepted.
+-- All three are in "Waterski Wednesdays"; Alex and Sam are in "Jump Squad";
+-- Sam and Jordan are in the private "Trick Masters" (code 424242 — Alex can see
+-- the lock and test the code-join). Sets span the last ~30 days so the
+-- leaderboard's 7-day / 30-day toggle shows different standings. Consent is
+-- pre-accepted.
 --
 -- Groups still ships disabled — run `npm run groups:on` after a reset to see
 -- the tab (`npm run groups:off` to hide it again).
@@ -84,10 +86,13 @@ values
 
 -- ── Groups + membership + consent ──────────────────────────────────────────
 
-insert into public.groups (id, name, description, created_by)
+insert into public.groups (id, name, description, created_by, is_private, join_code)
 values
-  ('c1000000-0000-4000-8000-000000000001', 'Waterski Wednesdays', 'Midweek practice crew — slalom, tricks and jump.', '11111111-1111-4111-8111-111111111111'),
-  ('c2000000-0000-4000-8000-000000000002', 'Jump Squad', 'Distance chasing.', '22222222-2222-4222-8222-222222222222');
+  ('c1000000-0000-4000-8000-000000000001', 'Waterski Wednesdays', 'Midweek practice crew — slalom, tricks and jump.', '11111111-1111-4111-8111-111111111111', false, null),
+  ('c2000000-0000-4000-8000-000000000002', 'Jump Squad', 'Distance chasing.', '22222222-2222-4222-8222-222222222222', false, null),
+  -- Private: shows in the directory with a lock. Alex is not a member — tap it
+  -- and enter 424242 to test the code-join flow.
+  ('c3000000-0000-4000-8000-000000000003', 'Trick Masters', 'Invite-only trick crew.', '22222222-2222-4222-8222-222222222222', true, '424242');
 
 insert into public.group_members (group_id, user_id)
 values
@@ -95,7 +100,9 @@ values
   ('c1000000-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222'),
   ('c1000000-0000-4000-8000-000000000001', '33333333-3333-4333-8333-333333333333'),
   ('c2000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111'),
-  ('c2000000-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222');
+  ('c2000000-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222'),
+  ('c3000000-0000-4000-8000-000000000003', '22222222-2222-4222-8222-222222222222'),
+  ('c3000000-0000-4000-8000-000000000003', '33333333-3333-4333-8333-333333333333');
 
 insert into public.policy_acceptances (user_id, policy_key, version)
 select id, 'groups', public.groups_policy_version()

@@ -1,5 +1,5 @@
 ---
-title: A private group is hidden, not sealed
+title: A private group is visible but code-gated
 date: 2026-09-03
 tags:
   - decision
@@ -8,32 +8,56 @@ tags:
 status: active
 ---
 
-# A private group is hidden, not sealed
+# A private group is visible but code-gated
 
-A **private group** (D26) is removed from `list_groups` and `search_groups` and joined with a **6-digit numeric code** via `join_group_by_code`. That code is the *only* new way in.
+> [!info] Revised 2026-09-03 (same day)
+> The original design (D26) **hid** private groups from `list_groups` /
+> `search_groups` entirely. The user changed it: a private group is now
+> **discoverable** — it shows in browse and search with a lock icon — but
+> joining still needs the 6-digit code. Migration
+> `20260903175342_private_groups_discoverable`.
 
-The code is **not access control** (D27):
+A **private group** appears in the directory and search like any other, flagged
+`is_private`. The client shows a lock on the card; tapping it opens a "enter the
+code" prompt instead of a one-tap join. `join_group_by_code` is the only way in;
+`join_group` still refuses a private group's id with `groups.code_required`.
 
-- `join_group_by_code` is **not rate-limited**. No attempt log, no per-user lock.
-- ~1,000,000 codes is enumerable by a determined script.
-- So "private" means **undiscoverable**, not **unreachable**.
+The code is **member-shared and not access control** (D27):
 
-This was the user's explicit choice, made with the brute-force risk on the table. It is a deliberate, documented acceptance — not a gap.
+- `list_groups` / `search_groups` return `is_private` but **never** `join_code`.
+  Only `list_my_groups` returns a real code, and only to a member.
+- A non-member can *see* a private group exists but needs a member to hand them
+  the code.
+- `join_group_by_code` is **not rate-limited**. ~1,000,000 codes is enumerable by
+  a determined script.
+- So "private" means **you need an invite**, not **unreachable**.
+
+This is the user's explicit choice, made with the brute-force risk on the table.
 
 ## Why it's defensible
 
-- Rate-limiting the code would need another append-only attempt log and a lock — real infrastructure — for a feature whose whole point is convenience.
+- Rate-limiting the code would need an append-only attempt log and a lock — real
+  infrastructure — for a feature whose whole point is convenience.
 - A determined attacker with many accounts defeats a modest limit anyway.
-- The threat model for a training-log club feature is low. The data a private group shares among members is the same as a public group's — profile name and discipline-broken-down set counts, no set contents.
-- Part 5's policy copy is written to match: a private group is "not listed" and the code "keeps people from stumbling in, not from getting in if they have it." Nothing overclaims.
+- The threat model for a training-log club feature is low. A private group shares
+  the same data as a public one — profile name and discipline-broken-down set
+  counts, never set contents.
+- Part 5's policy copy is written to match: a private group is "invite-only" and
+  the code "keeps people from wandering in, not from getting in if a member gives
+  it to them." Nothing overclaims.
 
 ## Consequences
 
-- **Names stay globally unique** across public and private — the `canonical_group_name` index is privacy-blind. A create that collides with a hidden private name returns `groups.name_taken`, which is a minor existence-by-name oracle. Accepted, consistent with the posture (EC-37).
-- **Any member sees the code** on the board (D28), and it **never rotates**. No owner role (D4). A badly-leaked code is fixed by leave-and-recreate.
-- `join_group` refuses a private group's id with `groups.code_required` — belt-and-suspenders, since no RPC hands a non-member a private group's id.
-- `list_my_groups` is the only RPC that returns a real `join_code`, and only to a member. `list_groups` / `search_groups` never carry the column.
-- If the posture ever needs to change: a longer alphanumeric code, or an attempt log with a per-user lock — both additive, neither shipped.
+- **Names stay globally unique** across public and private — the
+  `canonical_group_name` index is privacy-blind. A create colliding with a
+  private name returns `groups.name_taken` (EC-37). Less of an oracle now that
+  private groups are listed anyway.
+- **Any member sees the code** on the board (D28); it **never rotates**. No owner
+  role (D4). A leaked code is fixed by leave-and-recreate.
+- Directory tap routing lives in `directoryCardTap` (`groupDirectory.ts`):
+  member → board, non-member + private → code prompt, else → join modal.
+- If the posture ever needs tightening: a longer alphanumeric code, or an attempt
+  log with a per-user lock — both additive, neither shipped.
 
 ## Related
 

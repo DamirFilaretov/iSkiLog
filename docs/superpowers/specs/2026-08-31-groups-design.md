@@ -16,6 +16,15 @@ and private. Blocking and reporting were also cut from the client scope
 them stays in place, dormant. Part 4 shipped the leaderboard and the resolved
 window on `fetch_group_leaderboard`, which is now `STABLE`.
 
+**v4 (2026-09-03, same day):** D26 revised — private groups are **discoverable**.
+They now appear in `list_groups` / `search_groups` flagged `is_private` (but never
+with `join_code`); the client shows a lock and routes the tap to a code prompt.
+`join_group_by_code` is still the only way in and `join_group` still refuses a
+private id. D27/D28 unchanged. Migration `20260903175342_private_groups_discoverable`.
+See `knowledge/decisions/a-private-group-is-hidden-not-sealed` (retitled "visible
+but code-gated"). D2 in the table below and the D26 SQL sketch describe the
+superseded "hidden" behaviour.
+
 ---
 
 ## 1. Summary

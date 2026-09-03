@@ -30,6 +30,19 @@ export type ReconcileDecision =
   | { action: "open_join"; group: Group }
   | { action: "show_error" }
 
+export type CardTap = "open_board" | "join_public" | "join_private"
+
+/**
+ * What tapping a directory card does. A membership always opens the board, even
+ * for a private group. A private group you are not in routes to the code prompt
+ * — the lock on the card means "ask a member for the code", not "you can join".
+ */
+export function directoryCardTap(group: Group): CardTap {
+  if (group.isMember) return "open_board"
+  if (group.isPrivate) return "join_private"
+  return "join_public"
+}
+
 /**
  * Approximates the server's `order by member_count desc, canonical_group_name
  * asc`. The database orders canonical names under its `en_US.UTF-8` collation;

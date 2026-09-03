@@ -11,6 +11,12 @@ tags:
 
 # 2026-09-03 — Groups: private groups (Part 4.5)
 
+> [!info] Partly superseded the same day
+> The "hidden from discovery" call below was reversed by the user hours later:
+> private groups are now **discoverable** (shown with a lock, joined by code
+> prompt). See [[a-private-group-is-hidden-not-sealed]] and migration
+> `20260903175342_private_groups_discoverable`. Everything else here still stands.
+
 Inserted work between Part 4 and Part 5: a creator can make a group **private**. It is then hidden from the directory and name search, and joined with a **6-digit code** any member can share from the board. Branch `feature/groups-workflow`, commits `2202aae` (spec+plan) and `7fac2d6` (build).
 
 ## The design call
