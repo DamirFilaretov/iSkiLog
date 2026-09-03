@@ -2,11 +2,11 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-31-groups-design.md` — holds every table, RPC signature, return shape, error token and the locking protocol. This plan says what to build and how to know it works; the spec says exactly what it is.
 **Reviews:** `docs/groups_findings.md` (round 1), second-round findings folded into the spec; Part 3 and Part 4 review findings folded into the code.
-**Date:** 2026-08-31 · **last revised:** 2026-09-03 (Part 4.5 — private groups)
+**Date:** 2026-08-31 · **last revised:** 2026-09-03 (spec v5 — Part 5 scope reset: report + block back in, hardening migration added)
 
 **Goal:** A directory of user-created training groups, each with a leaderboard ranking members by sets logged in the last 7 or 30 days, broken down by discipline. Groups are public (in the directory) by default; a creator may make one **private** — hidden from the directory, joined with a 6-digit code (Part 4.5).
 
-**Approach:** Six parts plus an inserted Part 4.5, built in order. Each is written test-first — the tests describe the behaviour before the thing exists — and ends at a milestone you can check yourself without reading code. Nothing user-visible ships until Part 3; Parts 1 and 2 are verified by running commands. **Parts 1–4 are done; Part 4.5 is next.**
+**Approach:** Six parts plus an inserted Part 4.5, built in order. Each is written test-first — the tests describe the behaviour before the thing exists — and ends at a milestone you can check yourself without reading code. Nothing user-visible ships until Part 3; Parts 1 and 2 are verified by running commands. **Parts 1–4.5 are done; Part 5 is next.**
 
 **Why this order:** Groups is the first cross-user feature in the app. Everything today is locked to "your data, only yours", so the security boundary goes first. Each later part depends only on parts before it.
 
@@ -24,7 +24,7 @@
 - Periods are exactly `7d` and `30d`, resolved on the server from the caller's timezone.
 - Feature ships behind `app_settings.groups_enabled`, which doubles as a kill switch.
 - Handled user-facing failures report to Sentry via `captureHandledException`. Group mutations are never auto-retried; ambiguous creates reconcile instead.
-- `schema.sql` is re-applied on every E2E run — everything must be re-runnable. This repo has no Supabase CLI migration directory.
+- Schema is Supabase CLI migrations under `supabase/migrations/` (adopted 2026-09-03). Every migration must survive a clean `npx supabase db reset` and is committed with the code that needs it; never edit a pushed migration. No `db push` to production without the maintainer's explicit approval.
 - `CACHE_VERSION` does not change. Groups is never cached, so no existing user's data is invalidated.
 
 ---
@@ -91,14 +91,13 @@ Cover, before writing any SQL: direct reads and writes of all eight tables fail;
 
 ## Part 4 — The leaderboard
 
-**Scope reduced (2026-09-01).** Blocking and reporting — the member sheet, the
-Block and Report controls, and the blocked-users screen in Settings — are
-**deferred indefinitely**, not moved to Part 5. They are a future addition, not
-a launch requirement. The Part 1 SQL for them (`block_group_member`,
-`list_blocks`, `unblock`, and the symmetric block-filter inside
-`fetch_group_leaderboard`) stays in place, dormant: nothing client-side calls
-it. Part 5 is now moderation *of names and groups only* — the denylist, the
-`report_group` / `report_profile` wiring, policy copy and the runbook.
+**Scope reduced (2026-09-01), then restored (2026-09-03, spec v5).** Part 4
+shipped without the member sheet, Block/Report controls or the blocked-users
+screen — the row is static. **Part 5 brings them back:** the maintainer's call
+is that Groups ships in the native store builds, which require in-app report
+*and* block. The Part 1 SQL for all of it was kept in place, dormant, so Part 5
+only wires UI. See Part 5 below and
+`knowledge/decisions/groups-ships-with-report-and-block`.
 
 **Build:** the board page, the 7/30-day toggle, the two-line rows, and Leave.
 
@@ -136,7 +135,9 @@ check and its data query — Part 4 review P1).
 
 ## Part 4.5 — Private groups
 
-**Inserted 2026-09-03**, before Part 5. Spec: design v3, D26–D28, §6.2–6.4, EC-34–EC-40.
+**Done 2026-09-03** (commits `2202aae` + `7fac2d6`, then revised same day to
+"discoverable with a lock" — migration `20260903175342`). Spec: design v3–v4,
+D26–D28, §6.2–6.4, EC-34–EC-40.
 
 A creator may opt a group out of the directory. It is then hidden from
 `list_groups` / `search_groups` and joined with a **6-digit numeric code**
@@ -203,20 +204,71 @@ behind the same flag.
 
 ---
 
-## Part 5 — Moderation and policy
+## Part 5 — Moderation, policy and hardening
 
-**Build:** report flows for groups and profile names (the `report_group` /
-`report_profile` RPCs exist and are tested; this wires the controls — the join
-modal's Report link and a member-level Report — and their copy), the denylist
-seeded and enforced on both surfaces, the policy text in all three places it
-appears, the contact address in About, and a written runbook. Blocking and the
-blocked-users screen are **not** in Part 5 either — see the note in Part 4.
+**Scope reset (2026-09-03, spec v5).** Blocking and reporting are **back in** —
+the maintainer's call is that Groups ships in the native App Store / Play
+builds, and both stores require in-app reporting *and* blocking for user-to-user
+content. The Part 1 SQL for all of it is already built, tested and deployed
+dormant; Part 5 is UI + copy + two small migrations, no new RPC. See
+`knowledge/decisions/groups-ships-with-report-and-block`.
 
-**Test first.** The database side is already covered in Part 1 — including that an abusive profile name is refused on a direct API write, not just through the settings screen. What is new here is copy and process, so the check is a read-through: confirm the policy names the discipline breakdown explicitly rather than saying "set counts". The breakdown reveals which disciplines someone trains, which is more than a bare total.
+Detailed plan: `docs/superpowers/plans/2026-09-03-groups-part5-*.md`.
 
-**Recommendation:** both stores expect a timely response to reports, and there is deliberately no in-app queue — you read them in the dashboard. Decide before submission what "timely" means and write it down; a daily check with a 24-hour target is defensible, nothing written down is not. Update the store listings' UGC declarations and tell reviewers in the notes where the report controls live.
+**Build:**
 
-**Milestone you can check:** report a group from the second account, then find that report in the dashboard with a copy of the group's name and description saved alongside. Delete the group and confirm the report is still there. Try to set an abusive display name and be refused. Read the updated policy in the app and confirm it describes what actually happens.
+1. **Denylist migration** — fix the two defects still live in
+   `20260903160619_groups_foundation.sql`: `normalise_profile_name` matches with
+   an un-lowercased `LIKE` whose `%`/`_` act as wildcards (call
+   `contains_denylisted_term` instead, matching the group path), and the
+   `profiles` backfill runs after the trigger so a re-apply against seeded terms
+   aborts (disable the trigger around the backfill, or seed after). Then seed
+   `moderation_terms` — a conservative, documented starter set, **shown to the
+   maintainer for review before any production push**.
+2. **Hardening migration** (spec §6.7) — `search_path = ''` + qualified
+   `::public.event_type` on the SECURITY DEFINER set/season functions,
+   `revoke execute … from anon` on `create/update_set_with_subtype`,
+   `join_code` via `extensions.gen_random_bytes`, `STABLE` on
+   `list_groups` / `search_groups` / `list_my_groups`.
+3. **Report a group** — a "Report this group" link in `GroupJoinModal` →
+   `ReportDialog` (confirm + optional reason) → `reportGroup`.
+4. **Report / block a member** — `LeaderboardRow` becomes tappable →
+   `MemberActionSheet` (Report member / Block member). Block refetches the board.
+5. **Blocked-members list** — a section in `PrivacySecurity.tsx` (no new route):
+   `listBlocks` on mount, per-row Unblock.
+6. **Policy copy** — `public/policy.html` (remove "no social features", add the
+   Groups section naming the discipline breakdown, the private-group line, and
+   the moderation/contact statement), `PrivacySecurity.tsx`, and
+   `GroupsConsentGate.tsx`. Contact line in `About.tsx`.
+7. **Runbook** — `docs/` : daily dashboard check, one-business-day response
+   target, how to read `abuse_reports`, takedown (dashboard delete / kill
+   switch), store-listing UGC declarations.
+8. **Spec upkeep** — EC-33 is already correct in v3; clear the stale follow-up
+   note in the vault.
+
+**Test first.** DB boundary is already covered (`reports.test.ts`,
+`blocks.test.ts`, `profileName.test.ts`, `acl.test.ts`). New DB tests: the
+denylist matches literally and case-insensitively on **both** surfaces after the
+fix; the backfill re-runs cleanly against seeded terms; the hardening changes
+keep `test:db` / `test:run` green and the ACL catalogue test still passes
+(`anon` now also lacks execute on the two set RPCs). Any pure logic that lands
+in a module (report-reason trim, membership-id guard) gets a vitest. Member
+sheet / blocked list UI behaviour → Playwright in Part 6 (no component harness —
+established pattern).
+
+**Recommendation:** decide "timely" before submission and write it down — one
+business day is defensible, nothing written is not. Update the store listings'
+UGC declarations and tell reviewers where the report and block controls live.
+
+**Milestone you can check:** report a group from a second account; find it in
+the dashboard with the name/description snapshot; delete the group and the
+report survives. Block that account's member from the board and watch them drop
+off; unblock from Privacy & Security and they return. Try to set an abusive
+display name and be refused. Read the updated policy in the app and confirm it
+describes what actually happens. `npm run test:db` and `npm run test:run` green;
+`npx supabase db reset` clean twice.
+
+**No production `db push` in Part 5 without the maintainer's explicit approval.**
 
 ---
 
@@ -241,9 +293,11 @@ Run the Supabase security advisors and re-check effective grants before stage 4.
 
 ## Sequencing and risk
 
-Part 1 gates everything. Parts 2 and 3 gate 4. Parts 1–4 are done. Part 4.5
-(private groups) is a schema + client slice on the same branch, before Part 5.
-Part 5 can run alongside 4.5. Part 6 is last.
+Part 1 gates everything. Parts 2 and 3 gate 4. Parts 1–4.5 are done. Part 5
+(moderation, policy, hardening) is next; Part 6 (two-user E2E + staged release)
+is last. Within Part 5, the two migrations come first and are verified against a
+clean `db reset` before any client wiring; the moderation-terms seed is shown to
+the maintainer before it can go near production.
 
 **Where this is most likely to hurt:**
 
@@ -252,8 +306,10 @@ Part 5 can run alongside 4.5. Part 6 is last.
 - **The profiles trigger (Part 1).** It touches a column two existing code paths already write, including OAuth hydration at sign-in. A mistake here breaks login, not just Groups.
 - **Moderation is an ongoing commitment,** not a build task. Everything else ends when it ships; this one does not.
 
-**Deferred on purpose:** blocking and the blocked-users screen (the Part 1 SQL
-stays dormant), join-code rotation and any rate limiting on `join_group_by_code`
-(D27 — private is a discovery boundary), group logo images, a tutorial step for
-Groups, sorting the board by discipline, keyset pagination beyond the 200-row
-browse cap, and any in-app moderation queue.
+**Deferred on purpose:** join-code rotation and any rate limiting on
+`join_group_by_code` (D27 — private is a discovery boundary), group logo images,
+a tutorial step for Groups, sorting the board by discipline, keyset pagination
+beyond the 200-row browse cap, and any in-app moderation queue.
+
+(Blocking and the blocked-users screen were deferred here 2026-09-01 and
+un-deferred into Part 5 on 2026-09-03 — see Part 5.)

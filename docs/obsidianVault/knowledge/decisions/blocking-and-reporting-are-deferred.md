@@ -6,10 +6,16 @@ tags:
   - groups
   - moderation
   - scope
-status: active
+status: superseded
 ---
 
 # Blocking and reporting are deferred
+
+> [!warning] Superseded 2026-09-03 — see [[groups-ships-with-report-and-block]]
+> Reversed the same week. Groups is shipping in the native store builds, which
+> require in-app report *and* block, so both are wired in Part 5. The paragraph
+> below is kept for history. What stayed true: the Part 1 SQL was never removed,
+> so the reversal is UI-only.
 
 Decided at the start of Part 4 (2026-09-02). The user-facing **block** and **report** controls — the member sheet, the Report link on the join modal, and the blocked-users screen in Settings — are cut from the plan. Not moved to Part 5. Deferred with no date, as a future addition.
 

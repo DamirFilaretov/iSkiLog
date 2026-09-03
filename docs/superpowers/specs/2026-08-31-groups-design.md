@@ -1,6 +1,6 @@
 # Groups — Design Spec
 
-**Date:** 2026-08-31 · **Version:** 3 · **Status:** Parts 1–4 built; private groups added, ready to build
+**Date:** 2026-08-31 · **Version:** 5 · **Status:** Parts 1–4.5 built; Part 5 (moderation, policy, hardening) ready to build
 
 Revised after an adversarial review (`docs/groups_findings.md`): 14 findings, 12
 accepted in full or reduced scope. Rejected: the claim that `create_group(NULL,'')`
@@ -24,6 +24,25 @@ private id. D27/D28 unchanged. Migration `20260903175342_private_groups_discover
 See `knowledge/decisions/a-private-group-is-hidden-not-sealed` (retitled "visible
 but code-gated"). D2 in the table below and the D26 SQL sketch describe the
 superseded "hidden" behaviour.
+
+**v5 (2026-09-03):** Part 5 scope reset. Three changes:
+
+1. **Blocking and reporting are back in scope, not deferred.** The user's call
+   is that Groups ships in the native App Store / Play builds, and both stores
+   require in-app reporting *and* blocking for user-to-user content (Apple 1.2,
+   Google Play UGC). The Part 1 SQL for `report_group`, `report_profile`,
+   `block_group_member`, `list_blocks`, `unblock` and the `abuse_reports` /
+   `user_blocks` tables — already built, tested and deployed dormant — is wired
+   to a UI in Part 5. `knowledge/decisions/blocking-and-reporting-are-deferred`
+   is superseded; see `knowledge/decisions/groups-ships-with-report-and-block`.
+2. **The schema is Supabase CLI migrations,** not `tests/e2e/db/schema.sql`
+   (`knowledge/decisions/the-database-is-managed-by-supabase-migrations`). Every
+   "lands in `schema.sql`" reference below now means "lands in a timestamped
+   migration under `supabase/migrations/`". Parts 1–4.5 are
+   `20260903160619_groups_foundation.sql` +
+   `20260903175342_private_groups_discoverable.sql`, both pushed to production
+   with `groups_enabled = false`.
+3. **Part 5 adds a hardening migration** alongside the moderation work — see §6.7.
 
 ---
 
@@ -143,13 +162,15 @@ reactions; notifications.
 
 **Now in scope (v3):** private groups joined by a 6-digit code (D26–D28).
 
+**Now in scope (v5):** reporting groups and profile names, and mutual blocking
+with a blocked-users screen (D16, D17) — wired in Part 5, required for store
+review.
+
 **Deferred:** join-code rotation; group logo upload (needs a Storage bucket and
 image pipeline); a tutorial step for Groups; sorting the board by discipline;
-server-side directory search and pagination once 200 is limiting; blocking and
-the blocked-users screen (Part 1 SQL stays dormant —
-`knowledge/decisions/blocking-and-reporting-are-deferred`); an in-app moderation
-queue if report volume ever justifies one. Self-reported counts are gameable —
-accepted at club scale.
+server-side directory search and pagination once 200 is limiting; an in-app
+moderation queue if report volume ever justifies one. Self-reported counts are
+gameable — accepted at club scale.
 
 ---
 
@@ -568,6 +589,38 @@ order by count(s.id) desc,
 - **`groups_status()`** — returns `(enabled boolean, consent_needed boolean)`.
   The client asks this instead of duplicating the flag or version logic.
 
+**All six moderation/consent RPCs are already deployed** (dormant behind the
+flag). Part 5 wires `report_group`, `report_profile`, `block_group_member`,
+`list_blocks` and `unblock` to a UI — no new RPC. The client wrappers already
+exist in `src/data/groupsApi.ts` (Part 2). The one behavioural note for the UI:
+`block_group_member` and `report_profile` raise `groups.invalid_handle` on a
+stale membership id — the client refetches the board and retries (§10).
+
+### 6.7 Part 5 hardening migration
+
+A second Part 5 migration, separate from the moderation seed, settling security
+items queued from earlier reviews. None are Groups-specific; all are cheap and a
+Supabase advisor flags them at the release gate anyway.
+
+- **`set search_path = ''` on the SECURITY DEFINER set/season functions**
+  (`create_set_with_subtype`, `update_set_with_subtype`; audit the rest of
+  `supabase/migrations/` for any other `security definer` function without a
+  pinned path). Qualify the `p_event_type::event_type` cast as
+  `::public.event_type` once the path is empty.
+- **`revoke execute … from anon`** on `create_set_with_subtype` /
+  `update_set_with_subtype` — a signed-out caller has no legitimate use for
+  either, and they are `definer`.
+- **Swap the `join_code` generator to `extensions.gen_random_bytes`** rather than
+  `random()` (`create_group`, §6.2 step 7). It is a discovery boundary, not
+  access control (D27), but a CSPRNG source costs nothing and closes the
+  automated-review finding.
+- **Mark `list_groups`, `search_groups`, `list_my_groups` `STABLE`** — each runs
+  one data query after an unchanging `auth.uid()` check, so `VOLATILE` is
+  merely the wrong label (`knowledge/decisions/a-gated-read-rpc-must-be-stable`).
+
+Every change is `create or replace`; the migration must survive a clean
+`npx supabase db reset` and leave `npm run test:db` / `npm run test:run` green.
+
 ---
 
 ## 7. Client architecture
@@ -602,12 +655,27 @@ src/components/groups/LeaderboardRow.tsx
 src/components/groups/BoardPeriodToggle.tsx (Part 4)
 src/components/groups/LeaveGroupDialog.tsx  (Part 4)
 src/components/groups/GroupsConsentGate.tsx
+src/components/groups/MemberActionSheet.tsx report / block a member (Part 5, new)
+src/components/groups/ReportDialog.tsx      confirm + optional reason (Part 5, new)
+src/components/groups/BlockedMembersList.tsx list + unblock (Part 5, new)
 src/pages/Groups.tsx                   directory
 src/pages/GroupLeaderboard.tsx         board
+src/pages/PrivacySecurity.tsx          hosts BlockedMembersList (Part 5)
 ```
 
-Blocking / reporting components (`BlockedUsers.tsx`, a member sheet) are not
-built — see `knowledge/decisions/blocking-and-reporting-are-deferred`.
+**Part 5 client surface (moderation).** All RPC wrappers already exist in
+`groupsApi.ts`. New work is UI only:
+
+- **`GroupJoinModal`** gains a "Report this group" link → `ReportDialog` →
+  `reportGroup(id, reason)`.
+- **`LeaderboardRow`** becomes tappable (it is static today) → `MemberActionSheet`
+  with "Report member" (`reportProfile`) and "Block member" (`blockGroupMember`,
+  then refetch the board). The sheet is a bottom action sheet, not inline
+  controls — the row layout is fixed by the 360px / two-line constraint (§8).
+- **`BlockedMembersList`** — a section inside `PrivacySecurity.tsx`, not a new
+  route: `listBlocks()` on mount, each row an Unblock button (`unblock`).
+  Mandatory because blocking is mutual — the blocked person leaves every board,
+  so this is the only surviving unblock path (D17).
 
 `groupsApi` calls `groups_status()` on directory mount and stores nothing about
 the flag or policy version locally — the server owns both, so there is no
@@ -641,7 +709,10 @@ error-with-retry, empty state.
 
 **Join modal** — avatar, name, description, member count, **Join** (or **Open** if
 already a member). First create-or-join routes through `GroupsConsentGate` (D20).
-(A Report link is Part 5.)
+A quiet **Report this group** link at the foot opens `ReportDialog` (Part 5):
+a confirmation with an optional one-line reason, calling `reportGroup`. Success
+shows a brief "Thanks — we'll take a look" and closes; the report is
+`on conflict do nothing`, so reporting twice is silently fine.
 
 **Join-by-code modal** — a single 6-digit input; on submit calls
 `joinGroupByCode`. `groups.invalid_code` → inline "That code didn't match a
@@ -680,8 +751,12 @@ so people can join." Absent for public groups.
   weight and the right-hand anchor. Line two is `SL n · TR n · JP n · OT n` with
   zeros omitted; a member with nothing reads "no sets this period".
 - Every number stays visible without a tap, which was the point of D7.
-- The row is the touch target, opening a member sheet with **Block** and **Report**
-  — a 44pt target that doesn't compete for row width.
+- The row is the touch target, opening `MemberActionSheet` — a bottom sheet with
+  **Report member** and **Block member** (Part 5). A sheet, not inline controls,
+  so it takes none of the row's width. Own row: no sheet (can't report/block
+  yourself; the server refuses it anyway). Block → `blockGroupMember` then
+  refetch, so the blocked member drops off immediately. Report → `ReportDialog`
+  as above, via `reportProfile(membershipId, reason)`.
 
 One line for all five numbers does not fit: rank 20px + five columns at 28px + a
 name column leaves 3px of the 328px available on a 360px device for every gap and
@@ -724,10 +799,20 @@ technique details. Leaving stops it immediately. Counts include sets logged befo
 you joined (D9). The breakdown discloses more than a bare total — it reveals *which
 disciplines* someone trains — which is why the wording must name it explicitly.
 
-Private groups (D26): the copy says a private group is hidden from the directory
-and joined with a code its members share, and that the **code keeps people from
-stumbling in, not from getting in if they have it** — it is not a password. The
-data shared among members is identical to a public group.
+Private groups (D26, revised v4): the copy says a private group still shows in
+the directory with a lock, but joining needs a 6-digit code its members share,
+and that the **code keeps people from wandering in, not from getting in if a
+member gives it to them** — it is not a password. The data shared among members
+is identical to a public group.
+
+Moderation, in the policy copy: names and descriptions are filtered before they
+appear; members can report a group or another member's name, and block a member;
+reports go to the team and are actioned within one business day; a violating
+group is removed. Contact address for reports is stated (`iskilog@gmail.com`,
+also in About).
+
+`groups_policy_version` stays at `1` — the feature has never been live, so no
+acceptance exists to invalidate. The copy is written once, complete, for launch.
 
 ### 9.3 Moderation
 
@@ -736,14 +821,14 @@ Play's UGC policy both require filtering, reporting, blocking and a timely respo
 
 | Requirement | Implementation |
 |---|---|
-| Filter before publication | `moderation_terms` denylist on **both** surfaces: `create_group`, and the `profiles` trigger (D21). Group names alone are not the whole attack surface — a display name reaches every shared board |
-| Report content | `report_group` |
-| Report users | `report_profile` — profile names are UGC too |
-| Block abusive users | `block_group_member`, mutual, undoable via `list_blocks` / `unblock` (D17) |
+| Filter before publication | `moderation_terms` denylist via `contains_denylisted_term` on **both** surfaces: `create_group` (name + description) and the `profiles.full_name` trigger (D21). Part 5 fixes the trigger to use the same literal, case-insensitive matcher the group path already uses, then seeds the terms |
+| Report content | `report_group`, wired from the join modal (Part 5) |
+| Report users | `report_profile`, wired from the member action sheet (Part 5) — profile names are UGC too |
+| Block abusive users | `block_group_member` from the member action sheet, mutual, undoable via the blocked-members list in `PrivacySecurity` (`list_blocks` / `unblock`) (Part 5, D17) |
 | Terms before posting | `accept_groups_policy` gate, enforced in the database (9.1) |
 | Evidence retention | Non-cascading `abuse_reports` with text snapshots |
-| Takedown | Delete the group in the dashboard, or flip `groups_enabled` off for a live incident (D24) |
-| Timely response | Runbook: daily dashboard check, 24-hour target, contact address in About |
+| Takedown | Delete the group in the dashboard, or flip `groups_enabled` off for a live incident (D24, EC-33) |
+| Timely response | Runbook: daily dashboard check, one-business-day target, contact address in About and the policy |
 
 Report volume is expected to be near zero, so there is no in-app queue. Removing a
 group is a manual delete; the report survives it.
@@ -825,7 +910,7 @@ depth only.
 | EC-25 | Emoji name passing client but failing server | Server's `22023` surfaced verbatim; the client is not authoritative |
 | EC-26 | `create_group` commits but the response is lost | Retry hits `23505`; client detects existing membership and navigates there (D18). Holds for a private create — `listMyGroups` finds it |
 | EC-27 | Anonymous caller invokes any RPC | `EXECUTE` revoked from `anon`; denied before the body runs |
-| EC-34 | Private group in browse or search | Never appears — `list_groups` / `search_groups` filter `is_private = false`. Reachable only by code or existing membership |
+| EC-34 | Private group in browse or search | **Appears** (v4), flagged `is_private`, never with `join_code`. The client shows a lock; a tap opens the code prompt. `join_group` still refuses the id (`groups.code_required`); `join_group_by_code` is the only way in |
 | EC-35 | Wrong or made-up join code | `groups.invalid_code`; field-level message. A right code for a reaped group hits the post-lock `P0002` → `groups.not_found` |
 | EC-36 | Code collision at generation | `create_group` retries in a loop; `groups_join_code_unique` is the backstop |
 | EC-37 | Create a name that collides with a hidden private group | `groups.name_taken` — reveals a private group by that name exists (existence-by-name oracle). Accepted (D27) |
@@ -904,11 +989,13 @@ second-context helper.
 6. A member with no sets reads "no sets this period".
 7. B leaves; the group persists for A. A leaves as last member; it vanishes.
 8. A non-member navigating to `/groups/:id` sees the join prompt.
-9. A creates a **private** group; it is **not** in B's directory or search. A
-   reads the code off the board; B joins with it; a wrong code is rejected.
-
-(Blocking scenario dropped with the feature —
-`knowledge/decisions/blocking-and-reporting-are-deferred`.)
+9. A creates a **private** group; it **is** in B's directory with a lock, but a
+   one-tap join is refused — B needs the code. A reads the code off the board; B
+   joins with it; a wrong code is rejected.
+10. B reports A's group from the join modal; the report lands in `abuse_reports`
+    with the name/description snapshot. B blocks A from the member sheet; A drops
+    off B's board and B off A's; B unblocks A from `PrivacySecurity` and A
+    returns. (Part 5 / Part 6.)
 
 **Schema.** `schema.sql` — re-applied on every E2E run, so every statement is
 `if not exists` / `create or replace` / `drop ... if exists` first. Private
@@ -927,20 +1014,26 @@ moderation path exist — and on native that window is days, not minutes.
 
 1. **Schema, disabled.** Tables, helpers, triggers, RPCs, the
    `profiles.full_name` clean-then-constrain, and `groups_enabled = false`.
-   Every RPC refuses. Nothing is reachable.
+   Every mutating RPC refuses. Nothing is reachable. **Done** — pushed
+   2026-09-03 (`20260903160619` + `20260903164850` + `20260903175342`).
 2. **Policy and moderation live** — copy published, contact address up, runbook
-   written, denylist seeded.
+   written, denylist seeded (Part 5 migrations), hardening migration applied.
 3. **Client shipped**, web and both native builds, still seeing `disabled`
    and hiding its entry points.
 4. **Flip the flag.** One row in `app_settings`, reversible in seconds.
 
-This repo has no Supabase CLI migration directory; schema is applied by
-re-running `schema.sql`, so each stage must be independently re-runnable.
-`npx cap sync android` and `npx cap sync ios` before native builds. Run the
-Supabase security advisors and re-check effective grants before step 4.
+Schema is Supabase CLI migrations
+(`knowledge/decisions/the-database-is-managed-by-supabase-migrations`); each
+migration must survive a clean `npx supabase db reset` and is committed with the
+code that needs it. **No `db push` to production without the maintainer's
+explicit go-ahead.** `npx cap sync android` and `npx cap sync ios` before native
+builds. Run the Supabase security advisors and re-check effective grants before
+step 4.
 
 The build order is the six-part implementation plan
-(`docs/superpowers/plans/2026-08-31-groups-implementation-plan.md`). As built:
+(`docs/superpowers/plans/2026-08-31-groups-implementation-plan.md`), plus the
+detailed Part 5 plan (`docs/superpowers/plans/2026-09-03-groups-part5-*.md`).
+As built:
 
 | Part | Contents | Status |
 |---|---|---|
@@ -948,13 +1041,13 @@ The build order is the six-part implementation plan
 | 2 | Types, pure helpers, `groupsApi` / `groupLeaderboardApi` | done |
 | 3 | Directory, cards, create + join modals, consent gate, tab bar 3→4, routes | done |
 | 4 | Leaderboard, period toggle, resolved window, Leave | done |
-| **4.5** | **Private groups** — `is_private` / `join_code`, `join_group_by_code`, create toggle, join-by-code modal, invite-code card | **next** |
-| 5 | Moderation of names and groups — denylist, `report_*` wiring + copy, policy text, runbook | pending |
+| 4.5 | Private groups — `is_private` / `join_code`, `join_group_by_code`, create toggle, join-by-code modal, invite-code card | done |
+| **5** | **Moderation + policy + hardening** — denylist fixes & seed, `report_*` + block/unblock wiring, member sheet, blocked-members list, policy copy in three places, About contact, runbook, hardening migration | **next** |
 | 6 | Two-user E2E harness + `groups.spec.ts`, 360px project, staged release | pending |
 
 Part 1's SQL was written and reviewed as real SQL before anything else — prose
-descriptions of a security boundary cannot be audited. Part 4.5 follows the same
-rule for `join_group_by_code` and the `create_group` change.
+descriptions of a security boundary cannot be audited. Part 4.5 and the Part 5
+migrations follow the same rule.
 
 ---
 
@@ -972,6 +1065,12 @@ rule for `join_group_by_code` and the `create_group` change.
 - **Public UGC carries ongoing cost.** Filtering, reporting, blocking and retention
   are implemented, but response is a manual runbook. Both stores expect timely
   action — a commitment of your time.
+- **Store review is the real gate on launch (v5).** Groups ships in the native
+  builds, so Apple 1.2 / Google Play UGC review will check for a working report
+  control, a working block control, a published contact, and stated terms. All
+  four exist after Part 5; the risk is a reviewer wanting them more prominent, or
+  wanting the blocked-users screen easier to find than inside Privacy & Security.
+  Cheap to move if asked.
 - **The two-user E2E harness and the boundary suite are new ground** and may take
   longer than the feature code they verify.
 - **The advisory-lock pattern is new to this codebase** and must be exercised by
