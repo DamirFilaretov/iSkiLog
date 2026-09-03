@@ -49,7 +49,8 @@ status: active
 ## Recently shipped (2026-09-03)
 
 - [x] **Groups — Part 4.5: private groups**. A creator can make a group private — hidden from the directory and search, joined with a 6-digit code any member shares from the board. Spec v3 (D26–D28), commits `2202aae` + `7fac2d6`. The code is a discovery boundary, not access control — `join_group_by_code` is not rate-limited, by deliberate choice ([[2026-09-03-private-groups]], [[a-private-group-is-hidden-not-sealed]])
-- [x] **Database moved to Supabase migrations**. `tests/e2e/db/schema.sql` had drifted from the hosted project; replaced with a baseline dumped from production plus `groups_foundation` as its own migration. Test harness runs `supabase db reset`. `test:db` 151/151, `test:run` 180/180 ([[the-database-is-managed-by-supabase-migrations]])
+- [x] **Database moved to Supabase migrations**. `tests/e2e/db/schema.sql` had drifted from the hosted project; replaced with a baseline dumped from production plus `groups_foundation` as its own migration. Test harness runs `supabase db reset`. `test:db` 153/153, `test:run` 180/180 ([[the-database-is-managed-by-supabase-migrations]])
+- [x] **`update_set_with_subtype` IDOR fixed** (`20260903164850`, committed, **not yet pushed**). The drift surfaced it: production's SECURITY DEFINER function lost the `if not found then raise` guard that `schema.sql` always carried (via `20260414134719`), so any authenticated caller could overwrite another user's `set_notes` / subtype rows for any set id they knew. Regression test `tests/db/setOwnership.test.ts` proven against the vulnerable body. **Needs `supabase db push` to reach production.**
 
 ## In flight
 
@@ -79,6 +80,7 @@ status: active
 - [ ] Playwright E2E for the tutorial, fresh-account path past step 3
 - [ ] **Spec §11 EC-33 is wrong**: it says flipping `groups_enabled` makes every RPC refuse, but the shipped SQL deliberately exempts `leave_group`, the board and the moderation RPCs. Correct it before Part 5 writes policy copy repeating it ([[the-kill-switch-stops-spread-not-escape]])
 - [ ] `list_groups`, `search_groups`, `list_my_groups`, `list_blocks` are still `VOLATILE`. Harmless (each runs one data query after an unchanging `auth.uid()` check) but `STABLE` is the honest label — tidy at Part 5 or 6 ([[a-gated-read-rpc-must-be-stable]])
+- [ ] Private-group `join_code` is generated with `random()`, not a CSPRNG (`groups_foundation.sql`, `create_group`). It is a discovery boundary not access control ([[a-private-group-is-hidden-not-sealed]]) and rate-limiting was declined by choice, but swap to `extensions.gen_random_bytes` in the Part 5 hardening migration — cheap, and settles it alongside the denylist fixes. Flagged by automated security review 2026-09-03.
 - [ ] `playwright.config.ts` serves the app from `.env.local` (hosted project), not `.env.test` (local Docker) — the DB helpers and the browser point at different databases. Blocks Part 6 ([[e2e-serves-the-app-from-the-wrong-supabase]])
 - [ ] E2E specs need `iskilog:tutorial:completed` seeded, and any flag-flipping spec needs `describe.configure({ mode: "serial" })` — Playwright runs 2 workers locally
 - [ ] `npx cap sync` regenerates native config to add the Apple Sign In plugin to the **Android** build and reorder `Package.swift`. Pre-existing drift, unrelated to Groups; settle it at Part 6's release sync
