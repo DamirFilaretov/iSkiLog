@@ -43,15 +43,18 @@ function requireLocalDbUrl() {
 
 /**
  * Rebuilds the local database from supabase/migrations (baseline from
- * production + the Groups migration) plus supabase/seed.sql — the same migration
- * files `supabase db push` deploys to the hosted project, so the E2E and db-test
- * databases exercise what production will get.
+ * production + the Groups migration) — the same migration files `supabase db
+ * push` deploys to the hosted project, so the E2E and db-test databases
+ * exercise what production will get.
+ *
+ * --no-seed keeps the suites off supabase/seed.sql (dev fixtures with their own
+ * users and groups, which would perturb the Groups count assertions).
  *
  * Requires the local Supabase stack to be running (`npx supabase start`).
  */
 export async function resetDb() {
   requireLocalDbUrl()
-  await execAsync("npx supabase db reset", { cwd: repoRoot })
+  await execAsync("npx supabase db reset --no-seed", { cwd: repoRoot })
 }
 
 export async function cleanupTestData() {

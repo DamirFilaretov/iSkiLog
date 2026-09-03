@@ -51,6 +51,11 @@ npx supabase db push                # apply pending migrations to the hosted pro
   and be committed alongside the code that needs it.
 - `db push` only from reviewed, committed migrations (ideally CI).
 
+A plain `npx supabase db reset` also loads `supabase/seed.sql` — three dev accounts
+(`alex@` / `sam@` / `jordan@iskilog.dev`, password `password`), a shared group, and
+~30 days of sets for the leaderboard. The test suites reset with `--no-seed`.
+`db reset` re-disables Groups, so re-run `npm run groups:on` afterwards.
+
 E2E tests require `.env.test`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `E2E_SUPABASE_DB_URL`, `E2E_TEST_EMAIL_DOMAIN`, `E2E_BASE_URL`. See `docs/testing/e2e-runbook.md`.
 
 App runtime requires `.env.local`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SENTRY_DSN`. Source-map upload (optional): `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`.

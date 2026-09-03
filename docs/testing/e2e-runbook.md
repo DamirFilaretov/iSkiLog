@@ -64,4 +64,7 @@ The DB security-boundary suite is separate: `supabase db reset` once, then
 ## Notes
 
 - Tests create users under `E2E_TEST_EMAIL_DOMAIN` and only clean up that domain.
+- `e2e:db:prepare` and `test:db` reset with `--no-seed`. A plain
+  `npx supabase db reset` additionally loads `supabase/seed.sql` (dev accounts +
+  a group + leaderboard data) for manual poking at the app.
 - Production app logic is untouched; all changes are test-only.
