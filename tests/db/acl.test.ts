@@ -7,6 +7,7 @@ const CLIENT_FUNCTIONS = [
   "groups_status",
   "create_group",
   "join_group",
+  "join_group_by_code",
   "leave_group",
   "list_groups",
   "list_my_groups",

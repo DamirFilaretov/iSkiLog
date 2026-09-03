@@ -666,7 +666,19 @@ create table if not exists public.groups (
   created_at  timestamptz not null default timezone('utc', now())
 );
 
--- Built on the helper, so dashboard and import writes collide too (EC-1).
+-- Private groups (D26). is_private drops the group from list_groups /
+-- search_groups; join_code is a 6-digit string, null for public groups. Added
+-- by `add column if not exists` so re-applying over the Part 1 table is a no-op.
+alter table public.groups add column if not exists is_private boolean not null default false;
+alter table public.groups add column if not exists join_code  text;
+
+-- The code is looked up by join_group_by_code, so it must be unique. Partial:
+-- every public group has a null code and null is not "equal" under a unique index.
+create unique index if not exists groups_join_code_unique
+  on public.groups (join_code) where join_code is not null;
+
+-- Built on the helper, so dashboard and import writes collide too (EC-1). The
+-- name index is privacy-blind: names are globally unique across public and private.
 create unique index if not exists groups_name_unique
   on public.groups (public.canonical_group_name(name));
 
@@ -834,6 +846,14 @@ begin
     raise exception 'policy not accepted' using errcode = '42501', hint = 'groups.consent_required';
   end if;
 
+  -- A private group is joined by code (join_group_by_code), not by id. No RPC
+  -- hands a non-member a private group's id, but the guard is explicit. A
+  -- non-existent id falls through to the post-lock not_found check.
+  if exists (select 1 from public.groups g where g.id = p_group_id and g.is_private) then
+    raise exception 'this group is joined with a code'
+      using errcode = '42501', hint = 'groups.code_required';
+  end if;
+
   -- Lock first, then check existence: this is what turns a race against the
   -- last member's leave into a clean not_found rather than a raw 23503.
   perform public.lock_group(p_group_id);
@@ -844,6 +864,52 @@ begin
 
   insert into public.group_members (group_id, user_id)
   values (p_group_id, auth.uid())
+  on conflict do nothing;
+end;
+$fn$;
+
+-- Join a private group by its 6-digit code (D26). Same flag / consent / lock /
+-- post-lock-existence protocol as join_group. Deliberately NOT rate-limited
+-- (D27): "private" is a discovery boundary, not access control, and the policy
+-- copy says so. The code space (~1M) is enumerable by a determined script.
+create or replace function public.join_group_by_code(p_code text)
+returns void language plpgsql security definer set search_path = '' as $fn$
+declare
+  v_group_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated' using errcode = '28000', hint = 'groups.unauthenticated';
+  end if;
+
+  if not public.groups_enabled() then
+    raise exception 'groups is not available' using errcode = '22023', hint = 'groups.disabled';
+  end if;
+
+  if not exists (
+    select 1 from public.policy_acceptances a
+     where a.user_id = auth.uid() and a.policy_key = 'groups'
+       and a.version >= public.groups_policy_version()
+  ) then
+    raise exception 'policy not accepted' using errcode = '42501', hint = 'groups.consent_required';
+  end if;
+
+  select g.id into v_group_id
+    from public.groups g
+   where g.join_code = btrim(coalesce(p_code, ''));
+
+  if v_group_id is null then
+    raise exception 'no group with that code'
+      using errcode = 'P0002', hint = 'groups.invalid_code';
+  end if;
+
+  perform public.lock_group(v_group_id);
+
+  if not exists (select 1 from public.groups g where g.id = v_group_id) then
+    raise exception 'group not found' using errcode = 'P0002', hint = 'groups.not_found';
+  end if;
+
+  insert into public.group_members (group_id, user_id)
+  values (v_group_id, auth.uid())
   on conflict do nothing;
 end;
 $fn$;
@@ -864,10 +930,12 @@ begin
 end;
 $fn$;
 
-revoke execute on function public.join_group(uuid)  from public, anon;
-grant  execute on function public.join_group(uuid)  to authenticated;
-revoke execute on function public.leave_group(uuid) from public, anon;
-grant  execute on function public.leave_group(uuid) to authenticated;
+revoke execute on function public.join_group(uuid)          from public, anon;
+grant  execute on function public.join_group(uuid)          to authenticated;
+revoke execute on function public.join_group_by_code(text)  from public, anon;
+grant  execute on function public.join_group_by_code(text)  to authenticated;
+revoke execute on function public.leave_group(uuid)         from public, anon;
+grant  execute on function public.leave_group(uuid)         to authenticated;
 
 -- Private like every other Groups table. blocked_id is an auth.users uuid, so
 -- a readable user_blocks would hand clients a stable cross-group identifier
@@ -908,12 +976,13 @@ begin
          exists (select 1 from public.group_members me
                   where me.group_id = g.id and me.user_id = auth.uid())
     from public.groups g
-   where g.created_by is null
-      or g.created_by = auth.uid()
-      or not exists (
-        select 1 from public.user_blocks b
-         where (b.blocker_id = auth.uid() and b.blocked_id = g.created_by)
-            or (b.blocker_id = g.created_by and b.blocked_id = auth.uid()))
+   where g.is_private = false
+     and (g.created_by is null
+          or g.created_by = auth.uid()
+          or not exists (
+            select 1 from public.user_blocks b
+             where (b.blocker_id = auth.uid() and b.blocked_id = g.created_by)
+                or (b.blocker_id = g.created_by and b.blocked_id = auth.uid())))
    order by (select count(*) from public.group_members m where m.group_id = g.id) desc,
             public.canonical_group_name(g.name) asc
    limit 200;
@@ -1294,26 +1363,26 @@ $fn$;
 revoke execute on function public.contains_denylisted_term(text) from public, anon, authenticated;
 
 -- A named composite so the response is a single object (a RETURNS TABLE would
--- come back as an array) while still excluding created_by.
-do $$
-begin
-  if not exists (select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
-                  where n.nspname = 'public' and t.typname = 'group_public') then
-    create type public.group_public as (
-      id          uuid,
-      name        text,
-      description text,
-      logo_key    text,
-      created_at  timestamptz
-    );
-  end if;
-end
-$$;
+-- come back as an array) while still excluding created_by. Dropped and
+-- recreated rather than guarded, because v3 added is_private / join_code;
+-- `cascade` takes create_group with it, which is recreated just below.
+drop type if exists public.group_public cascade;
+create type public.group_public as (
+  id          uuid,
+  name        text,
+  description text,
+  logo_key    text,
+  created_at  timestamptz,
+  is_private  boolean,
+  join_code   text
+);
 
 drop function if exists public.create_group(text, text);
+drop function if exists public.create_group(text, text, boolean);
 create function public.create_group(
   p_name        text,
-  p_description text default ''
+  p_description text default '',
+  p_private     boolean default false
 )
 returns public.group_public
 language plpgsql security definer set search_path = '' as $fn$
@@ -1322,6 +1391,7 @@ declare
   v_description text;
   v_live        integer;
   v_recent      integer;
+  v_code        text;
   v_group       public.groups;
   v_result      public.group_public;
 begin
@@ -1385,26 +1455,52 @@ begin
       using errcode = '22023', hint = 'groups.rate_limited';
   end if;
 
-  begin
-    insert into public.groups (name, description, created_by)
-    values (v_display, v_description, auth.uid())
-    returning * into v_group;
-  exception when unique_violation then
-    raise exception 'group name already taken'
-      using errcode = '23505', hint = 'groups.name_taken';
-  end;
+  -- Private groups get a unique 6-digit code (D26). The loop regenerates on the
+  -- astronomically rare concurrent collision; groups_join_code_unique is the
+  -- backstop. A name collision is terminal; a code collision just retries.
+  <<insert_group>>
+  for v_attempt in 1..20 loop
+    if p_private then
+      v_code := pg_catalog.lpad(
+        (pg_catalog.floor(pg_catalog.random() * 1000000))::int::text, 6, '0');
+    end if;
+
+    begin
+      insert into public.groups (name, description, created_by, is_private, join_code)
+      values (v_display, v_description, auth.uid(), p_private, v_code)
+      returning * into v_group;
+      exit insert_group;
+    exception when unique_violation then
+      if not p_private
+         or exists (select 1 from public.groups g
+                     where public.canonical_group_name(g.name)
+                         = public.canonical_group_name(v_display)) then
+        raise exception 'group name already taken'
+          using errcode = '23505', hint = 'groups.name_taken';
+      end if;
+      -- else: the join_code collided — loop and regenerate
+    end;
+  end loop;
+
+  if v_group.id is null then
+    -- Unreachable at any real scale (20 tries against a 1M space); mapped so
+    -- the client prompts a retry rather than showing a raw error.
+    raise exception 'could not allocate a join code'
+      using errcode = '40001', hint = 'groups.name_taken';
+  end if;
 
   insert into public.group_members (group_id, user_id) values (v_group.id, auth.uid());
   insert into public.group_creation_log (creator_id) values (auth.uid());
 
   v_result := (v_group.id, v_group.name, v_group.description,
-               v_group.logo_key, v_group.created_at)::public.group_public;
+               v_group.logo_key, v_group.created_at,
+               v_group.is_private, v_group.join_code)::public.group_public;
   return v_result;
 end;
 $fn$;
 
-revoke execute on function public.create_group(text, text) from public, anon;
-grant  execute on function public.create_group(text, text) to authenticated;
+revoke execute on function public.create_group(text, text, boolean) from public, anon;
+grant  execute on function public.create_group(text, text, boolean) to authenticated;
 
 -- Literal substring search. Interpolating the query into a LIKE pattern made
 -- '%' match every group and '_' match nearly all of them.
@@ -1437,7 +1533,8 @@ begin
          exists (select 1 from public.group_members me
                   where me.group_id = g.id and me.user_id = auth.uid())
     from public.groups g
-   where pg_catalog.strpos(public.canonical_group_name(g.name), v_query) > 0
+   where g.is_private = false
+     and pg_catalog.strpos(public.canonical_group_name(g.name), v_query) > 0
      and (g.created_by is null
           or g.created_by = auth.uid()
           or not exists (
@@ -1486,6 +1583,11 @@ alter table public.profiles
 -- the response is the caller's own membership list, so its size is theirs.
 -- Not flag-gated either, matching list_groups and leave_group: flipping the
 -- kill switch must not strand somebody inside a group.
+-- Returns is_private and the real join_code (D28): the board shows the invite
+-- code to every member, so any member can invite. Shape change, so drop first.
+-- list_groups / search_groups do NOT carry join_code - the directory has no
+-- reason to hand out a code, and their rows are all public anyway. The client's
+-- shared mapper defaults both fields when they are absent.
 drop function if exists public.list_my_groups();
 create function public.list_my_groups()
 returns table (
@@ -1494,7 +1596,9 @@ returns table (
   group_description text,
   group_logo_key    text,
   member_count      bigint,
-  is_member         boolean
+  is_member         boolean,
+  is_private        boolean,
+  join_code         text
 )
 language plpgsql security definer set search_path = '' as $fn$
 begin
@@ -1505,7 +1609,9 @@ begin
   return query
   select g.id, g.name, g.description, g.logo_key,
          (select count(*) from public.group_members m where m.group_id = g.id),
-         true
+         true,
+         g.is_private,
+         g.join_code
     from public.groups g
     join public.group_members me
       on me.group_id = g.id and me.user_id = auth.uid()

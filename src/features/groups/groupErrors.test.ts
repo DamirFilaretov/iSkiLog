@@ -88,6 +88,18 @@ describe("toGroupError", () => {
     expect(result.refetch).toBe(true)
   })
 
+  it("maps a wrong join code to a field-level message, no refetch", () => {
+    const result = toGroupError(pgError("groups.invalid_code"))
+    expect(result.kind).toBe("invalid_code")
+    expect(result.message).toBe("That code didn't match a group.")
+    expect(result.field).toBeNull()
+    expect(result.refetch).toBe(false)
+  })
+
+  it("maps a private group reached by id, which only a client bug can produce", () => {
+    expect(toGroupError(pgError("groups.code_required")).kind).toBe("code_required")
+  })
+
   it("maps a rejected period, which only a client bug can produce", () => {
     expect(toGroupError(pgError("groups.invalid_period")).kind).toBe("invalid_period")
   })

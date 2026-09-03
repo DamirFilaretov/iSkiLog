@@ -270,8 +270,9 @@ describe("create_group content filtering", () => {
         p_description: "hello"
       })
       expect(Object.keys(data).sort()).toEqual(
-        ["created_at", "description", "id", "logo_key", "name"].sort()
+        ["created_at", "description", "id", "is_private", "join_code", "logo_key", "name"].sort()
       )
+      expect(data).not.toHaveProperty("created_by")
       expect(JSON.stringify(data)).not.toContain(user.userId)
     })
   })

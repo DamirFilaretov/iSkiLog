@@ -23,7 +23,7 @@ type Props = {
   submitting: boolean
   /** Set by the parent from the server's answer; cleared on the next edit. */
   serverError: GroupError | null
-  onSubmit: (name: string, description: string) => void
+  onSubmit: (name: string, description: string, isPrivate: boolean) => void
   onClose: () => void
   onClearError: () => void
 }
@@ -42,12 +42,14 @@ function count(value: string): number {
 export default function CreateGroupModal(props: Props) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [isPrivate, setIsPrivate] = useState(false)
   const [touched, setTouched] = useState(false)
 
   useEffect(() => {
     if (props.open) {
       setName("")
       setDescription("")
+      setIsPrivate(false)
       setTouched(false)
     }
   }, [props.open])
@@ -92,7 +94,9 @@ export default function CreateGroupModal(props: Props) {
       >
         <h2 className="text-lg font-semibold text-slate-900">New group</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Anyone can find and join a group. Names are unique.
+          {isPrivate
+            ? "Hidden from the directory. People join with a code you share."
+            : "Anyone can find and join a group. Names are unique."}
         </p>
 
         <label className="mt-5 block">
@@ -135,11 +139,27 @@ export default function CreateGroupModal(props: Props) {
           </span>
         </label>
 
+        <label className="mt-4 flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={isPrivate}
+            onChange={e => edit(() => setIsPrivate(e.target.checked))}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600"
+          />
+          <span className="text-sm">
+            <span className="font-medium text-slate-800">Make this group private</span>
+            <span className="mt-0.5 block text-xs text-slate-500">
+              It won't appear in the directory. Anyone with the code can still join — the
+              code keeps people from stumbling in, not from getting in.
+            </span>
+          </span>
+        </label>
+
         {generalError ? <p className="mt-3 text-sm text-red-600">{generalError}</p> : null}
 
         <button
           type="button"
-          onClick={() => props.onSubmit(name, description)}
+          onClick={() => props.onSubmit(name, description, isPrivate)}
           disabled={!canSubmit}
           className="mt-5 w-full rounded-full bg-blue-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
         >

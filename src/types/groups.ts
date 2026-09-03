@@ -10,7 +10,10 @@
 /** The only two windows the server accepts. It resolves them; the client never sends dates. */
 export type GroupPeriod = "7d" | "30d"
 
-/** A directory row, as returned by `list_groups` / `search_groups`. */
+/**
+ * A directory or membership row, from `list_groups` / `search_groups` /
+ * `list_my_groups`.
+ */
 export type Group = {
   id: string
   name: string
@@ -19,6 +22,14 @@ export type Group = {
   memberCount: number
   /** Counts every member, including anyone blocked in either direction (EC-12). */
   isMember: boolean
+  /** Private groups are hidden from the directory; joined by code (D26). */
+  isPrivate: boolean
+  /**
+   * The 6-digit join code, for a private group the caller is a member of.
+   * `null` for public groups and for any row from the directory RPCs — only
+   * `list_my_groups` carries it (D28).
+   */
+  joinCode: string | null
 }
 
 /** What `create_group` returns. Deliberately carries no `created_by`. */
@@ -28,6 +39,9 @@ export type CreatedGroup = {
   description: string
   logoKey: string | null
   createdAt: string
+  isPrivate: boolean
+  /** The 6-digit code, shown to the creator immediately. `null` for a public group. */
+  joinCode: string | null
 }
 
 /**

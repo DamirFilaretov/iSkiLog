@@ -8,6 +8,8 @@ function group(partial: Partial<Group> & { id: string; name: string }): Group {
     logoKey: null,
     memberCount: 1,
     isMember: false,
+    isPrivate: false,
+    joinCode: null,
     ...partial
   }
 }

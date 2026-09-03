@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus, Search, Users } from "lucide-react"
+import { KeyRound, Plus, Search, Users } from "lucide-react"
 
 import CreateGroupModal from "../components/groups/CreateGroupModal"
 import GroupCard from "../components/groups/GroupCard"
 import GroupJoinModal from "../components/groups/GroupJoinModal"
+import JoinByCodeModal from "../components/groups/JoinByCodeModal"
 import GroupsConsentGate from "../components/groups/GroupsConsentGate"
-import { createGroup, joinGroup, listGroups, listMyGroups, searchGroups } from "../data/groupsApi"
+import {
+  createGroup,
+  joinGroup,
+  joinGroupByCode,
+  listGroups,
+  listMyGroups,
+  searchGroups
+} from "../data/groupsApi"
 import { buildDirectory, reconcileNameTaken } from "../features/groups/groupDirectory"
 import { toGroupError, type GroupError } from "../features/groups/groupErrors"
 import { canonicalGroupName } from "../features/groups/groupName"
@@ -36,8 +44,9 @@ const SEARCH_DEBOUNCE_MS = 300
 
 /** The action to resume once the consent gate is accepted. */
 type PendingAction =
-  | { kind: "create"; name: string; description: string }
+  | { kind: "create"; name: string; description: string; isPrivate: boolean }
   | { kind: "join"; group: Group }
+  | { kind: "joinCode"; code: string }
 
 const NAME_TAKEN: GroupError = {
   kind: "name_taken",
@@ -68,6 +77,10 @@ export default function Groups() {
   const [joinTarget, setJoinTarget] = useState<Group | null>(null)
   const [joinSubmitting, setJoinSubmitting] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
+
+  const [codeOpen, setCodeOpen] = useState(false)
+  const [codeSubmitting, setCodeSubmitting] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
 
   // A stale-row error (EC-4) closes the modal that would have shown it and
   // refetches, so the explanation has to live on the page to be seen at all.
@@ -193,18 +206,24 @@ export default function Groups() {
     }
   }
 
-  async function submitCreate(name: string, description: string, consented = false) {
+  async function submitCreate(
+    name: string,
+    description: string,
+    isPrivate: boolean,
+    consented = false
+  ) {
     if (!consented && status.consentNeeded) {
-      setPending({ kind: "create", name, description })
+      setPending({ kind: "create", name, description, isPrivate })
       return
     }
 
     setCreateSubmitting(true)
     setCreateError(null)
     try {
-      const created = await createGroup(name, description)
+      const created = await createGroup(name, description, isPrivate)
       if (!live.current) return
       setCreateOpen(false)
+      // Straight to the board — a private group shows its code there.
       navigate(`/groups/${created.id}`)
     } catch (error) {
       const mapped = toGroupError(error)
@@ -218,7 +237,7 @@ export default function Groups() {
 
       if (mapped.kind === "consent_required") {
         await refresh()
-        setPending({ kind: "create", name, description })
+        setPending({ kind: "create", name, description, isPrivate })
         return
       }
       if (mapped.kind === "name_taken") {
@@ -233,6 +252,58 @@ export default function Groups() {
       setCreateError(mapped)
     } finally {
       if (live.current) setCreateSubmitting(false)
+    }
+  }
+
+  async function submitJoinByCode(code: string, consented = false) {
+    if (!consented && status.consentNeeded) {
+      setPending({ kind: "joinCode", code })
+      return
+    }
+
+    setCodeSubmitting(true)
+    setCodeError(null)
+    const before = new Set(mine.map(g => g.id))
+    try {
+      await joinGroupByCode(code)
+      if (!live.current) return
+      setCodeOpen(false)
+
+      // join_group_by_code returns no id, so refetch memberships and land on
+      // whichever group is new. If that refetch fails, the join still
+      // succeeded — fall back to the directory, which reloads on its own.
+      try {
+        const refreshed = await listMyGroups()
+        if (!live.current) return
+        setMine(refreshed)
+        const joined = refreshed.find(g => !before.has(g.id))
+        navigate(joined ? `/groups/${joined.id}` : "/groups")
+      } catch {
+        if (live.current) void load()
+      }
+    } catch (error) {
+      const mapped = toGroupError(error)
+      captureHandledException(error, {
+        area: "groups",
+        action: "join_group_by_code",
+        screen: "groups",
+        identifiers: { outcome: mapped.kind }
+      })
+      if (!live.current) return
+
+      if (mapped.kind === "consent_required") {
+        await refresh()
+        setPending({ kind: "joinCode", code })
+        return
+      }
+      if (mapped.kind === "disabled") {
+        await refresh()
+        setCodeOpen(false)
+        return
+      }
+      setCodeError(mapped.message)
+    } finally {
+      if (live.current) setCodeSubmitting(false)
     }
   }
 
@@ -287,8 +358,13 @@ export default function Groups() {
     setPending(null)
     await refresh()
     if (!resume) return
-    if (resume.kind === "create") void submitCreate(resume.name, resume.description, true)
-    else void submitJoin(resume.group, true)
+    if (resume.kind === "create") {
+      void submitCreate(resume.name, resume.description, resume.isPrivate, true)
+    } else if (resume.kind === "joinCode") {
+      void submitJoinByCode(resume.code, true)
+    } else {
+      void submitJoin(resume.group, true)
+    }
   }
 
   function openGroup(group: Group) {
@@ -367,6 +443,7 @@ export default function Groups() {
       ) : null}
 
       {fullAccess ? (
+      <>
       <div className="relative mt-5">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
@@ -378,6 +455,19 @@ export default function Groups() {
           className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500"
         />
       </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setCodeError(null)
+          setCodeOpen(true)
+        }}
+        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600"
+      >
+        <KeyRound className="h-3.5 w-3.5" />
+        Join a private group with a code
+      </button>
+      </>
       ) : null}
 
       <div className="mt-5">
@@ -446,9 +536,20 @@ export default function Groups() {
         open={createOpen}
         submitting={createSubmitting}
         serverError={createError}
-        onSubmit={(name, description) => void submitCreate(name, description)}
+        onSubmit={(name, description, isPrivate) =>
+          void submitCreate(name, description, isPrivate)
+        }
         onClose={() => setCreateOpen(false)}
         onClearError={() => setCreateError(null)}
+      />
+
+      <JoinByCodeModal
+        open={codeOpen}
+        submitting={codeSubmitting}
+        error={codeError}
+        onSubmit={code => void submitJoinByCode(code)}
+        onClose={() => setCodeOpen(false)}
+        onClearError={() => setCodeError(null)}
       />
 
       <GroupJoinModal

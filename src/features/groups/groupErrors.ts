@@ -21,6 +21,8 @@ export type GroupErrorKind =
   | "rate_limited"
   | "not_found"
   | "invalid_handle"
+  | "invalid_code"
+  | "code_required"
   | "invalid_period"
   | "invalid_timezone"
   | "unauthenticated"
@@ -104,6 +106,16 @@ const RULES: Record<string, Rule> = {
     kind: "invalid_handle",
     message: "That's out of date. Pull to refresh and try again.",
     refetch: true
+  },
+  "groups.invalid_code": {
+    kind: "invalid_code",
+    message: "That code didn't match a group."
+  },
+  // A private group reached by id rather than code — a client bug, since the
+  // client always uses the code path for private groups.
+  "groups.code_required": {
+    kind: "code_required",
+    message: "That group is joined with a code."
   },
   // Only a client bug produces these two: the period comes from a fixed list
   // and the timezone from Intl, both validated server-side.

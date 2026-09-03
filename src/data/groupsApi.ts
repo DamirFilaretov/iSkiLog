@@ -22,6 +22,9 @@ type GroupRow = {
   group_logo_key: string | null
   member_count: number | string
   is_member: boolean
+  // Only list_my_groups emits these; absent (undefined) from the directory RPCs.
+  is_private?: boolean
+  join_code?: string | null
 }
 
 function mapGroupRow(row: GroupRow): Group {
@@ -32,7 +35,9 @@ function mapGroupRow(row: GroupRow): Group {
     logoKey: row.group_logo_key,
     // bigint arrives as a string once it exceeds the JS safe range.
     memberCount: Number(row.member_count),
-    isMember: row.is_member
+    isMember: row.is_member,
+    isPrivate: row.is_private ?? false,
+    joinCode: row.join_code ?? null
   }
 }
 
@@ -93,10 +98,15 @@ export async function searchGroups(query: string): Promise<Group[]> {
  * returns `groups.name_taken` for a name the caller did in fact create. The
  * create flow reconciles on that hint instead.
  */
-export async function createGroup(name: string, description: string): Promise<CreatedGroup> {
+export async function createGroup(
+  name: string,
+  description: string,
+  isPrivate = false
+): Promise<CreatedGroup> {
   const { data, error } = await supabase.rpc("create_group", {
     p_name: name,
-    p_description: description
+    p_description: description,
+    p_private: isPrivate
   })
   if (error) throw error
 
@@ -106,6 +116,8 @@ export async function createGroup(name: string, description: string): Promise<Cr
     description: string
     logo_key: string | null
     created_at: string
+    is_private: boolean
+    join_code: string | null
   }
 
   return {
@@ -113,12 +125,24 @@ export async function createGroup(name: string, description: string): Promise<Cr
     name: row.name,
     description: row.description,
     logoKey: row.logo_key,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    isPrivate: row.is_private,
+    joinCode: row.join_code
   }
 }
 
 export async function joinGroup(groupId: string): Promise<void> {
   const { error } = await supabase.rpc("join_group", { p_group_id: groupId })
+  if (error) throw error
+}
+
+/**
+ * Joins a private group by its 6-digit code (D26). A wrong code raises
+ * `groups.invalid_code`. Not rate-limited server-side — "private" is a
+ * discovery boundary, not access control (D27).
+ */
+export async function joinGroupByCode(code: string): Promise<void> {
+  const { error } = await supabase.rpc("join_group_by_code", { p_code: code })
   if (error) throw error
 }
 

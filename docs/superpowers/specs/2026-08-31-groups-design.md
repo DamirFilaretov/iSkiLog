@@ -461,29 +461,28 @@ membership is a silent no-op.
 
 ### 6.4 `list_groups()` / `search_groups()` / `list_my_groups()`
 
-```sql
-returns table (group_id uuid, group_name text, group_description text,
-               group_logo_key text, member_count bigint, is_member boolean,
-               is_private boolean, join_code text)
-```
+**`list_groups()`** — return shape unchanged (`group_id, group_name,
+group_description, group_logo_key, member_count, is_member`). `order by
+member_count desc, canonical_group_name asc`, `limit 200`, **`where
+g.is_private = false`** (D26; parenthesise the existing block-filter OR chain so
+`AND` binds correctly). Excludes groups whose creator is blocked in **either**
+direction (D17). `member_count` counts all members including blocked ones (EC-12).
 
-`list_groups`: `order by member_count desc, canonical_group_name asc`, `limit
-200`, **`where g.is_private = false`** (D26). Excludes groups whose creator is
-blocked in **either** direction, matching D17. `member_count` counts all members
-including blocked ones (EC-12). `is_private` is always `false` and `join_code`
-always null in these rows.
-
-**`search_groups(p_query text)`** — same shape, `where g.is_private = false`,
-matches on `canonical_group_name(name) like '%' || canonical_group_name(p_query)
-|| '%'`, capped at 200. A private group cannot be found by guessing its name.
-Browse shows what is popular; search reaches every **public** group (D13).
+**`search_groups(p_query text)`** — same shape, **`where g.is_private = false`**
+too, literal substring match on `canonical_group_name`, capped at 200. A private
+group cannot be found by guessing its name. Search reaches every **public**
+group (D13).
 
 **`list_my_groups()`** (added in Part 3) — the caller's own memberships, no block
-filter, no cap. It **does** return private groups the caller is in, with
-`is_private = true` and the real `join_code`, so the board can show the invite
-code to any member (D28). Adding the two columns is a `RETURNS TABLE` change —
-`drop function` then recreate. `list_groups` / `search_groups` gain the columns
-in signature for one shared client mapper, but only ever emit the defaults.
+filter, no cap. Return shape gains **`is_private boolean, join_code text`** — a
+`RETURNS TABLE` change, so `drop function` then recreate. It returns the real
+`join_code` for a private group the caller is in, so the board shows the invite
+code to any member (D28); `join_code` is null for public groups.
+
+`list_groups` / `search_groups` do **not** carry `is_private` / `join_code` —
+the directory has no reason to hand out a code, and every row it returns is
+public. The client's shared row mapper defaults both fields (`is_private ??
+false`, `join_code ?? null`) when they are absent.
 
 ### 6.5 `fetch_group_leaderboard(p_group_id uuid, p_period text, p_timezone text)`
 

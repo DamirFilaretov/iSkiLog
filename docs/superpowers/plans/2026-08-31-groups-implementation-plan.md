@@ -158,11 +158,12 @@ group's life.
   same lock / post-lock existence check / `insert on conflict do nothing` as
   `join_group`. No attempt counter.
 - `join_group(p_group_id)` — refuse a private group with `groups.code_required`.
-- `list_groups` / `search_groups` — `where is_private = false` (body edit only).
+- `list_groups` / `search_groups` — `where is_private = false` (body edit only;
+  parenthesise the block-filter OR chain first). Return shape unchanged — the
+  directory has no reason to carry a code, and its rows are all public.
 - `list_my_groups` — **drop-and-recreate**: return `is_private` and `join_code`,
-  so a member sees the code on the board. `list_groups` / `search_groups` gain
-  the two columns in signature too, for one shared client mapper, but only emit
-  the defaults.
+  so a member sees the code on the board. The client's shared row mapper
+  defaults both fields for the directory RPCs that omit them.
 
 **Test first, both layers:**
 

@@ -23,6 +23,11 @@ export default function GroupCard({ group, onSelect }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="truncate text-sm font-semibold text-slate-900">{group.name}</p>
+          {group.isPrivate ? (
+            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+              Private
+            </span>
+          ) : null}
           {group.isMember ? (
             <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
               Joined

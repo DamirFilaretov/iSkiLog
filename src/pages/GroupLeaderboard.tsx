@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 
 import LeaderboardRow from "../components/groups/LeaderboardRow"
 import BoardPeriodToggle from "../components/groups/BoardPeriodToggle"
+import InviteCodeCard from "../components/groups/InviteCodeCard"
 import LeaveGroupDialog from "../components/groups/LeaveGroupDialog"
 import BackButton from "../components/nav/BackButton"
 import { leaveGroup, listMyGroups } from "../data/groupsApi"
@@ -274,6 +275,8 @@ function Board({
           </p>
         ) : null}
       </div>
+
+      {group?.isPrivate && group.joinCode ? <InviteCodeCard code={group.joinCode} /> : null}
 
       {notice ? (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3">
