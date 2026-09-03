@@ -1,12 +1,12 @@
 # Groups — Implementation Plan
 
 **Spec:** `docs/superpowers/specs/2026-08-31-groups-design.md` — holds every table, RPC signature, return shape, error token and the locking protocol. This plan says what to build and how to know it works; the spec says exactly what it is.
-**Reviews:** `docs/groups_findings.md` (round 1), second-round findings folded into spec v3.
-**Date:** 2026-08-31
+**Reviews:** `docs/groups_findings.md` (round 1), second-round findings folded into the spec; Part 3 and Part 4 review findings folded into the code.
+**Date:** 2026-08-31 · **last revised:** 2026-09-03 (Part 4.5 — private groups)
 
-**Goal:** A public directory of user-created training groups, each with a leaderboard ranking members by sets logged in the last 7 or 30 days, broken down by discipline.
+**Goal:** A directory of user-created training groups, each with a leaderboard ranking members by sets logged in the last 7 or 30 days, broken down by discipline. Groups are public (in the directory) by default; a creator may make one **private** — hidden from the directory, joined with a 6-digit code (Part 4.5).
 
-**Approach:** Six parts, built in order. Each is written test-first — the tests describe the behaviour before the thing exists — and ends at a milestone you can check yourself without reading code. Nothing user-visible ships until Part 3; Parts 1 and 2 are verified by running commands.
+**Approach:** Six parts plus an inserted Part 4.5, built in order. Each is written test-first — the tests describe the behaviour before the thing exists — and ends at a milestone you can check yourself without reading code. Nothing user-visible ships until Part 3; Parts 1 and 2 are verified by running commands. **Parts 1–4 are done; Part 4.5 is next.**
 
 **Why this order:** Groups is the first cross-user feature in the app. Everything today is locked to "your data, only yours", so the security boundary goes first. Each later part depends only on parts before it.
 
@@ -128,6 +128,78 @@ by one, other columns untouched. Switch to 30 days and see older sets appear,
 and the header range widen. Leave as the last member and watch the group
 disappear from the directory.
 
+**Part 4 shipped** 2026-09-02, commit `ed7b2b1`. `fetch_group_leaderboard` is
+also now `STABLE` (a gated read must share one snapshot between its membership
+check and its data query — Part 4 review P1).
+
+---
+
+## Part 4.5 — Private groups
+
+**Inserted 2026-09-03**, before Part 5. Spec: design v3, D26–D28, §6.2–6.4, EC-34–EC-40.
+
+A creator may opt a group out of the directory. It is then hidden from
+`list_groups` / `search_groups` and joined with a **6-digit numeric code**
+instead. The code is **not access control** (D27): `join_group_by_code` is not
+rate-limited, "private" means unlisted not sealed, and the policy copy says so.
+The code is shown to **every** member (D28, no owner role) and is fixed for the
+group's life.
+
+**Build — schema first, written as real SQL and reviewed before the client:**
+
+- `groups` gains `is_private boolean not null default false` and `join_code
+  text`, via `alter table ... add column if not exists`, plus a partial unique
+  index on the non-null codes.
+- `create_group` — **drop-and-recreate** for the new `p_private` argument.
+  When private, generate a unique 6-digit code in a collision-retry loop; set
+  `is_private`; return `join_code` in the result.
+- `join_group_by_code(p_code text)` — new `security definer`, flag- and
+  consent-gated. Look up by code → `groups.invalid_code` on no match; then the
+  same lock / post-lock existence check / `insert on conflict do nothing` as
+  `join_group`. No attempt counter.
+- `join_group(p_group_id)` — refuse a private group with `groups.code_required`.
+- `list_groups` / `search_groups` — `where is_private = false` (body edit only).
+- `list_my_groups` — **drop-and-recreate**: return `is_private` and `join_code`,
+  so a member sees the code on the board. `list_groups` / `search_groups` gain
+  the two columns in signature too, for one shared client mapper, but only emit
+  the defaults.
+
+**Test first, both layers:**
+
+- *Direct Postgres:* the code generator produces distinct 6-digit codes across
+  many creates; the partial unique index rejects a duplicate; a private group's
+  row carries `is_private = true` and a code.
+- *Through the API:* `create_group(p_private => true)` returns a code; the group
+  is absent from `list_groups` and `search_groups` and unfindable by name;
+  `join_group_by_code` joins with the right code and raises `groups.invalid_code`
+  with a wrong one; `join_group` on a private id raises `groups.code_required`;
+  an unconsented caller is still refused; `list_my_groups` returns the code to a
+  member and the board RPC is unaffected.
+- *Vitest:* a `joinCode` format guard if any code logic lands in a pure module;
+  the client error map gains `groups.invalid_code` / `groups.code_required`.
+
+**Client:**
+
+- `types/groups.ts` — `Group` gains `isPrivate` + `joinCode`; `CreatedGroup`
+  gains `joinCode`. Shared mappers read the two new columns.
+- `groupsApi.ts` — `createGroup(name, description, isPrivate)`; new
+  `joinGroupByCode(code)`.
+- `CreateGroupModal` — a "Make this group private" toggle with one line of
+  explanation; a private create navigates straight to the board.
+- `JoinByCodeModal` — a 6-digit input, reached from a "Join with a code" action
+  on the directory; routes through the consent gate on a first join.
+- `InviteCodeCard` — on a private group's board, visible to any member: the
+  code, a copy button, one line of context.
+- `GroupCard` — a "Private" badge on the caller's own private groups.
+
+**Milestone you can check:** with two accounts, create a private group on one —
+confirm it is **not** in the other account's directory or search. Read the code
+off the board, join with it on the second account, land on the board. A wrong
+code is rejected. Leave as the last member and the group is gone.
+
+**Rollout:** no new stage — private groups ship in the same release as the rest,
+behind the same flag.
+
 ---
 
 ## Part 5 — Moderation and policy
@@ -151,7 +223,7 @@ blocked-users screen are **not** in Part 5 either — see the note in Part 4.
 
 **Build:** the two-user end-to-end suite, a 360×800 mobile browser project, then the release.
 
-**Test first.** This part *is* the tests. Every existing spec drives one user, so the harness needs a second user in a second browser context — genuinely new ground, likely slower than it sounds. Playwright currently runs one desktop project at 1280×900, which means the 360px constraint driving the whole row layout has no automated coverage; add the mobile project before writing the specs. Scenarios are Parts 3–5's milestones, automated.
+**Test first.** This part *is* the tests. Every existing spec drives one user, so the harness needs a second user in a second browser context — genuinely new ground, likely slower than it sounds. Playwright currently runs one desktop project at 1280×900, which means the 360px constraint driving the whole row layout has no automated coverage; add the mobile project before writing the specs. Scenarios are Parts 3–5's milestones plus Part 4.5's (create a private group, absent from the other user's directory, joined by code, wrong code rejected), automated.
 
 **Release in four reversible stages,** because shipping working grants before the terms exist would expose create and report to any crafted client — and on native that window is days:
 
@@ -168,7 +240,9 @@ Run the Supabase security advisors and re-check effective grants before stage 4.
 
 ## Sequencing and risk
 
-Part 1 gates everything. Parts 2 and 3 gate 4. Part 5 can run alongside 4. Part 6 is last.
+Part 1 gates everything. Parts 2 and 3 gate 4. Parts 1–4 are done. Part 4.5
+(private groups) is a schema + client slice on the same branch, before Part 5.
+Part 5 can run alongside 4.5. Part 6 is last.
 
 **Where this is most likely to hurt:**
 
@@ -178,6 +252,7 @@ Part 1 gates everything. Parts 2 and 3 gate 4. Part 5 can run alongside 4. Part 
 - **Moderation is an ongoing commitment,** not a build task. Everything else ends when it ships; this one does not.
 
 **Deferred on purpose:** blocking and the blocked-users screen (the Part 1 SQL
-stays dormant), group logo images, a tutorial step for Groups, sorting the board
-by discipline, keyset pagination beyond the 200-row browse cap, and any in-app
-moderation queue.
+stays dormant), join-code rotation and any rate limiting on `join_group_by_code`
+(D27 — private is a discovery boundary), group logo images, a tutorial step for
+Groups, sorting the board by discipline, keyset pagination beyond the 200-row
+browse cap, and any in-app moderation queue.

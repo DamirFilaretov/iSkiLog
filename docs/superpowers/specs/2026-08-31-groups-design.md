@@ -1,12 +1,20 @@
 # Groups — Design Spec
 
-**Date:** 2026-08-31 · **Version:** 2 · **Status:** Approved, ready for planning
+**Date:** 2026-08-31 · **Version:** 3 · **Status:** Parts 1–4 built; private groups added, ready to build
 
 Revised after an adversarial review (`docs/groups_findings.md`): 14 findings, 12
 accepted in full or reduced scope. Rejected: the claim that `create_group(NULL,'')`
 yields an unmapped `23502` (§6.2 coalesces, giving the documented `22023`), and
 wrapper functions in front of private definers. Server-side directory pagination
 was reduced to a hard cap plus a creation quota.
+
+**v3 (2026-09-03):** private groups added (D26–D28, §6.2–6.4, EC-34–EC-40). A creator
+may opt a group out of the directory; it is then joined by a 6-digit code instead.
+This is the only change that rewrites an earlier decision — D2 splits into public
+and private. Blocking and reporting were also cut from the client scope
+(`knowledge/decisions/blocking-and-reporting-are-deferred`); the Part 1 SQL for
+them stays in place, dormant. Part 4 shipped the leaderboard and the resolved
+window on `fetch_group_leaderboard`, which is now `STABLE`.
 
 ---
 
@@ -31,7 +39,7 @@ dates, notes, scores and `auth.users` identifiers never cross the boundary.
 | # | Decision | Value |
 |---|---|---|
 | D1 | Who creates groups | Any authenticated user, subject to quota (D19) |
-| D2 | Directory visibility | Public — every user sees every group |
+| D2 | Directory visibility | **Public groups:** every user sees every public group. **Private groups (D26):** absent from the directory and from name search; joined by code |
 | D3 | Group names | Globally unique, case- and whitespace-insensitive |
 | D4 | Ownership / roles | **None.** Everyone has "Leave"; no owner, no admins |
 | D5 | Group lifecycle | When the last member leaves, the group is deleted |
@@ -55,6 +63,9 @@ dates, notes, scores and `auth.users` identifiers never cross the boundary.
 | D23 | Function privilege | `security invoker` by default; `definer` only where cross-user reads require it |
 | D24 | Rollout | Ships behind a server-side feature flag that doubles as a kill switch |
 | D25 | Client reachability | **Zero** Groups tables are client-reachable, without exception |
+| D26 | Private groups | Creator opts in at creation. A **6-digit numeric** join code is generated server-side, unique, and **fixed for the group's life**. The group is absent from `list_groups` / `search_groups`; the only ways in are `join_group_by_code` or an existing membership |
+| D27 | The code is not access control | `join_group_by_code` is **not rate-limited** (deliberate). "Private" means *undiscoverable*, not *unreachable*: the ~1M code space is enumerable by a determined script. Accepted — private is a discovery boundary, and Part 5's policy copy says so rather than overclaiming |
+| D28 | Who holds the code | **Any member** sees it, on the group's board, so anyone can invite. No creator role (D4 preserved). Not regenerable — a badly-leaked code is fixed by leave-and-recreate |
 
 **D8** — the client sends the period and its IANA timezone, never dates. Accepting
 `p_start`/`p_end` would let any member call with `p_start = p_end` and learn who
@@ -98,17 +109,38 @@ that must read another user's rows are `definer`.
 `23505` and the user is told someone else took a name they created. Retry stays
 off; on `23505` the client checks for existing membership and navigates there.
 
+**D26 / D27** — private groups are a *discovery* boundary, not a security one, and
+the spec is explicit about that so nothing downstream overclaims. `is_private`
+removes the group from browse and name search; a 6-digit code (`join_code`,
+unique, generated with a collision-retry loop) is the only new way in. The code
+is deliberately unprotected: rate-limiting it would need another append-only
+attempt log and a lock, for a feature whose point is convenience, and a
+determined attacker with many accounts defeats a modest limit anyway. Names stay
+globally unique across public and private (the `canonical_group_name` index is
+privacy-blind) — so a create that collides with a hidden private name returns
+`groups.name_taken`, a minor existence-by-name oracle, accepted as consistent
+with the soft-barrier posture.
+
+**D28** — the code renders on the board for every member, mirroring D4: no member
+has powers another lacks. It is fixed for the group's life; a rotation RPC would
+reintroduce "one member can disrupt the others" and is not worth it here.
+
 ---
 
 ## 3. Scope boundaries
 
-**Not planned:** admin roles, moderators, kicking members; invite codes and private
-groups; group chat, comments or reactions; notifications.
+**Not planned:** admin roles, moderators, kicking members; group chat, comments or
+reactions; notifications.
 
-**Deferred:** group logo upload (needs a Storage bucket and image pipeline); a
-tutorial step for Groups; sorting the board by discipline; server-side directory
-search and pagination once 200 is limiting; an in-app moderation queue if report
-volume ever justifies one. Self-reported counts are gameable — accepted at club scale.
+**Now in scope (v3):** private groups joined by a 6-digit code (D26–D28).
+
+**Deferred:** join-code rotation; group logo upload (needs a Storage bucket and
+image pipeline); a tutorial step for Groups; sorting the board by discipline;
+server-side directory search and pagination once 200 is limiting; blocking and
+the blocked-users screen (Part 1 SQL stays dormant —
+`knowledge/decisions/blocking-and-reporting-are-deferred`); an in-app moderation
+queue if report volume ever justifies one. Self-reported counts are gameable —
+accepted at club scale.
 
 ---
 
@@ -127,7 +159,17 @@ create table if not exists public.groups (
   created_at  timestamptz not null default timezone('utc', now())
 );
 
--- Canonical form computed by the database, not promised by the caller
+-- Private groups (D26). is_private removes the group from the directory and
+-- name search; join_code is a 6-digit string, null for public groups, unique
+-- among the non-null values. Added by `alter ... add column if not exists` so
+-- re-applying schema.sql over the Part 1 table is a no-op.
+alter table public.groups add column if not exists is_private boolean not null default false;
+alter table public.groups add column if not exists join_code  text;
+create unique index if not exists groups_join_code_unique
+  on public.groups (join_code) where join_code is not null;
+
+-- Canonical form computed by the database, not promised by the caller. The
+-- index is privacy-blind: names are globally unique across public and private.
 create unique index if not exists groups_name_unique
   on public.groups (public.canonical_group_name(name));
 create index if not exists idx_groups_created_by_created_at
@@ -294,10 +336,12 @@ without the revoke an anonymous caller could enter the function.
 
 **`security invoker` is the default (D23).** Only these are `definer`, because
 only these must read rows the caller does not own: `create_group`, `join_group`,
-`leave_group`, `list_groups`, `search_groups`, `fetch_group_leaderboard`,
-`report_group`, `report_profile`, `block_group_member`, `list_blocks`,
-`unblock`, `accept_groups_policy`, `groups_status`, `reap_empty_group` and
-`normalise_profile_name`. The two pure helpers in 6.0 are `invoker`.
+`join_group_by_code`, `leave_group`, `list_groups`, `search_groups`,
+`list_my_groups`, `fetch_group_leaderboard`, `report_group`, `report_profile`,
+`block_group_member`, `list_blocks`, `unblock`, `accept_groups_policy`,
+`groups_status`, `reap_empty_group` and `normalise_profile_name`. The two pure
+helpers in 6.0 are `invoker`. `fetch_group_leaderboard` is additionally `STABLE`
+(Part 4 review) so its membership gate and its row query share one snapshot.
 
 **On the `auth.uid() is null` guards.** They stay as defence in depth, but they
 are not observable through the API: with `EXECUTE` revoked from `anon`, an
@@ -368,7 +412,9 @@ Join, leave and this trigger all take the same per-group advisory lock. Recursio
 is safe: the cascade re-fires the trigger, but advisory locks are re-entrant within
 a transaction and the subsequent delete matches nothing.
 
-### 6.2 `create_group(p_name text, p_description text default '')`
+### 6.2 `create_group(p_name text, p_description text default '', p_private boolean default false)`
+
+Argument list changed for `p_private` (D26) — `drop function` then recreate.
 
 1. Reject if the feature flag is off (`hint = groups.disabled`) or the current
    policy version is unaccepted (`hint = groups.consent_required`).
@@ -381,50 +427,76 @@ a transaction and the subsequent delete matches nothing.
 5. Reject names matching `moderation_terms` (`hint = groups.name_rejected`).
 6. Quota (D19): ≥ 10 live groups in `groups` → `hint = groups.quota_exceeded`;
    ≥ 5 rows in `group_creation_log` for this creator in the past hour →
-   `hint = groups.rate_limited`. **The hourly count comes from the log, not from
-   `groups`** — a live-row count is defeated by creating and immediately leaving,
-   which reaps the row and erases the evidence.
-7. Insert the group, catching `unique_violation` → `23505`.
-8. **In the same transaction**, insert the creator's membership *and* a
+   `hint = groups.rate_limited`. Private groups count identically. **The hourly
+   count comes from the log, not from `groups`** — a live-row count is defeated
+   by creating and immediately leaving, which reaps the row and erases the evidence.
+7. If `p_private`: generate a 6-digit code — `lpad((pg_catalog.floor(pg_catalog.random() * 1000000))::int::text, 6, '0')` — in a loop until it is unique among non-null `join_code`s, and set `is_private = true`. The `groups_join_code_unique` index is the backstop.
+8. Insert the group, catching `unique_violation` on the name → `23505`.
+9. **In the same transaction**, insert the creator's membership *and* a
    `group_creation_log` row. The membership is what guarantees a group can never
    exist with zero members; the log is what makes the rate limit real.
+10. Return the group row **including `join_code`** (null for public), so the
+    creator sees the code without a second call.
 
-### 6.3 `join_group(p_group_id uuid)` / `leave_group(p_group_id uuid)`
+### 6.3 `join_group(p_group_id uuid)` / `join_group_by_code(p_code text)` / `leave_group(p_group_id uuid)`
 
-**Join:** reject if unauthenticated (`28000`) or unconsented (`42501`);
+**Join by id:** reject if unauthenticated (`28000`) or unconsented (`42501`);
+**reject a private group with `hint = groups.code_required`** (a non-member has no
+way to obtain a private group's id through any RPC, but the guard is explicit);
 `perform lock_group`; **after** the lock, raise `P0002` if the group no longer
 exists; `insert ... on conflict do nothing`. The lock plus post-lock check stops a
 join racing the last leave and surfacing a raw `23503`.
+
+**Join by code (D26):** reject if unauthenticated or unconsented; look up
+`id` and `is_private` `where join_code = btrim(p_code)`; no row → `hint =
+groups.invalid_code`. Then the same lock / post-lock existence check / `insert
+... on conflict do nothing` as join-by-id. Works for a private group; also
+accepts a public group's code if one were ever set, but only private groups have
+one. **Not rate-limited (D27)** — the in-function guards do not include an
+attempt counter, and this is deliberate.
 
 **Leave:** reject if unauthenticated; `perform lock_group`; delete the caller's
 membership. The reap trigger runs inside the same lock. Deleting a non-existent
 membership is a silent no-op.
 
-### 6.4 `list_groups()`
+### 6.4 `list_groups()` / `search_groups()` / `list_my_groups()`
 
 ```sql
 returns table (group_id uuid, group_name text, group_description text,
-               group_logo_key text, member_count bigint, is_member boolean)
+               group_logo_key text, member_count bigint, is_member boolean,
+               is_private boolean, join_code text)
 ```
 
-`order by member_count desc, canonical_group_name asc`, `limit 200`. Excludes
-groups whose creator is blocked in **either** direction, matching D17.
-`member_count` counts all members including blocked ones (EC-12).
+`list_groups`: `order by member_count desc, canonical_group_name asc`, `limit
+200`, **`where g.is_private = false`** (D26). Excludes groups whose creator is
+blocked in **either** direction, matching D17. `member_count` counts all members
+including blocked ones (EC-12). `is_private` is always `false` and `join_code`
+always null in these rows.
 
-**`search_groups(p_query text)`** takes the same return shape, matches on
-`canonical_group_name(name) like '%' || canonical_group_name(p_query) || '%'`,
-and is also capped at 200. It exists because a browse-only cap is not a
-directory: without it, group 201 would be invisible *and* unfindable, and
-20 accounts at the 10-group quota could bury every legitimate group beneath
-padding. Browse shows what is popular; search reaches everything (D13).
+**`search_groups(p_query text)`** — same shape, `where g.is_private = false`,
+matches on `canonical_group_name(name) like '%' || canonical_group_name(p_query)
+|| '%'`, capped at 200. A private group cannot be found by guessing its name.
+Browse shows what is popular; search reaches every **public** group (D13).
+
+**`list_my_groups()`** (added in Part 3) — the caller's own memberships, no block
+filter, no cap. It **does** return private groups the caller is in, with
+`is_private = true` and the real `join_code`, so the board can show the invite
+code to any member (D28). Adding the two columns is a `RETURNS TABLE` change —
+`drop function` then recreate. `list_groups` / `search_groups` gain the columns
+in signature for one shared client mapper, but only ever emit the defaults.
 
 ### 6.5 `fetch_group_leaderboard(p_group_id uuid, p_period text, p_timezone text)`
 
 ```sql
 returns table (membership_id uuid, member_name text, is_self boolean,
                slalom_count bigint, tricks_count bigint, jump_count bigint,
-               other_count bigint, total_count bigint)
+               other_count bigint, total_count bigint,
+               window_start date, window_end date)
 ```
+
+`window_start` / `window_end` (Part 4) repeat the resolved window on every row so
+the board header shows the range without the client recomputing dates — the
+client's window could drift from the server's (D8, D15). Marked `STABLE`.
 
 1. Reject if unauthenticated (`28000`).
 2. `p_period` must be `'7d'` or `'30d'` (`22023`) → `v_days := 6` or `29`.
@@ -497,28 +569,37 @@ Not hydrated in `AuthProvider`, not written to localStorage, no in-memory memo
 fetch from `Intl.DateTimeFormat().resolvedOptions().timeZone`, falling back to `'UTC'`.
 
 ```
-/groups      -> groupsApi.listGroups()                        on mount
-join         -> groupsApi.joinGroup(id)                       -> /groups/:id
-/groups/:id  -> groupLeaderboardApi.fetchBoard(id, period, tz)
-                                                on mount + on period change
-leave        -> groupsApi.leaveGroup(id)                      -> /groups
+/groups        -> groupsApi.listGroups() + listMyGroups()        on mount
+join           -> groupsApi.joinGroup(id)                         -> /groups/:id
+join by code   -> groupsApi.joinGroupByCode(code)                 -> /groups/:id
+/groups/:id    -> groupLeaderboardApi.fetchGroupLeaderboard(id, period, tz)
+                                                  on mount + on period change
+leave          -> groupsApi.leaveGroup(id) + refresh access       -> /groups
 
-src/types/groups.ts                    Group, LeaderboardRow, GroupPeriod
+src/types/groups.ts                    Group (+ isPrivate, joinCode), GroupBoard, ...
 src/features/groups/groupPeriod.ts     period -> display label only
 src/features/groups/groupName.ts       client mirror of the name rules
 src/features/groups/groupAvatar.ts     initials + deterministic colour
-src/data/groupsApi.ts                  list / create / join / leave / report / block
+src/features/groups/leaderboardWindow.ts   window dates -> header label (Part 4)
+src/features/groups/leaderboardRows.ts     rank + discipline breakdown (Part 4)
+src/data/groupsApi.ts                  list / create / join / join-by-code / leave
 src/data/groupLeaderboardApi.ts        leaderboard fetch
-src/components/groups/GroupCard.tsx
+src/components/groups/GroupCard.tsx         (+ Private badge)
 src/components/groups/GroupAvatar.tsx
 src/components/groups/GroupJoinModal.tsx
-src/components/groups/CreateGroupModal.tsx
+src/components/groups/CreateGroupModal.tsx  (+ Make private toggle)
+src/components/groups/JoinByCodeModal.tsx   6-digit input (new)
+src/components/groups/InviteCodeCard.tsx    shows the code on the board (new)
 src/components/groups/LeaderboardRow.tsx
+src/components/groups/BoardPeriodToggle.tsx (Part 4)
+src/components/groups/LeaveGroupDialog.tsx  (Part 4)
 src/components/groups/GroupsConsentGate.tsx
 src/pages/Groups.tsx                   directory
 src/pages/GroupLeaderboard.tsx         board
-src/pages/BlockedUsers.tsx             manage + undo blocks (D17)
 ```
+
+Blocking / reporting components (`BlockedUsers.tsx`, a member sheet) are not
+built — see `knowledge/decisions/blocking-and-reporting-are-deferred`.
 
 `groupsApi` calls `groups_status()` on directory mount and stores nothing about
 the flag or policy version locally — the server owns both, so there is no
@@ -543,24 +624,34 @@ device has ~343px of inner bar width, so it must become `flex-1 min-w-0` with
 `TabLayout`'s `showTabs` must gain the same prefix or the bar disappears on the new
 pages. The `data-tutorial="insights-tab"` anchor is unaffected.
 
-**Directory** — in-memory search over the fetched list; **+ New group**; cards with
-initials avatar, name, truncated description, `N members`, "Joined" pill. Loading
-skeleton, error-with-retry, empty state.
+**Directory** — in-memory search over the fetched list; **+ New group**; a
+secondary **Join with a code** action opening `JoinByCodeModal`; cards with
+initials avatar, name, truncated description, `N members`, "Joined" pill, and a
+**Private** badge on the caller's own private groups (private groups only ever
+reach the directory screen via `list_my_groups`). Loading skeleton,
+error-with-retry, empty state.
 
 **Join modal** — avatar, name, description, member count, **Join** (or **Open** if
-already a member), and a **Report** link. First create-or-join routes through
-`GroupsConsentGate` (D20).
+already a member). First create-or-join routes through `GroupsConsentGate` (D20).
+(A Report link is Part 5.)
+
+**Join-by-code modal** — a single 6-digit input; on submit calls
+`joinGroupByCode`. `groups.invalid_code` → inline "That code didn't match a
+group." Success → navigate to the board. Routes through `GroupsConsentGate` on a
+first join like any other.
 
 **Create modal** — name and description with live counters (40 / 200), client
-validation mirroring the server. On `groups.name_taken` the client reconciles
-**only if the caller is currently a member** of a group by that name, and opens
-the join modal otherwise. Being the original creator is not sufficient: there are
-no owners (D4), so a creator who left while others stayed would be navigated to a
-board they cannot read.
+validation mirroring the server, and a **Make this group private** toggle with a
+line: "Private groups aren't listed. People join with a code you share." On
+`groups.name_taken` the client reconciles **only if the caller is currently a
+member** of a group by that name (works for private groups too, via
+`listMyGroups`), and opens the join modal otherwise. Being the original creator
+is not sufficient: there are no owners (D4). Creating a private group navigates
+straight to its board, where the code is shown.
 
-**Blocked-users screen**, reached from Settings, backed by `list_blocks` and
-`unblock`. Not optional: blocking is mutual, so the blocked person vanishes from
-every board, and this is the only remaining place to undo it.
+**Invite-code card** — on the board of a private group, visible to **any**
+member (D28): the 6-digit code, a copy button, and one line — "Share this code
+so people can join." Absent for public groups.
 
 **Leaderboard**, two-line rows (D22):
 
@@ -607,12 +698,13 @@ user passes forever, having agreed to a policy that said there were no social
 features.
 
 Consent is therefore taken at the point of the actual sharing: the first
-`create_group` or `join_group`. `GroupsConsentGate` presents the terms and calls
-`accept_groups_policy()`, which records **the server's current version** — the
-client never holds a version constant of its own, so the two cannot drift. Both
-RPCs reject an unconsented caller with `hint = groups.consent_required`, and that
-rejection is enforced in the database, not the UI, so a crafted call cannot skip
-it. This is tested directly, not only through the screen.
+`create_group`, `join_group` **or `join_group_by_code`**. `GroupsConsentGate`
+presents the terms and calls `accept_groups_policy()`, which records **the
+server's current version** — the client never holds a version constant of its
+own, so the two cannot drift. All three RPCs reject an unconsented caller with
+`hint = groups.consent_required`, and that rejection is enforced in the database,
+not the UI, so a crafted call cannot skip it. This is tested directly, not only
+through the screen.
 
 ### 9.2 Policy copy — ships in the same release
 
@@ -623,6 +715,11 @@ that group. It never shares set contents, individual set dates, notes, scores or
 technique details. Leaving stops it immediately. Counts include sets logged before
 you joined (D9). The breakdown discloses more than a bare total — it reveals *which
 disciplines* someone trains — which is why the wording must name it explicitly.
+
+Private groups (D26): the copy says a private group is hidden from the directory
+and joined with a code its members share, and that the **code keeps people from
+stumbling in, not from getting in if they have it** — it is not a password. The
+data shared among members is identical to a public group.
 
 ### 9.3 Moderation
 
@@ -671,6 +768,8 @@ SQLSTATE.**
 | `groups.rate_limited` | "You've created several groups recently. Try later." |
 | `groups.not_found` | "This group no longer exists." Refresh the directory |
 | `groups.invalid_handle` | Stale screen — refetch and retry |
+| `groups.invalid_code` | "That code didn't match a group." Field-level, in the join-by-code modal |
+| `groups.code_required` | A private group reached by id — should not occur from the client; treat as `invalid_code` |
 | *(no hint)* | Network or unexpected — "Couldn't reach the server." + Retry |
 
 `28000` is deliberately absent. With `EXECUTE` revoked from `anon`, an anonymous
@@ -712,12 +811,19 @@ depth only.
 | EC-30 | Blocking someone removes their row | The blocked-users screen (`list_blocks`) is the unblock path; without it the block would be irreversible |
 | EC-31 | Abusive `profiles.full_name` | Rejected on write by the profiles trigger — the group-name denylist alone does not cover it (D21) |
 | EC-32 | Direct PostgREST write to `profiles` | Still passes through the trigger; filtering cannot be bypassed by skipping the UI |
-| EC-33 | Abuse incident after launch | `app_settings.groups_enabled` is flipped false; every RPC refuses with `groups.disabled` and no app release is needed (D24) |
+| EC-33 | Abuse incident after launch | `app_settings.groups_enabled` is flipped false. `create_group`, `join_group` and `join_group_by_code` refuse with `groups.disabled`; `leave_group`, the board, `list_my_groups` and the moderation RPCs keep working, deliberately, so members already inside are not trapped (D24, `knowledge/decisions/the-kill-switch-stops-spread-not-escape`) |
 | EC-23 | Abuser reported, then leaves as last member | Group reaped; report survives with its snapshot and a null `target_group_id` |
 | EC-24 | Existing user who accepted the old policy | Must pass `GroupsConsentGate` before their first create or join (D20) |
 | EC-25 | Emoji name passing client but failing server | Server's `22023` surfaced verbatim; the client is not authoritative |
-| EC-26 | `create_group` commits but the response is lost | Retry hits `23505`; client detects existing membership and navigates there (D18) |
+| EC-26 | `create_group` commits but the response is lost | Retry hits `23505`; client detects existing membership and navigates there (D18). Holds for a private create — `listMyGroups` finds it |
 | EC-27 | Anonymous caller invokes any RPC | `EXECUTE` revoked from `anon`; denied before the body runs |
+| EC-34 | Private group in browse or search | Never appears — `list_groups` / `search_groups` filter `is_private = false`. Reachable only by code or existing membership |
+| EC-35 | Wrong or made-up join code | `groups.invalid_code`; field-level message. A right code for a reaped group hits the post-lock `P0002` → `groups.not_found` |
+| EC-36 | Code collision at generation | `create_group` retries in a loop; `groups_join_code_unique` is the backstop |
+| EC-37 | Create a name that collides with a hidden private group | `groups.name_taken` — reveals a private group by that name exists (existence-by-name oracle). Accepted (D27) |
+| EC-38 | `join_group(private_id)` with a guessed/leaked UUID | `groups.code_required`. The id itself is 122-bit unguessable and no RPC hands it to a non-member |
+| EC-39 | Private group's creator leaves; others remain | The code is still shown to every remaining member (D28) — no owner, no orphaned code |
+| EC-40 | Script enumerates 6-digit codes against `join_group_by_code` | **Not mitigated** (D27). "Private" is a discovery boundary; ~1M codes is enumerable. Documented, deliberate |
 
 ---
 
@@ -758,12 +864,24 @@ Coverage:
   orphan; two concurrent creates at the quota edge produce ten, not eleven;
   create-leave-repeat still trips the hourly limit; a join racing the last leave
   returns `groups.not_found`; account-deletion cascade reaps correctly.
-- Flipping `groups_enabled` false makes every mutating RPC refuse.
+- Flipping `groups_enabled` false makes `create_group` / `join_group` /
+  `join_group_by_code` refuse — and leaves `leave_group` and the board working
+  (the DB suite must be independent of the flag's resting state — it captures and
+  restores `groups_enabled` per test).
+- **Private groups:** `create_group(..., p_private => true)` returns a 6-digit
+  `join_code`; the group is absent from `list_groups` and `search_groups` and
+  cannot be found by name; `join_group_by_code` with the right code joins, with a
+  wrong code raises `groups.invalid_code`; `join_group` on a private id raises
+  `groups.code_required`; `list_my_groups` returns the code to a member; a
+  consent-less caller is still refused; the generator produces distinct codes
+  across many creates.
 
 **Unit (vitest).** `groupPeriod` labels; `groupName` trim / whitespace / bounds plus
 a shared Unicode corpus checked against the server rules; `groupAvatar` initials and
-stable colour; row shaping — descending by total, name tie-break, zeros last,
-own-row marking, disciplines summing to the total, zero-suppression on line two.
+stable colour; `leaderboardWindow` range formatting; `leaderboardRows` shaping —
+server order kept, rank, discipline breakdown with zeros omitted and summing to
+the total, own-row marking, "no sets this period"; a `joinCode` format guard if
+one lands in a pure module.
 
 **E2E (`tests/e2e/specs/groups.spec.ts`).** Requires **two users in one test** —
 every existing spec is single-user, so `tests/e2e/utils/auth.ts` needs a
@@ -774,16 +892,22 @@ second-context helper.
 3. B is stopped by the consent gate, accepts, then joins.
 4. A logs a slalom set; B's 7-day board shows A's `SL` and total each up by one,
    other disciplines unchanged. Repeat for one more event type.
-5. Toggling to 30 days refetches and widens the counts.
+5. Toggling to 30 days refetches and widens the counts and the header range.
 6. A member with no sets reads "no sets this period".
-7. B blocks A; neither sees the other; `member_count` unchanged.
-8. B leaves; the group persists for A. A leaves as last member; it vanishes.
-9. A non-member navigating to `/groups/:id` sees the join prompt.
+7. B leaves; the group persists for A. A leaves as last member; it vanishes.
+8. A non-member navigating to `/groups/:id` sees the join prompt.
+9. A creates a **private** group; it is **not** in B's directory or search. A
+   reads the code off the board; B joins with it; a wrong code is rejected.
 
-**Schema.** `schema.sql` gains six tables, the privilege block, policies (each
-preceded by a drop), two helpers, the trigger and eleven RPCs. Verify a second
-consecutive `npm run e2e:db:prepare` succeeds — the missing `drop policy if exists`
-would have broken exactly that.
+(Blocking scenario dropped with the feature —
+`knowledge/decisions/blocking-and-reporting-are-deferred`.)
+
+**Schema.** `schema.sql` — re-applied on every E2E run, so every statement is
+`if not exists` / `create or replace` / `drop ... if exists` first. Private
+groups add two `alter table ... add column if not exists`, one partial unique
+index, and `join_group_by_code`; `create_group` and `list_my_groups` are
+`drop function` then recreate. Verify a second consecutive `npm run
+e2e:db:prepare` succeeds.
 
 ---
 
@@ -807,21 +931,22 @@ re-running `schema.sql`, so each stage must be independently re-runnable.
 `npx cap sync android` and `npx cap sync ios` before native builds. Run the
 Supabase security advisors and re-check effective grants before step 4.
 
-| Phase | Contents |
-|---|---|
-| 1 | Complete migration SQL — every RPC body written out, not described |
-| 2 | Database boundary suite (§12). **Gates all client work** |
-| 3 | Types, `groupPeriod`, `groupName`, `groupAvatar` + unit tests |
-| 4 | `groupsApi`, `groupLeaderboardApi` |
-| 5 | Directory, cards, create and join modals, consent gate |
-| 6 | Leaderboard, period toggle, member sheet, leave, block, report |
-| 7 | Tab bar 3→4, `showTabs`, routes |
-| 8 | Policy copy and the moderation runbook |
-| 9 | Two-user E2E harness and `groups.spec.ts` |
+The build order is the six-part implementation plan
+(`docs/superpowers/plans/2026-08-31-groups-implementation-plan.md`). As built:
 
-Phase 1 is written and reviewed as real SQL before anything else starts — prose
-descriptions of a security boundary cannot be audited. Phase 2 gates phases 3
-onward. Phase 7 is independent and can land early behind an unreferenced route.
+| Part | Contents | Status |
+|---|---|---|
+| 1 | Schema + security boundary, RPC bodies as real SQL, DB boundary suite | done |
+| 2 | Types, pure helpers, `groupsApi` / `groupLeaderboardApi` | done |
+| 3 | Directory, cards, create + join modals, consent gate, tab bar 3→4, routes | done |
+| 4 | Leaderboard, period toggle, resolved window, Leave | done |
+| **4.5** | **Private groups** — `is_private` / `join_code`, `join_group_by_code`, create toggle, join-by-code modal, invite-code card | **next** |
+| 5 | Moderation of names and groups — denylist, `report_*` wiring + copy, policy text, runbook | pending |
+| 6 | Two-user E2E harness + `groups.spec.ts`, 360px project, staged release | pending |
+
+Part 1's SQL was written and reviewed as real SQL before anything else — prose
+descriptions of a security boundary cannot be audited. Part 4.5 follows the same
+rule for `join_group_by_code` and the `create_group` change.
 
 ---
 
@@ -843,3 +968,9 @@ onward. Phase 7 is independent and can land early behind an unreferenced route.
   longer than the feature code they verify.
 - **The advisory-lock pattern is new to this codebase** and must be exercised by
   real concurrent tests; a single-threaded test passes either way.
+- **A private group's join code is enumerable (D27).** ~1M codes, no rate limit —
+  a script can walk into every private group given time. This is a deliberate
+  product call: "private" means unlisted, not sealed. If that stops being
+  acceptable, the mitigation is a longer alphanumeric code or an attempt log with
+  a per-user lock, both additive. The policy copy is written so it never claims
+  more than "unlisted".
