@@ -85,6 +85,27 @@ describe("profile name filtering", () => {
     }
   })
 
+  it("matches denylist terms case-insensitively and literally", async () => {
+    const user = await createTestUser()
+    await withAdmin(c =>
+      c.query("insert into public.moderation_terms (term) values ('slur') on conflict do nothing")
+    )
+    try {
+      // stored lowercase, name mixed-case -> still blocked
+      await expect(setName(user.userId, "The SLUR Team")).rejects.toMatchObject({ code: "22023" })
+      // a term is a literal substring, not a LIKE pattern: '_' is not a wildcard
+      await withAdmin(c =>
+        c.query("insert into public.moderation_terms (term) values ('a_b') on conflict do nothing")
+      )
+      await setName(user.userId, "axb name") // 'a_b' must NOT match 'axb'
+      expect(await nameOf(user.userId)).toBe("axb name")
+    } finally {
+      await withAdmin(c =>
+        c.query("delete from public.moderation_terms where term in ('slur','a_b')")
+      )
+    }
+  })
+
   it("still allows an ordinary name through the API", async () => {
     const user = await createTestUser()
     const { error } = await user.client
@@ -92,6 +113,21 @@ describe("profile name filtering", () => {
       .upsert({ user_id: user.userId, full_name: "  Ordinary   Person " })
     expect(error).toBeNull()
     expect(await nameOf(user.userId)).toBe("Ordinary Person")
+  })
+})
+
+describe("denylist migration is re-runnable against seeded terms", () => {
+  it("re-applies without aborting when moderation_terms is populated", async () => {
+    // The seed migration has already run once (fresh DB). Re-applying every
+    // feature migration must not abort on the profiles backfill firing the
+    // now-active normalise trigger.
+    await applyFeatureMigrations()
+    await applyFeatureMigrations()
+    const seeded = await withAdmin(async c => {
+      const r = await c.query("select count(*)::int as n from public.moderation_terms")
+      return r.rows[0].n
+    })
+    expect(seeded).toBeGreaterThan(0)
   })
 })
 

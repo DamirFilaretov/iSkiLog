@@ -28,7 +28,8 @@ const INTERNAL_FUNCTIONS = [
   "groups_enabled",
   "groups_policy_version",
   "reap_empty_group",
-  "normalise_profile_name"
+  "normalise_profile_name",
+  "contains_denylisted_term"
 ]
 
 const GROUPS_TABLES = [
@@ -48,7 +49,9 @@ const EXPECTED_DEFINERS = new Set([
   "groups_enabled",
   "groups_policy_version",
   "reap_empty_group",
-  "normalise_profile_name"
+  "normalise_profile_name",
+  // reads public.moderation_terms, which is RLS-enabled with no client grants.
+  "contains_denylisted_term"
 ])
 
 describe("function privileges", () => {
