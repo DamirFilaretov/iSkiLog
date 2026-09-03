@@ -1,0 +1,4 @@
+-- Local seed data, loaded by `supabase db reset` after migrations.
+-- Intentionally empty: app_settings (groups_enabled, groups_policy_version)
+-- is seeded by the Groups migration itself. Add fixtures here if a local
+-- workflow needs them; the E2E suite creates its own users at runtime.
