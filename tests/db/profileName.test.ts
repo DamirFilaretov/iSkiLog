@@ -88,20 +88,27 @@ describe("profile name filtering", () => {
   it("matches denylist terms case-insensitively and literally", async () => {
     const user = await createTestUser()
     await withAdmin(c =>
-      c.query("insert into public.moderation_terms (term) values ('slur') on conflict do nothing")
+      c.query(
+        `insert into public.moderation_terms (term) values ('slur'),('BADWORD'),('x%y'),('a_b')
+         on conflict do nothing`
+      )
     )
     try {
-      // stored lowercase, name mixed-case -> still blocked
+      // lowercase term, mixed-case name -> blocked (NEW.full_name side lowered)
       await expect(setName(user.userId, "The SLUR Team")).rejects.toMatchObject({ code: "22023" })
-      // a term is a literal substring, not a LIKE pattern: '_' is not a wildcard
-      await withAdmin(c =>
-        c.query("insert into public.moderation_terms (term) values ('a_b') on conflict do nothing")
-      )
-      await setName(user.userId, "axb name") // 'a_b' must NOT match 'axb'
+      // uppercase-stored term, lowercase name -> blocked (term side lowered too;
+      // this is the case the old un-lowercased LIKE let through)
+      await expect(setName(user.userId, "the badword crew")).rejects.toMatchObject({ code: "22023" })
+      // '%' and '_' in a term are literal, not LIKE wildcards
+      await setName(user.userId, "xzy name") // 'x%y' must NOT match
+      expect(await nameOf(user.userId)).toBe("xzy name")
+      await setName(user.userId, "axb name") // 'a_b' must NOT match
       expect(await nameOf(user.userId)).toBe("axb name")
+      // but the literal 'x%y' as a substring IS blocked
+      await expect(setName(user.userId, "team x%y")).rejects.toMatchObject({ code: "22023" })
     } finally {
       await withAdmin(c =>
-        c.query("delete from public.moderation_terms where term in ('slur','a_b')")
+        c.query("delete from public.moderation_terms where term in ('slur','BADWORD','x%y','a_b')")
       )
     }
   })
@@ -118,9 +125,13 @@ describe("profile name filtering", () => {
 
 describe("denylist migration is re-runnable against seeded terms", () => {
   it("re-applies without aborting when moderation_terms is populated", async () => {
-    // The seed migration has already run once (fresh DB). Re-applying every
-    // feature migration must not abort on the profiles backfill firing the
-    // now-active normalise trigger.
+    // Re-applying every feature migration must converge, not abort. The Part 5
+    // denylist migration seeds moderation_terms and re-defines the profiles
+    // trigger; the foundation migration ahead of it re-runs its own full_name
+    // backfill. Both together must survive repeated application. (A denylisted
+    // profile row cannot exist once the fixed trigger is active, so the
+    // foundation backfill never fires the trigger on one — the invariant this
+    // guards.)
     await applyFeatureMigrations()
     await applyFeatureMigrations()
     const seeded = await withAdmin(async c => {

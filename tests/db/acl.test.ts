@@ -29,7 +29,8 @@ const INTERNAL_FUNCTIONS = [
   "groups_policy_version",
   "reap_empty_group",
   "normalise_profile_name",
-  "contains_denylisted_term"
+  "contains_denylisted_term",
+  "groups_new_join_code"
 ]
 
 const GROUPS_TABLES = [

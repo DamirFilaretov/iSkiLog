@@ -95,3 +95,41 @@ describe("update_set_with_subtype ownership guard", () => {
     expect(summary).toBe("after")
   })
 })
+
+/**
+ * 20260903195701_groups_part5_hardening: the two SECURITY DEFINER set writers
+ * get a pinned search_path (so a caller can't prepend a schema) and lose their
+ * anon EXECUTE grant (neither has a legitimate signed-out caller).
+ */
+describe("set RPC hardening", () => {
+  const SET_RPCS = ["create_set_with_subtype", "update_set_with_subtype"]
+
+  it("does not let anon execute the set write RPCs", async () => {
+    const stillGranted = await withAdmin(async c => {
+      const r = await c.query(
+        `select p.proname
+           from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = any($1)
+            and has_function_privilege('anon', p.oid, 'execute')`,
+        [SET_RPCS]
+      )
+      return r.rows.map(row => row.proname)
+    })
+    expect(stillGranted).toEqual([])
+  })
+
+  it("pins a search_path on the set write RPCs", async () => {
+    const unpinned = await withAdmin(async c => {
+      const r = await c.query(
+        `select p.proname, p.proconfig
+           from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = any($1)`,
+        [SET_RPCS]
+      )
+      return r.rows
+        .filter(row => !(row.proconfig ?? []).some((e: string) => e.startsWith("search_path=")))
+        .map(row => row.proname)
+    })
+    expect(unpinned).toEqual([])
+  })
+})
