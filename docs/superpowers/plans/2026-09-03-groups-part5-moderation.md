@@ -270,6 +270,8 @@ EOF
 
 `npx supabase migration new groups_part5_hardening`.
 
+**Ruling (pre-flight):** the two set writers are pinned with `ALTER FUNCTION … SET search_path = pg_catalog, public` — **not** a full `create or replace`. Restating ~200 lines of set-CRUD SQL in a migration to change one attribute is transcription risk with no upside; `ALTER FUNCTION` sets the attribute in place, and `pg_catalog, public` (rather than `''`) keeps the existing unqualified `::event_type` cast and relation names resolving, so the bodies need no edit. The security goal — an attacker cannot prepend a schema to hijack a call — is fully met by any pinned path. `create_group` still gets a real `create or replace` (its body genuinely changes for the join-code swap), copied verbatim from source.
+
 - [ ] **Step 1: Write the failing tests**
 
 In `tests/db/setOwnership.test.ts` add:
@@ -292,7 +294,7 @@ describe("set RPC hardening", () => {
     expect(bad).toEqual([])
   })
 
-  it("pins an empty search_path on the set write RPCs", async () => {
+  it("pins a search_path on the set write RPCs", async () => {
     const unpinned = await withAdmin(async c => {
       const r = await c.query(
         `select p.proname, p.proconfig from pg_proc p
@@ -338,30 +340,29 @@ Expected: both new tests FAIL (baseline grants `anon` execute and pins no path).
 -- Groups Part 5 hardening. No behaviour change — security posture only.
 -- Queued from the automated security review of 2026-09-03 and the Part 4 review.
 
--- 1. Pin search_path and qualify the enum cast on the SECURITY DEFINER set
---    writers. With an empty path, `::event_type` no longer resolves — use the
---    schema-qualified name. Bodies are otherwise verbatim from
---    20260903155020 (create) and 20260903164850 (update).
-create or replace function public.create_set_with_subtype(
-  -- ... COPY THE FULL SIGNATURE VERBATIM FROM 20260903155020 line 73 ...
-) returns uuid
-  language plpgsql security definer set search_path = ''
-  as $$
--- ... COPY THE BODY VERBATIM, replacing every unqualified relation with
---     public.<name> and `p_event_type::event_type` with
---     `p_event_type::public.event_type`. auth.uid() stays as-is.
-$$;
+-- 1. Pin a search_path on the two SECURITY DEFINER set writers so a caller
+--    cannot prepend a schema to hijack an unqualified name. ALTER FUNCTION sets
+--    the attribute in place — the bodies are NOT restated. `pg_catalog, public`
+--    (not '') keeps the existing unqualified `::event_type` cast and relation
+--    names resolving with no body edit.
+--
+--    Use `do` blocks so a re-apply is a no-op rather than an error if the
+--    attribute is already set (ALTER FUNCTION ... SET is idempotent in practice,
+--    but wrap defensively). Signatures are the full argument-type lists from
+--    20260903155020 (create) and 20260903164850 (update) — copy them exactly.
+alter function public.create_set_with_subtype(
+  uuid, boolean, text, date, time without time zone, jsonb, numeric, text, numeric,
+  integer, integer, text, text, integer, integer, integer, numeric, text, integer,
+  text, integer
+) set search_path = pg_catalog, public;
 
-create or replace function public.update_set_with_subtype(
-  -- ... FULL SIGNATURE VERBATIM FROM 20260903164850 ...
-) returns void
-  language plpgsql security definer set search_path = ''
-  as $$
--- ... BODY VERBATIM from 20260903164850 with the same qualification treatment.
---     Keep the `if not found then raise ... 42501` guard.
-$$;
+alter function public.update_set_with_subtype(
+  uuid, uuid, boolean, text, date, time without time zone, jsonb, numeric, text,
+  numeric, integer, integer, text, text, integer, integer, integer, numeric, text,
+  integer, text, integer, boolean
+) set search_path = pg_catalog, public;
 
--- 2. Neither has a legitimate anonymous caller; both are definer.
+-- 2. Neither has a legitimate anonymous caller; both are SECURITY DEFINER.
 revoke execute on function public.create_set_with_subtype(
   uuid, boolean, text, date, time without time zone, jsonb, numeric, text, numeric,
   integer, integer, text, text, integer, integer, integer, numeric, text, integer,
@@ -416,12 +417,12 @@ alter function public.search_groups(text) stable;
 alter function public.list_my_groups() stable;
 ```
 
-> **Implementer note:** the three function bodies (`create_set_with_subtype`, `update_set_with_subtype`, `create_group`) must be copied **verbatim** from the named source migrations — do not paraphrase. The only edits are: add `set search_path = ''`, schema-qualify relations and the enum cast, and (for `create_group`) the one `v_code` line. Diff your copy against the source before committing.
+> **Implementer note:** only ONE function body is restated — `create_group`, copied **verbatim** from `20260903160619` (the `create function public.create_group(...)` block, roughly lines 762–880), changing exactly one line: inside `for v_attempt in 1..20 loop`, replace the `v_code := pg_catalog.lpad(...)` assignment with `v_code := public.groups_new_join_code();`. Keep `if p_private then ... end if;` around it. Everything else — signature, `set search_path = ''`, the whole insert/retry block, the membership + creation-log inserts, the `group_public` cast — is unchanged. `git show 20260903160619_groups_foundation.sql` to get the exact text; diff your copy against it before committing (only the one line differs). The two set functions are `ALTER FUNCTION` only — no body.
 
 - [ ] **Step 4: Rebuild and test**
 
 Run: `npx supabase db reset` then `npm run test:db`
-Expected: green, including the new `setOwnership` and `createGroup` assertions. Pay attention to `tests/db/setCrud`-style tests and `createGroup.test.ts` — a paraphrase error in a copied body shows up here.
+Expected: green, including the new `setOwnership` and `createGroup` assertions. If `createGroup.test.ts` fails on the join-code shape or any group test errors, the `create_group` copy drifted — re-diff against source.
 
 - [ ] **Step 5: App smoke — set CRUD still works**
 
@@ -434,8 +435,8 @@ git add supabase/migrations tests/db/setOwnership.test.ts tests/db/createGroup.t
 git commit -m "$(cat <<'EOF'
 feat(db): Part 5 hardening — pin search_path, drop anon grants, CSPRNG join code
 
-- create/update_set_with_subtype: set search_path = '', schema-qualify the
-  event_type cast, revoke execute from anon (both are SECURITY DEFINER)
+- create/update_set_with_subtype: pin search_path (ALTER FUNCTION, no body
+  change), revoke execute from anon (both are SECURITY DEFINER)
 - create_group: join_code from extensions.gen_random_bytes, not random()
 - list_groups / search_groups / list_my_groups: marked STABLE
 

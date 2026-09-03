@@ -602,11 +602,12 @@ A second Part 5 migration, separate from the moderation seed, settling security
 items queued from earlier reviews. None are Groups-specific; all are cheap and a
 Supabase advisor flags them at the release gate anyway.
 
-- **`set search_path = ''` on the SECURITY DEFINER set/season functions**
-  (`create_set_with_subtype`, `update_set_with_subtype`; audit the rest of
-  `supabase/migrations/` for any other `security definer` function without a
-  pinned path). Qualify the `p_event_type::event_type` cast as
-  `::public.event_type` once the path is empty.
+- **Pin a `search_path` on the SECURITY DEFINER set functions**
+  (`create_set_with_subtype`, `update_set_with_subtype` — the only two
+  `security definer` functions outside Groups). Via `ALTER FUNCTION … SET
+  search_path = pg_catalog, public` — the attribute in place, no body restated;
+  `pg_catalog, public` (not `''`) keeps the existing unqualified `::event_type`
+  cast resolving. The security goal is that a caller cannot prepend a schema.
 - **`revoke execute … from anon`** on `create_set_with_subtype` /
   `update_set_with_subtype` — a signed-out caller has no legitimate use for
   either, and they are `definer`.
