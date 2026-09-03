@@ -58,6 +58,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[the-client-mirrors-the-servers-whitespace-rules-exactly]]
 - [[blocking-and-reporting-are-deferred]]
 - [[a-gated-read-rpc-must-be-stable]]
+- [[a-private-group-is-hidden-not-sealed]]
 
 ### Patterns
 - [[a-set-is-a-discriminated-union-narrow-by-event]]
@@ -80,6 +81,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ## Logs & loose ends
 
+- [[2026-09-03-private-groups]] — Groups Part 4.5: private groups joined by a 6-digit code (a discovery boundary, not access control)
 - [[2026-09-02-groups-leaderboard]] — Groups Part 4: the leaderboard, the 7/30-day toggle, Leave; blocking cut from the plan
 - [[2026-09-01-groups-directory-and-joining]] — Groups Part 3: the tab, the directory, create and join, consent
 - [[2026-09-01-groups-client-data-layer]] — Groups Part 2: types, API modules, hint mapping, Unicode mirror

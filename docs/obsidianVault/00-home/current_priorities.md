@@ -46,16 +46,20 @@ status: active
 - [x] Review P1 fixed: a gated read RPC takes a snapshot per internal statement unless marked `STABLE` ([[a-gated-read-rpc-must-be-stable]])
 - [x] DB suite is flag-state independent — `tests/db/helpers/featureFlag.ts` captures and restores `groups_enabled`; `npm run test:db` passes with the flag on or off. Dev helpers `npm run groups:on` / `groups:off`, and `seed-demo-group.mjs`
 
+## Recently shipped (2026-09-03)
+
+- [x] **Groups — Part 4.5: private groups**. A creator can make a group private — hidden from the directory and search, joined with a 6-digit code any member shares from the board. Spec v3 (D26–D28), commits `2202aae` + `7fac2d6`. The code is a discovery boundary, not access control — `join_group_by_code` is not rate-limited, by deliberate choice ([[2026-09-03-private-groups]], [[a-private-group-is-hidden-not-sealed]])
+
 ## In flight
 
-- [ ] Branch `feature/groups-workflow` — **Part 5 next**: moderation of names and groups only (no blocking). Denylist seeded and enforced, `report_group` / `report_profile` wiring + copy, policy text in three places, contact address, runbook. Part 6 follows: two-user E2E and staged release
+- [ ] Branch `feature/groups-workflow` — **Part 5 next**: moderation of names and groups only (no blocking). Denylist seeded and enforced, `report_group` / `report_profile` wiring + copy, policy text in three places (add the "private = unlisted, not sealed" line), contact address, runbook. Part 6 follows: two-user E2E and staged release
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
 
 ## Blockers before Groups Part 5
 
-> [!warning] Both must land before `moderation_terms` is seeded
-> - `schema.sql:1148` — the profile trigger matches with `lower(NEW.full_name) like '%' || t.term || '%'`: it never lowercases `t.term`, and `%` or `_` inside a term act as wildcards. The group path was hardened into `contains_denylisted_term`; this one was left behind, so the two surfaces disagree on the same denylist.
-> - `schema.sql:1443` — the `profiles` backfill runs *after* the trigger is created, so re-applying `schema.sql` against a populated denylist aborts mid-script, taking `profiles_full_name_length` with it. Re-runnability is a hard requirement.
+> [!warning] Both must land before `moderation_terms` is seeded (line numbers drift — grep the symbols)
+> - `normalise_profile_name` (the `profiles` trigger) matches with `lower(NEW.full_name) like '%' || t.term || '%'`: it never lowercases `t.term`, and `%` or `_` inside a term act as wildcards. The group path was hardened into `contains_denylisted_term`; this one was left behind, so the two surfaces disagree on the same denylist. Fix: call `contains_denylisted_term` here too.
+> - The `profiles` full-name backfill `update` runs *after* the trigger is created, so re-applying `schema.sql` against a populated denylist aborts mid-script, taking `profiles_full_name_length` with it. Re-runnability is a hard requirement — move the backfill before the trigger, or make it trigger-safe.
 
 ## Part 5 starts here
 
@@ -66,6 +70,7 @@ status: active
 
 - [x] ~~`fetch_group_leaderboard` window dates~~ — shipped in Part 4 ([[2026-09-02-groups-leaderboard]])
 - [x] ~~There is no `list_my_groups`~~ — added in Part 3 ([[browse-is-not-a-membership-list]])
+- [x] ~~Private groups~~ — shipped as Part 4.5 ([[2026-09-03-private-groups]])
 
 ## Follow-ups queued
 
