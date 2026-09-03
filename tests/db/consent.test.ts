@@ -4,8 +4,8 @@ import { withFeatureDisabled, withFeatureEnabled } from "./helpers/featureFlag"
 import { createTestUser, anonClient } from "./helpers/users"
 
 describe("app_settings", () => {
-  // The shipped default (`groups_enabled = 'false'`) is set by schema.sql's seed
-  // and guarded again by the staged rollout; a developer may leave the local
+  // The shipped default (`groups_enabled = 'false'`) is set by the Groups
+  // migration's seed and guarded again by the staged rollout; a developer may leave the local
   // flag on to use the app, so this pins the row shape and the policy version
   // with the flag explicitly held off.
   it("holds the Groups flag and a policy version", async () => {

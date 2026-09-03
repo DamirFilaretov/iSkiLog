@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
 import { createTestUser } from "./helpers/users"
-import { runSqlFromFile } from "./helpers/schema"
+import { applyFeatureMigrations } from "./helpers/schema"
 
 async function nameOf(userId: string): Promise<string> {
   return withAdmin(async c => {
@@ -96,16 +96,18 @@ describe("profile name filtering", () => {
 })
 
 describe("sets index for the leaderboard aggregate", () => {
-  it("has a composite index on (user_id, date)", async () => {
+  it("has an index on sets keyed by (user_id, date)", async () => {
+    // Checked by column shape, not name: production carries this as
+    // `sets_user_date_idx`, so the Groups migration adds no index of its own.
     const found = await withAdmin(async c => {
       const r = await c.query(
         `select count(*)::int as n from pg_indexes
           where schemaname = 'public' and tablename = 'sets'
-            and indexname = 'idx_sets_user_id_date'`
+            and indexdef ilike '%(user_id, date)%'`
       )
       return r.rows[0].n
     })
-    expect(found).toBe(1)
+    expect(found).toBeGreaterThanOrEqual(1)
   })
 })
 
@@ -143,9 +145,11 @@ describe("profile name migration path", () => {
     const before = await nameOf(user.userId)
     expect(before.length).toBeGreaterThan(60)
 
-    // Run the real migration rather than a copy of it: schema.sql carries the
-    // backfill and the constraint, and re-running it is the deployment step.
-    await runSqlFromFile()
+    // Run the real migrations rather than a copy of their statements, so the
+    // backfill and constraint under test cannot drift from what deploys. The
+    // feature migrations are idempotent, so this converges regardless of what
+    // is already applied.
+    await applyFeatureMigrations()
 
     const after = await nameOf(user.userId)
     expect(after.length).toBeLessThanOrEqual(60)

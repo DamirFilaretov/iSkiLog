@@ -8,9 +8,10 @@ import pg from "pg"
  *   node tests/e2e/scripts/set-groups-flag.mjs true    # enable Groups
  *   node tests/e2e/scripts/set-groups-flag.mjs false    # shipped default
  *
- * The seed in schema.sql is `on conflict do nothing`, so a flip made here
- * survives `npm run e2e:db:prepare`. The DB test suite manages the flag per
- * test, so it passes with the flag left in either state.
+ * The app_settings seed in the Groups migration is `on conflict do nothing`,
+ * but `npm run e2e:db:prepare` runs `supabase db reset`, which rebuilds the
+ * database from scratch — so re-run this after a prepare to re-enable Groups.
+ * The DB test suite manages the flag per test and passes in either state.
  */
 
 dotenv.config({ path: ".env.test" })

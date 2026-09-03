@@ -1,6 +1,6 @@
-﻿import { cleanupTestData, runSqlFromFile } from "./_db.mjs"
+import { cleanupTestData, resetDb } from "./_db.mjs"
 
-await runSqlFromFile("../db/schema.sql")
+await resetDb()
 await cleanupTestData()
 
 console.log("E2E database prepared")
