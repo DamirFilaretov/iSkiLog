@@ -25,10 +25,31 @@ npm run test            # vitest watch (unit tests only)
 npm run test:run        # vitest run (CI-style, no watch)
 npm run e2e             # Playwright E2E (needs .env.test + local Supabase)
 npm run e2e:flow1       # run only "flow 1:" labelled tests
-npm run e2e:db:prepare  # reset E2E test DB schema + clean test users
+npm run test:db         # DB security-boundary suite (vitest, needs a migrated local DB)
+npm run e2e:db:prepare  # supabase db reset + clean test users
 npx cap sync android    # sync web build to Android after web changes
 npx cap sync ios        # sync web build to iOS after web changes
 ```
+
+### Database migrations
+
+The schema is managed by **Supabase CLI migrations** in `supabase/migrations/`.
+`20260903155020_baseline_from_production.sql` is a dump of the hosted project;
+every change since is its own timestamped file.
+
+```bash
+npx supabase migration new <name>   # create an empty timestamped migration
+npx supabase db reset               # rebuild local DB from all migrations + seed.sql
+npx supabase db diff --linked       # what local migrations add vs the hosted project
+npx supabase db push                # apply pending migrations to the hosted project
+```
+
+- **Never edit a migration that has been pushed** — add a new one.
+- **Never run DDL in the hosted SQL editor / Table Editor** — it bypasses migration
+  history and makes `db push` fail. All remote schema changes go through a migration.
+- Every migration must survive a clean `npx supabase db reset` before being committed,
+  and be committed alongside the code that needs it.
+- `db push` only from reviewed, committed migrations (ideally CI).
 
 E2E tests require `.env.test`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `E2E_SUPABASE_DB_URL`, `E2E_TEST_EMAIL_DOMAIN`, `E2E_BASE_URL`. See `docs/testing/e2e-runbook.md`.
 
@@ -98,9 +119,12 @@ iskilog:in-progress-tricks:<userId>  # in-progress tricks
 - `src/data/tasksApi.ts` — task CRUD with localStorage cache
 - `src/data/tricksLearnedApi.ts` — learned/in-progress trick toggles
 
-**Database tables:** `profiles`, `seasons`, `sets`, `slalom_sets`, `tricks_sets`, `jump_sets`, `other_sets`, `user_tasks`, `user_learned_tricks`, `user_in_progress_tricks`
+**Database tables:** `profiles`, `seasons`, `sets`, `slalom_sets`, `tricks_sets`, `jump_sets`, `other_sets`, `user_tasks`, `user_learned_tricks`, `user_in_progress_tricks` (+ the Groups tables, still behind `groups_enabled`)
 
-Schema source of truth: `tests/e2e/db/schema.sql`
+Schema source of truth: `supabase/migrations/` (see **Database migrations** above). The
+baseline matches the hosted project exactly — `event_type` is a Postgres enum,
+`slalom_sets.speed` is `integer`, `slalom_sets.buoys` is `numeric(3,1)`, and RLS
+policies are named `*_own` / `*_via_parent`.
 
 ### Auth & Hydration
 
@@ -170,7 +194,7 @@ Always narrow by `event` before accessing `data`.
 - The app targets Android and iOS native (both tracked); after web changes run `npx cap sync` for the affected platform(s).
 - Browser zoom is intentionally disabled via viewport meta in `index.html`.
 - There is no separate backend service — no Express, no Edge Functions currently.
-- Trust `tests/e2e/db/schema.sql` as the source of truth for the database schema.
+- Trust `supabase/migrations/` as the source of truth for the database schema; change it only through a new migration (see **Database migrations**).
 - Bump `CACHE_VERSION` in `setsStore.tsx` whenever the localStorage cache shape changes.
 
 ## Obsidian Knowledge Vault
@@ -183,3 +207,4 @@ If the task involves a module, read the corresponding note from `knowledge/`.
 2. Update `current priorities.md`.
 3. If it is a decision, create a note in `knowledge/decisions/`.
 4. If it is a bug, create a note in `knowledge/debugging/`.
+

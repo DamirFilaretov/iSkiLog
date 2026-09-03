@@ -27,7 +27,7 @@ If a future chat needs to verify anything, trust the code over this document and
 - [src/auth/AuthProvider.tsx](C:/dev/iSkiLog/src/auth/AuthProvider.tsx)
 - [src/store/setsStore.tsx](C:/dev/iSkiLog/src/store/setsStore.tsx)
 - [src/types/sets.ts](C:/dev/iSkiLog/src/types/sets.ts)
-- [tests/e2e/db/schema.sql](C:/dev/iSkiLog/tests/e2e/db/schema.sql)
+- [supabase/migrations/](C:/dev/iSkiLog/supabase/migrations/)
 
 ## Product Model
 The app is centered around a single main domain object: a set.
@@ -256,9 +256,9 @@ The current app relies on these Supabase functions:
 These are not optional implementation details. If they change, the app's create/edit/hydrate paths change with them.
 
 ### Schema Shape
-Reference test/local schema:
+Source of truth — Supabase CLI migrations (baseline dumped from the hosted project):
 
-[tests/e2e/db/schema.sql](C:/dev/iSkiLog/tests/e2e/db/schema.sql)
+[supabase/migrations/](C:/dev/iSkiLog/supabase/migrations/)
 
 Important tables:
 
@@ -604,7 +604,7 @@ When a new AI agent starts work, the minimum correct baseline is:
 4. Read [package.json](C:/dev/iSkiLog/package.json).
 5. Read [src/types/sets.ts](C:/dev/iSkiLog/src/types/sets.ts).
 6. Read [src/app/App.tsx](C:/dev/iSkiLog/src/app/App.tsx), [src/auth/AuthProvider.tsx](C:/dev/iSkiLog/src/auth/AuthProvider.tsx), and [src/store/setsStore.tsx](C:/dev/iSkiLog/src/store/setsStore.tsx).
-7. If the task touches data contracts, compare against [tests/e2e/db/schema.sql](C:/dev/iSkiLog/tests/e2e/db/schema.sql).
+7. If the task touches data contracts, compare against [supabase/migrations/](C:/dev/iSkiLog/supabase/migrations/).
 8. Run `npm run build` for code changes.
 9. Run `npm run test:run` if logic changed.
 10. Run relevant Playwright specs for user-flow or data-contract changes.

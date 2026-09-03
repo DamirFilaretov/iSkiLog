@@ -24,7 +24,7 @@ status: active
 So flipping the switch stops the feature **spreading**. It does not lock the people already inside.
 
 > [!warning] The spec disagrees, and the spec is wrong
-> §11 EC-33 says flipping the flag makes "every RPC refuse with `groups.disabled`". The shipped SQL deliberately does not, and `leave_group` carries a comment saying why. `tests/e2e/db/schema.sql` is the source of truth per `CLAUDE.md`; the spec line should be corrected before Part 5 writes policy copy repeating it.
+> §11 EC-33 says flipping the flag makes "every RPC refuse with `groups.disabled`". The shipped SQL deliberately does not, and `leave_group` carries a comment saying why. `supabase/migrations/` is the source of truth per `CLAUDE.md`; the spec line should be corrected before Part 5 writes policy copy repeating it.
 
 ## Why
 

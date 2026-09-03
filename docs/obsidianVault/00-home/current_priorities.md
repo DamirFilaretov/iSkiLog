@@ -49,6 +49,7 @@ status: active
 ## Recently shipped (2026-09-03)
 
 - [x] **Groups — Part 4.5: private groups**. A creator can make a group private — hidden from the directory and search, joined with a 6-digit code any member shares from the board. Spec v3 (D26–D28), commits `2202aae` + `7fac2d6`. The code is a discovery boundary, not access control — `join_group_by_code` is not rate-limited, by deliberate choice ([[2026-09-03-private-groups]], [[a-private-group-is-hidden-not-sealed]])
+- [x] **Database moved to Supabase migrations**. `tests/e2e/db/schema.sql` had drifted from the hosted project; replaced with a baseline dumped from production plus `groups_foundation` as its own migration. Test harness runs `supabase db reset`. `test:db` 151/151, `test:run` 180/180 ([[the-database-is-managed-by-supabase-migrations]])
 
 ## In flight
 
@@ -57,16 +58,16 @@ status: active
 
 ## Blockers before Groups Part 5
 
-> [!warning] Both must land before `moderation_terms` is seeded (line numbers drift — grep the symbols)
+> [!warning] Both live in `supabase/migrations/20260903160619_groups_foundation.sql` (grep the symbols) and must be fixed in the Part 5 moderation migration before `moderation_terms` is seeded
 > - `normalise_profile_name` (the `profiles` trigger) matches with `lower(NEW.full_name) like '%' || t.term || '%'`: it never lowercases `t.term`, and `%` or `_` inside a term act as wildcards. The group path was hardened into `contains_denylisted_term`; this one was left behind, so the two surfaces disagree on the same denylist. Fix: call `contains_denylisted_term` here too.
-> - The `profiles` full-name backfill `update` runs *after* the trigger is created, so re-applying `schema.sql` against a populated denylist aborts mid-script, taking `profiles_full_name_length` with it. Re-runnability is a hard requirement — move the backfill before the trigger, or make it trigger-safe.
+> - The `profiles` full-name backfill `update` runs *after* the trigger is created, so re-applying the foundation migration against a populated denylist aborts mid-migration, taking `profiles_full_name_length` with it. `applyFeatureMigrations()` in `test:db` re-runs it — the Part 5 migration must make the backfill trigger-safe (disable the trigger around it, or seed terms after).
 
 ## Part 5 starts here
 
 > [!todo] Scope, revised 2026-09-02
 > Moderation of **names and groups only** — blocking is out ([[blocking-and-reporting-are-deferred]]). Seed `moderation_terms` and enforce it on both write surfaces; wire `report_group` (join modal) and `report_profile` (a member-level Report on the board) with their copy; publish the policy text in `public/policy.html`, `PrivacySecurity.tsx` and the consent gate, naming the discipline breakdown explicitly; add the contact address to About; write the runbook (daily dashboard check, 24-hour target).
 >
-> **First, unblock the denylist** — the two `schema.sql` issues below must land before `moderation_terms` is seeded.
+> **First, unblock the denylist** — the two `groups_foundation.sql` issues below must land before `moderation_terms` is seeded.
 
 - [x] ~~`fetch_group_leaderboard` window dates~~ — shipped in Part 4 ([[2026-09-02-groups-leaderboard]])
 - [x] ~~There is no `list_my_groups`~~ — added in Part 3 ([[browse-is-not-a-membership-list]])
