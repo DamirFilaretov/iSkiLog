@@ -3,6 +3,7 @@ import { ExternalLink, FileText, Mail, Shield, Trash2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import BackButton from "../components/nav/BackButton"
 import PolicyModal from "../components/auth/PolicyModal"
+import BlockedMembersList from "../components/groups/BlockedMembersList"
 import { isNativeRuntime } from "../lib/nativeOAuth"
 
 export default function PrivacySecurity() {
@@ -31,7 +32,10 @@ export default function PrivacySecurity() {
             <div>
               <p className="text-sm font-medium text-slate-900">Your data is private</p>
               <p className="mt-1 text-sm text-slate-500">
-                Your training data is protected and not visible to anyone but you.
+                Your training data is protected and not visible to anyone but you. If you join a
+                group, its members see only your profile name and how many sets you logged in the
+                last 7 or 30 days, broken down by event type — never set contents, dates or notes.
+                Leaving a group stops that immediately.
               </p>
             </div>
           </div>
@@ -65,6 +69,8 @@ export default function PrivacySecurity() {
             Open Policy
           </a>
         </div>
+
+        <BlockedMembersList />
 
         <div className="rounded-2xl bg-white p-5 shadow-lg shadow-slate-200/60">
           <p className="text-sm font-medium text-slate-900">Delete account</p>

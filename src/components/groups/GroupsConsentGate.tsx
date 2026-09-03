@@ -90,8 +90,8 @@ export default function GroupsConsentGate({ open, onAccepted, onCancel }: Props)
           </div>
 
           <p className="text-slate-600">
-            Leaving a group stops the sharing immediately. You can block or report another
-            member at any time.
+            Leaving a group stops the sharing immediately. Group names and descriptions are
+            filtered, and you can report or block another member at any time.
           </p>
         </div>
 

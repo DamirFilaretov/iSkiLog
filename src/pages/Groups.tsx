@@ -7,12 +7,14 @@ import GroupCard from "../components/groups/GroupCard"
 import GroupJoinModal from "../components/groups/GroupJoinModal"
 import JoinByCodeModal from "../components/groups/JoinByCodeModal"
 import GroupsConsentGate from "../components/groups/GroupsConsentGate"
+import ReportDialog from "../components/groups/ReportDialog"
 import {
   createGroup,
   joinGroup,
   joinGroupByCode,
   listGroups,
   listMyGroups,
+  reportGroup,
   searchGroups
 } from "../data/groupsApi"
 import {
@@ -87,6 +89,10 @@ export default function Groups() {
   const [codeError, setCodeError] = useState<string | null>(null)
   // The private group a code prompt was opened from; null for the generic link.
   const [codeTarget, setCodeTarget] = useState<Group | null>(null)
+
+  const [reportTarget, setReportTarget] = useState<Group | null>(null)
+  const [reportSubmitting, setReportSubmitting] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   // A stale-row error (EC-4) closes the modal that would have shown it and
   // refetches, so the explanation has to live on the page to be seen at all.
@@ -383,6 +389,23 @@ export default function Groups() {
     setCodeOpen(true)
   }
 
+  async function submitReport(reason: string) {
+    if (!reportTarget) return
+    setReportSubmitting(true)
+    setReportError(null)
+    try {
+      await reportGroup(reportTarget.id, reason)
+      if (!live.current) return
+      setReportTarget(null)
+      setNotice("Thanks — we'll take a look.")
+    } catch (error) {
+      captureHandledException(error, { area: "groups", action: "report_group", screen: "groups" })
+      if (live.current) setReportError(toGroupError(error).message)
+    } finally {
+      if (live.current) setReportSubmitting(false)
+    }
+  }
+
   function openGroup(group: Group) {
     setNotice(null)
     // A membership goes straight to the board (the join modal's "Open" state is
@@ -587,7 +610,21 @@ export default function Groups() {
           setJoinTarget(null)
           navigate(`/groups/${group.id}`)
         }}
+        onReport={group => {
+          setJoinTarget(null)
+          setReportError(null)
+          setReportTarget(group)
+        }}
         onClose={() => setJoinTarget(null)}
+      />
+
+      <ReportDialog
+        open={reportTarget !== null}
+        title={reportTarget ? `Report ${reportTarget.name}` : "Report"}
+        submitting={reportSubmitting}
+        error={reportError}
+        onSubmit={reason => void submitReport(reason)}
+        onClose={() => setReportTarget(null)}
       />
 
       <GroupsConsentGate

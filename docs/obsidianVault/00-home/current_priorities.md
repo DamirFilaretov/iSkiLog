@@ -81,7 +81,7 @@ status: active
 
 - [ ] `App.tsx` Welcome / policy gates read stale `previousMeta`; use `supabase.auth.getUser()` before each `updateUser` to stop the two writes clobbering each other
 - [ ] Playwright E2E for the tutorial, fresh-account path past step 3
-- [ ] **Spec §11 EC-33 is wrong**: it says flipping `groups_enabled` makes every RPC refuse, but the shipped SQL deliberately exempts `leave_group`, the board and the moderation RPCs. Correct it before Part 5 writes policy copy repeating it ([[the-kill-switch-stops-spread-not-escape]])
+- [x] ~~Spec §11 EC-33 wrong~~ — already corrected in spec v3 (the follow-up note lagged); confirmed 2026-09-03 during Part 5 ([[the-kill-switch-stops-spread-not-escape]])
 - [ ] `list_groups`, `search_groups`, `list_my_groups`, `list_blocks` are still `VOLATILE`. Harmless (each runs one data query after an unchanging `auth.uid()` check) but `STABLE` is the honest label — tidy at Part 5 or 6 ([[a-gated-read-rpc-must-be-stable]])
 - [ ] Private-group `join_code` is generated with `random()`, not a CSPRNG (`groups_foundation.sql`, `create_group`). It is a discovery boundary not access control ([[a-private-group-is-hidden-not-sealed]]) and rate-limiting was declined by choice, but swap to `extensions.gen_random_bytes` in the Part 5 hardening migration — cheap, and settles it alongside the denylist fixes. Flagged by automated security review 2026-09-03.
 - [ ] `playwright.config.ts` serves the app from `.env.local` (hosted project), not `.env.test` (local Docker) — the DB helpers and the browser point at different databases. Blocks Part 6 ([[e2e-serves-the-app-from-the-wrong-supabase]])

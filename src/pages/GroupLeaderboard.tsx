@@ -5,8 +5,10 @@ import LeaderboardRow from "../components/groups/LeaderboardRow"
 import BoardPeriodToggle from "../components/groups/BoardPeriodToggle"
 import InviteCodeCard from "../components/groups/InviteCodeCard"
 import LeaveGroupDialog from "../components/groups/LeaveGroupDialog"
+import MemberActionSheet from "../components/groups/MemberActionSheet"
+import ReportDialog from "../components/groups/ReportDialog"
 import BackButton from "../components/nav/BackButton"
-import { leaveGroup, listMyGroups } from "../data/groupsApi"
+import { blockGroupMember, leaveGroup, listMyGroups, reportProfile } from "../data/groupsApi"
 import { fetchGroupLeaderboard, resolveTimezone } from "../data/groupLeaderboardApi"
 import { DEFAULT_GROUP_PERIOD } from "../features/groups/groupPeriod"
 import { toGroupError } from "../features/groups/groupErrors"
@@ -59,6 +61,14 @@ export default function GroupLeaderboard() {
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [leaveError, setLeaveError] = useState<string | null>(null)
+
+  // Tapping another member's row opens the sheet; "Report" from there opens the
+  // report dialog. Both address the member by opaque membership id.
+  type SheetMember = { membershipId: string; memberName: string }
+  const [sheetMember, setSheetMember] = useState<SheetMember | null>(null)
+  const [reportMember, setReportMember] = useState<SheetMember | null>(null)
+  const [reportSubmitting, setReportSubmitting] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   const live = useRef(true)
   useEffect(() => {
@@ -146,6 +156,55 @@ export default function GroupLeaderboard() {
     [id, period, pendingPeriod]
   )
 
+  async function submitMemberReport(reason: string) {
+    if (!reportMember) return
+    setReportSubmitting(true)
+    setReportError(null)
+    try {
+      await reportProfile(reportMember.membershipId, reason)
+      if (!live.current) return
+      setReportMember(null)
+      setBoardNotice("Thanks — we'll take a look.")
+    } catch (error) {
+      const mapped = toGroupError(error)
+      captureHandledException(error, {
+        area: "groups",
+        action: "report_profile",
+        screen: "group_leaderboard"
+      })
+      if (!live.current) return
+      if (mapped.refetch) {
+        setReportMember(null)
+        setBoardNotice(mapped.message)
+        setAttempt(n => n + 1)
+      } else {
+        setReportError(mapped.message)
+      }
+    } finally {
+      if (live.current) setReportSubmitting(false)
+    }
+  }
+
+  async function blockMember(membershipId: string) {
+    setSheetMember(null)
+    try {
+      await blockGroupMember(membershipId)
+      if (!live.current) return
+      // The blocked member drops off both boards — refetch to reflect it.
+      setAttempt(n => n + 1)
+    } catch (error) {
+      const mapped = toGroupError(error)
+      captureHandledException(error, {
+        area: "groups",
+        action: "block_group_member",
+        screen: "group_leaderboard"
+      })
+      if (!live.current) return
+      setBoardNotice(mapped.refetch ? "That was out of date — refreshed." : mapped.message)
+      if (mapped.refetch) setAttempt(n => n + 1)
+    }
+  }
+
   async function confirmLeave() {
     setLeaving(true)
     setLeaveError(null)
@@ -213,12 +272,34 @@ export default function GroupLeaderboard() {
           notice={boardNotice}
           onChangePeriod={period => void changePeriod(period)}
           onDismissNotice={() => setBoardNotice(null)}
+          onOpenMember={member => setSheetMember(member)}
           onLeave={() => {
             setLeaveError(null)
             setLeaveOpen(true)
           }}
         />
       ) : null}
+
+      <MemberActionSheet
+        member={sheetMember}
+        onReport={() => {
+          const m = sheetMember
+          setSheetMember(null)
+          setReportError(null)
+          setReportMember(m)
+        }}
+        onBlock={() => sheetMember && void blockMember(sheetMember.membershipId)}
+        onClose={() => setSheetMember(null)}
+      />
+
+      <ReportDialog
+        open={reportMember !== null}
+        title={reportMember ? `Report ${reportMember.memberName}` : "Report"}
+        submitting={reportSubmitting}
+        error={reportError}
+        onSubmit={reason => void submitMemberReport(reason)}
+        onClose={() => setReportMember(null)}
+      />
 
       <LeaveGroupDialog
         open={leaveOpen}
@@ -240,6 +321,7 @@ function Board({
   notice,
   onChangePeriod,
   onDismissNotice,
+  onOpenMember,
   onLeave
 }: {
   group: Group | null
@@ -249,6 +331,7 @@ function Board({
   notice: string | null
   onChangePeriod: (period: GroupPeriod) => void
   onDismissNotice: () => void
+  onOpenMember: (member: { membershipId: string; memberName: string }) => void
   onLeave: () => void
 }) {
   const refreshing = pendingPeriod !== null
@@ -296,7 +379,16 @@ function Board({
         className={`mt-4 space-y-2 transition-opacity ${refreshing ? "opacity-50" : "opacity-100"}`}
       >
         {rows.map(row => (
-          <LeaderboardRow key={row.membershipId} row={row} />
+          <LeaderboardRow
+            key={row.membershipId}
+            row={row}
+            onOpen={
+              row.isSelf
+                ? undefined
+                : () =>
+                    onOpenMember({ membershipId: row.membershipId, memberName: row.memberName })
+            }
+          />
         ))}
       </div>
 

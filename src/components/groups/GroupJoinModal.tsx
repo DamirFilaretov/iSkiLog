@@ -7,8 +7,7 @@ import type { Group } from "../../types/groups"
  *
  * A group you already belong to shows **Open** instead: `join_group` is
  * idempotent (EC-3), but offering "Join" for a group you are in reads as a
- * bug. The Report control belongs here too and arrives with the rest of the
- * moderation flows in Part 5.
+ * bug. A quiet "Report this group" link sits at the foot for non-members.
  */
 
 type Props = {
@@ -17,6 +16,7 @@ type Props = {
   error: string | null
   onJoin: (group: Group) => void
   onOpen: (group: Group) => void
+  onReport: (group: Group) => void
   onClose: () => void
 }
 
@@ -89,6 +89,17 @@ export default function GroupJoinModal(props: Props) {
         >
           Close
         </button>
+
+        {group.isMember ? null : (
+          <button
+            type="button"
+            onClick={() => props.onReport(group)}
+            disabled={props.submitting}
+            className="mt-3 w-full text-center text-xs font-medium text-slate-400 underline disabled:opacity-60"
+          >
+            Report this group
+          </button>
+        )}
       </div>
     </div>
   )
