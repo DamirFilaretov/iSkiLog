@@ -20,6 +20,7 @@
     "e2e:db:cleanup": "node tests/e2e/scripts/db-cleanup.mjs",
     "groups:on": "node tests/e2e/scripts/set-groups-flag.mjs true",
     "groups:off": "node tests/e2e/scripts/set-groups-flag.mjs false",
+    "groups:logo": "node tests/e2e/scripts/seed-group-logo.mjs",
     "postinstall": "patch-package"
   },
   "devDependencies": {
