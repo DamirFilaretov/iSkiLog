@@ -30,12 +30,9 @@ export default function PrivacySecurity() {
               <Shield className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-900">Your data is private</p>
+              <p className="text-sm font-medium text-slate-900">Your data is protected</p>
               <p className="mt-1 text-sm text-slate-500">
-                Your training data is protected and not visible to anyone but you. If you join a
-                group, its members see only your profile name and how many sets you logged in the
-                last 7 or 30 days, broken down by event type — never set contents, dates or notes.
-                Leaving a group stops that immediately.
+                Your set details remain private. If you join a group, you may choose to share limited information with other group members.
               </p>
             </div>
           </div>
@@ -73,10 +70,17 @@ export default function PrivacySecurity() {
         <BlockedMembersList />
 
         <div className="rounded-2xl bg-white p-5 shadow-lg shadow-slate-200/60">
-          <p className="text-sm font-medium text-slate-900">Delete account</p>
-          <p className="mt-1 text-sm text-slate-500">
-            This will permanently remove your account and training history.
-          </p>
+          <div className="flex items-start gap-4">
+            <div className="h-12 w-12 min-w-12 rounded-2xl bg-red-100 flex items-center justify-center">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900">Delete account</p>
+              <p className="mt-1 text-sm text-slate-500">
+                This will permanently remove your account and training history.
+              </p>
+            </div>
+          </div>
 
           <button
             onClick={() => setNoticeOpen(true)}
