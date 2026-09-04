@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom"
 
 import { useGroupsStatus } from "../../features/groups/GroupsStatusProvider"
-import { showsGroupsTab } from "../../features/groups/groupsAccess"
 
 /**
  * Bottom tab bar for primary navigation.
@@ -15,7 +14,7 @@ import { showsGroupsTab } from "../../features/groups/groupsAccess"
 export default function BottomTabBar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { access } = useGroupsStatus()
+  const { showGroupsTab } = useGroupsStatus()
 
   const path = location.pathname
 
@@ -52,7 +51,7 @@ export default function BottomTabBar() {
             }
           />
 
-          {showsGroupsTab(access) ? (
+          {showGroupsTab ? (
             <TabButton
               label="Groups"
               active={isGroups}

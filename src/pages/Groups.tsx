@@ -25,6 +25,10 @@ import {
 } from "../features/groups/groupDirectory"
 import { toGroupError, type GroupError } from "../features/groups/groupErrors"
 import { canonicalGroupName } from "../features/groups/groupName"
+import {
+  getGroupDirectorySnapshot,
+  setGroupDirectorySnapshot
+} from "../features/groups/groupDirectoryCache"
 import { uploadGroupLogo } from "../features/groups/groupLogo"
 import { useGroupsStatus } from "../features/groups/GroupsStatusProvider"
 import { useAuth } from "../auth/AuthProvider"
@@ -34,9 +38,14 @@ import type { Group } from "../types/groups"
 /**
  * The directory.
  *
- * Nothing here is cached (D15): the page loads on mount and every action
- * refetches. Three sources feed it — see `groupDirectory.ts` for why a
- * membership list is not the same thing as browse.
+ * Every action refetches — D15's rule still holds for anything the server
+ * just answered. But D15's own justification (a period-keyed leaderboard
+ * memo going stale across midnight) doesn't apply to this plain membership +
+ * browse list, so a mount alone renders a same-session snapshot immediately
+ * and revalidates it in the background instead of blanking to a skeleton on
+ * every tab switch — see `groupDirectoryCache.ts`. Three sources feed the
+ * list — see `groupDirectory.ts` for why a membership list is not the same
+ * thing as browse.
  *
  * The kill switch does not close this screen. Only `create_group` and
  * `join_group` consult the flag, so a member keeps their own groups, their
@@ -117,8 +126,21 @@ export default function Groups() {
     // offers a retry for the status call instead.
     if (access === "unknown") return
 
-    setLoadState("loading")
-    setLoadError(null)
+    // Stale-while-revalidate: a snapshot from an earlier mount this session
+    // renders immediately (no skeleton) while the real fetch below still
+    // runs and corrects it. First visit this session has no snapshot, so it
+    // falls back to the plain loading state exactly as before.
+    const snapshot = user ? getGroupDirectorySnapshot(user.id) : null
+    if (snapshot) {
+      setMine(snapshot.mine)
+      setBrowse(snapshot.browse)
+      setLoadState("ready")
+      setLoadError(null)
+    } else {
+      setLoadState("loading")
+      setLoadError(null)
+    }
+
     try {
       // Browse is discovery, so it stops with the flag. Memberships do not:
       // they are the route to Leave.
@@ -130,6 +152,7 @@ export default function Groups() {
       setMine(myGroups)
       setBrowse(popular)
       setLoadState("ready")
+      if (user) setGroupDirectorySnapshot(user.id, { mine: myGroups, browse: popular })
     } catch (error) {
       captureHandledException(error, {
         area: "groups",
@@ -137,10 +160,14 @@ export default function Groups() {
         screen: "groups"
       })
       if (!live.current) return
+      // Already showing a snapshot from a moment ago — a failed background
+      // revalidation shouldn't blow that away and replace it with an error
+      // screen the user never asked to see.
+      if (snapshot) return
       setLoadError(toGroupError(error).message)
       setLoadState("error")
     }
-  }, [access])
+  }, [access, user])
 
   useEffect(() => {
     void load()

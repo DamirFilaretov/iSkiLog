@@ -4,7 +4,8 @@ import type { ReactNode } from "react"
 import { fetchGroupsStatus, listMyGroups } from "../../data/groupsApi"
 import { captureHandledException } from "../../lib/sentryHandled"
 import type { GroupsStatus } from "../../types/groups"
-import { groupsAccess, type GroupsAccess } from "./groupsAccess"
+import { groupsAccess, showsGroupsTab, type GroupsAccess } from "./groupsAccess"
+import { readCachedGroupsAccess, writeCachedGroupsAccess } from "./groupsAccessCache"
 
 /**
  * The server owns the kill switch and the policy version; the client asks
@@ -30,6 +31,14 @@ type GroupsStatusValue = {
   access: GroupsAccess
   loading: boolean
   refresh: () => Promise<void>
+  /**
+   * Whether the tab bar should show Groups right now. Same rule as
+   * `showsGroupsTab(access)` once the real check has answered; while it's
+   * still in flight, falls back to last launch's answer (see
+   * `groupsAccessCache.ts`) instead of hiding the tab and popping it in a
+   * moment later. `access` itself never takes this shortcut — only the tab.
+   */
+  showGroupsTab: boolean
 }
 
 const UNAVAILABLE: GroupsStatus = { enabled: false, consentNeeded: true }
@@ -38,7 +47,8 @@ const GroupsStatusContext = createContext<GroupsStatusValue>({
   status: UNAVAILABLE,
   access: "loading",
   loading: true,
-  refresh: async () => {}
+  refresh: async () => {},
+  showGroupsTab: false
 })
 
 /** Long enough that tab-focus churn on the web does not fan out into calls. */
@@ -49,6 +59,10 @@ export function GroupsStatusProvider({ children }: { children: ReactNode }) {
   const [failed, setFailed] = useState(false)
   const [hasMemberships, setHasMemberships] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Read once per mount, synchronously, so the very first render already has
+  // it — a value read inside an effect would arrive one paint too late.
+  const cachedAccess = useRef(readCachedGroupsAccess()).current
 
   const mounted = useRef(true)
   /** Set only after a *successful* answer, so a failure cannot throttle its own retry. */
@@ -91,6 +105,9 @@ export function GroupsStatusProvider({ children }: { children: ReactNode }) {
       setStatus(next)
       setHasMemberships(memberships)
       setFailed(false)
+      writeCachedGroupsAccess(
+        groupsAccess({ loading: false, enabled: next.enabled, failed: false, hasMemberships: memberships })
+      )
     } catch (error) {
       // Silent to the user — the tab simply does not appear — but never silent
       // to us, and never mistaken for "the server said no".
@@ -143,8 +160,16 @@ export function GroupsStatusProvider({ children }: { children: ReactNode }) {
     hasMemberships
   })
 
+  // Only the tab bar gets the optimistic guess, and only until the real
+  // answer lands — `access` above stays exactly as it was, for the route
+  // guard and the directory page, which need certainty, not a guess.
+  const showGroupsTab =
+    loading && cachedAccess !== null
+      ? cachedAccess === "full" || cachedAccess === "wind_down"
+      : showsGroupsTab(access)
+
   return (
-    <GroupsStatusContext.Provider value={{ status, access, loading, refresh }}>
+    <GroupsStatusContext.Provider value={{ status, access, loading, refresh, showGroupsTab }}>
       {children}
     </GroupsStatusContext.Provider>
   )
