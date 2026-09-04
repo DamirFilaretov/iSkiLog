@@ -19,6 +19,7 @@ export type GroupErrorKind =
   | "description_rejected"
   | "quota_exceeded"
   | "rate_limited"
+  | "invalid_logo"
   | "not_found"
   | "invalid_handle"
   | "invalid_code"
@@ -96,6 +97,10 @@ const RULES: Record<string, Rule> = {
   "groups.rate_limited": {
     kind: "rate_limited",
     message: "You've created several groups recently. Try again later."
+  },
+  "groups.invalid_logo": {
+    kind: "invalid_logo",
+    message: "Couldn't use that photo. Try again."
   },
   "groups.not_found": {
     kind: "not_found",

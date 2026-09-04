@@ -101,12 +101,14 @@ export async function searchGroups(query: string): Promise<Group[]> {
 export async function createGroup(
   name: string,
   description: string,
-  isPrivate = false
+  isPrivate = false,
+  logoKey: string | null = null
 ): Promise<CreatedGroup> {
   const { data, error } = await supabase.rpc("create_group", {
     p_name: name,
     p_description: description,
-    p_private: isPrivate
+    p_private: isPrivate,
+    p_logo_key: logoKey
   })
   if (error) throw error
 

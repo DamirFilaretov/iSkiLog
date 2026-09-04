@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Image } from "lucide-react"
 
 import {
   GROUP_DESCRIPTION_MAX,
@@ -8,6 +9,7 @@ import {
   normaliseGroupDescription,
   normaliseGroupName
 } from "../../features/groups/groupName"
+import { GROUP_LOGO_ACCEPTED_TYPES, GROUP_LOGO_MAX_BYTES } from "../../features/groups/groupLogo"
 import type { GroupError } from "../../features/groups/groupErrors"
 
 /**
@@ -16,6 +18,9 @@ import type { GroupError } from "../../features/groups/groupErrors"
  * deliberately the *more permissive* of the two: it gives fast feedback and
  * never blocks a name the database would have accepted. The server decides,
  * and its own message is what gets shown (EC-25).
+ *
+ * No heading/title is rendered — the dialog carries only an aria-label for
+ * assistive tech.
  */
 
 type Props = {
@@ -23,7 +28,7 @@ type Props = {
   submitting: boolean
   /** Set by the parent from the server's answer; cleared on the next edit. */
   serverError: GroupError | null
-  onSubmit: (name: string, description: string, isPrivate: boolean) => void
+  onSubmit: (name: string, description: string, isPrivate: boolean, logoFile: File | null) => void
   onClose: () => void
   onClearError: () => void
 }
@@ -45,14 +50,31 @@ export default function CreateGroupModal(props: Props) {
   const [isPrivate, setIsPrivate] = useState(false)
   const [touched, setTouched] = useState(false)
 
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null)
+  const [logoError, setLogoError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (props.open) {
       setName("")
       setDescription("")
       setIsPrivate(false)
       setTouched(false)
+      setLogoFile(null)
+      setLogoError(null)
     }
   }, [props.open])
+
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(logoFile)
+    setLogoPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [logoFile])
 
   if (!props.open) return null
 
@@ -77,6 +99,20 @@ export default function CreateGroupModal(props: Props) {
     next()
   }
 
+  function pickLogo(file: File | null) {
+    if (!file) return
+    if (!GROUP_LOGO_ACCEPTED_TYPES.includes(file.type)) {
+      setLogoError("Use a JPEG, PNG, or WEBP image.")
+      return
+    }
+    if (file.size > GROUP_LOGO_MAX_BYTES) {
+      setLogoError("That photo is too large (5 MB max).")
+      return
+    }
+    setLogoError(null)
+    setLogoFile(file)
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center px-4 pb-6 sm:items-center">
       <button
@@ -90,54 +126,70 @@ export default function CreateGroupModal(props: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="New group"
-        className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"
+        className="relative z-10 w-full max-w-md rounded-3xl bg-white p-5 shadow-xl"
       >
-        <h2 className="text-lg font-semibold text-slate-900">New group</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          {isPrivate
-            ? "Shown in the directory with a lock. People join with a code you share."
-            : "Anyone can find and join a group. Names are unique."}
-        </p>
+        <div className="flex items-center gap-4 rounded-3xl bg-slate-50 p-4">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label={logoPreviewUrl ? "Change group photo" : "Add a group photo"}
+            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300"
+          >
+            {logoPreviewUrl ? (
+              <img src={logoPreviewUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <Image className="h-6 w-6" />
+            )}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={e => {
+              pickLogo(e.target.files?.[0] ?? null)
+              e.target.value = ""
+            }}
+            className="hidden"
+          />
 
-        <label className="mt-5 block">
-          <span className="text-xs font-medium text-slate-600">Name</span>
           <input
             type="text"
             value={name}
             onChange={e => edit(() => setName(e.target.value))}
             onBlur={() => setTouched(true)}
-            placeholder="Malmö Ski Club"
-            className="mt-1 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+            placeholder="Group name"
+            aria-label="Name"
+            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
           />
-          <span className="mt-1 flex items-center justify-between text-xs">
-            <span className="text-red-600">{nameError ?? ""}</span>
-            <span className={nameCount > GROUP_NAME_MAX ? "text-red-600" : "text-slate-400"}>
-              {nameCount}/{GROUP_NAME_MAX}
-            </span>
+        </div>
+        <div className="mt-1.5 flex items-center justify-between px-1 text-xs">
+          <span className="text-red-600">{nameError ?? logoError ?? ""}</span>
+          <span className={nameCount > GROUP_NAME_MAX ? "text-red-600" : "text-slate-400"}>
+            {nameCount}/{GROUP_NAME_MAX}
           </span>
-        </label>
+        </div>
 
-        <label className="mt-4 block">
-          <span className="text-xs font-medium text-slate-600">Description (optional)</span>
+        <div className="mt-4 rounded-3xl bg-slate-50 p-4">
           <textarea
             value={description}
             onChange={e => edit(() => setDescription(e.target.value))}
             onBlur={() => setTouched(true)}
-            rows={3}
+            rows={4}
             placeholder="Weekday evenings at the lake."
-            className="mt-1 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-blue-500"
+            aria-label="Description"
+            className="w-full resize-none bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
           />
-          <span className="mt-1 flex items-center justify-between text-xs">
-            <span className="text-red-600">{descriptionError ?? ""}</span>
-            <span
-              className={
-                descriptionCount > GROUP_DESCRIPTION_MAX ? "text-red-600" : "text-slate-400"
-              }
-            >
-              {descriptionCount}/{GROUP_DESCRIPTION_MAX}
-            </span>
+        </div>
+        <div className="mt-1.5 flex items-center justify-between px-1 text-xs">
+          <span className="text-red-600">{descriptionError ?? ""}</span>
+          <span
+            className={
+              descriptionCount > GROUP_DESCRIPTION_MAX ? "text-red-600" : "text-slate-400"
+            }
+          >
+            {descriptionCount}/{GROUP_DESCRIPTION_MAX}
           </span>
-        </label>
+        </div>
 
         <label className="mt-4 flex items-start gap-3">
           <input
@@ -149,8 +201,7 @@ export default function CreateGroupModal(props: Props) {
           <span className="text-sm">
             <span className="font-medium text-slate-800">Make this group private</span>
             <span className="mt-0.5 block text-xs text-slate-500">
-              It still shows in the directory with a lock, but joining needs a 6-digit code
-              you share — the code keeps people from wandering in, not from getting in.
+              Still findable by other users, but joining needs a code you share.
             </span>
           </span>
         </label>
@@ -159,7 +210,7 @@ export default function CreateGroupModal(props: Props) {
 
         <button
           type="button"
-          onClick={() => props.onSubmit(name, description, isPrivate)}
+          onClick={() => props.onSubmit(name, description, isPrivate, logoFile)}
           disabled={!canSubmit}
           className="mt-5 w-full rounded-full bg-blue-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
         >

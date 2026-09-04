@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { KeyRound, Plus, Search, Users } from "lucide-react"
+import { Search, Users } from "lucide-react"
 
 import CreateGroupModal from "../components/groups/CreateGroupModal"
 import GroupCard from "../components/groups/GroupCard"
 import GroupJoinModal from "../components/groups/GroupJoinModal"
+import GroupsFab from "../components/groups/GroupsFab"
 import JoinByCodeModal from "../components/groups/JoinByCodeModal"
 import GroupsConsentGate from "../components/groups/GroupsConsentGate"
 import ReportDialog from "../components/groups/ReportDialog"
@@ -24,7 +25,9 @@ import {
 } from "../features/groups/groupDirectory"
 import { toGroupError, type GroupError } from "../features/groups/groupErrors"
 import { canonicalGroupName } from "../features/groups/groupName"
+import { uploadGroupLogo } from "../features/groups/groupLogo"
 import { useGroupsStatus } from "../features/groups/GroupsStatusProvider"
+import { useAuth } from "../auth/AuthProvider"
 import { captureHandledException } from "../lib/sentryHandled"
 import type { Group } from "../types/groups"
 
@@ -50,7 +53,7 @@ const SEARCH_DEBOUNCE_MS = 300
 
 /** The action to resume once the consent gate is accepted. */
 type PendingAction =
-  | { kind: "create"; name: string; description: string; isPrivate: boolean }
+  | { kind: "create"; name: string; description: string; isPrivate: boolean; logoFile: File | null }
   | { kind: "join"; group: Group }
   | { kind: "joinCode"; code: string }
 
@@ -63,6 +66,7 @@ const NAME_TAKEN: GroupError = {
 
 export default function Groups() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { status, access, refresh } = useGroupsStatus()
   const fullAccess = access === "full"
 
@@ -226,17 +230,39 @@ export default function Groups() {
     name: string,
     description: string,
     isPrivate: boolean,
+    logoFile: File | null,
     consented = false
   ) {
     if (!consented && status.consentNeeded) {
-      setPending({ kind: "create", name, description, isPrivate })
+      setPending({ kind: "create", name, description, isPrivate, logoFile })
       return
     }
 
     setCreateSubmitting(true)
     setCreateError(null)
     try {
-      const created = await createGroup(name, description, isPrivate)
+      let logoKey: string | null = null
+      if (logoFile) {
+        try {
+          logoKey = await uploadGroupLogo(user?.id ?? "", logoFile)
+        } catch (uploadError) {
+          captureHandledException(uploadError, {
+            area: "groups",
+            action: "upload_group_logo",
+            screen: "groups"
+          })
+          if (!live.current) return
+          setCreateError({
+            kind: "invalid_logo",
+            message: "Couldn't upload that photo. Try again.",
+            field: null,
+            refetch: false
+          })
+          return
+        }
+      }
+
+      const created = await createGroup(name, description, isPrivate, logoKey)
       if (!live.current) return
       setCreateOpen(false)
       // Straight to the board — a private group shows its code there.
@@ -253,7 +279,7 @@ export default function Groups() {
 
       if (mapped.kind === "consent_required") {
         await refresh()
-        setPending({ kind: "create", name, description, isPrivate })
+        setPending({ kind: "create", name, description, isPrivate, logoFile })
         return
       }
       if (mapped.kind === "name_taken") {
@@ -375,7 +401,7 @@ export default function Groups() {
     await refresh()
     if (!resume) return
     if (resume.kind === "create") {
-      void submitCreate(resume.name, resume.description, resume.isPrivate, true)
+      void submitCreate(resume.name, resume.description, resume.isPrivate, resume.logoFile, true)
     } else if (resume.kind === "joinCode") {
       void submitJoinByCode(resume.code, true)
     } else {
@@ -426,32 +452,8 @@ export default function Groups() {
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 pt-safe pb-28">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Groups</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {fullAccess ? "Train alongside other skiers." : "Groups isn't available right now."}
-          </p>
-        </div>
-
-        {fullAccess ? (
-          <button
-            type="button"
-            onClick={() => {
-              setNotice(null)
-              setCreateError(null)
-              setCreateOpen(true)
-            }}
-            className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"
-          >
-            <Plus className="h-4 w-4" />
-            New group
-          </button>
-        ) : null}
-      </div>
-
       {notice ? (
-        <div className="mt-4 flex items-start justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3">
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3">
           <p className="text-xs leading-relaxed text-amber-800">{notice}</p>
           <button
             type="button"
@@ -465,7 +467,7 @@ export default function Groups() {
       ) : null}
 
       {access === "unknown" ? (
-        <div className="mt-5 rounded-3xl bg-white p-6 text-center shadow-lg shadow-slate-200/60">
+        <div className="mb-4 rounded-3xl bg-white p-6 text-center shadow-lg shadow-slate-200/60">
           <p className="text-sm text-slate-600">Couldn't reach the server.</p>
           <button
             type="button"
@@ -478,7 +480,7 @@ export default function Groups() {
       ) : null}
 
       {access === "wind_down" ? (
-        <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3">
+        <div className="mb-4 rounded-2xl bg-amber-50 px-4 py-3">
           <p className="text-xs leading-relaxed text-amber-800">
             Groups is unavailable right now, so new groups and joining are turned off. You can
             still open the groups you are in and leave them.
@@ -488,7 +490,7 @@ export default function Groups() {
 
       {fullAccess ? (
       <>
-      <div className="relative mt-5">
+      <div className="relative">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           type="search"
@@ -499,19 +501,6 @@ export default function Groups() {
           className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none focus:border-blue-500"
         />
       </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          setCodeError(null)
-          setCodeTarget(null)
-          setCodeOpen(true)
-        }}
-        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600"
-      >
-        <KeyRound className="h-3.5 w-3.5" />
-        Join a private group with a code
-      </button>
       </>
       ) : null}
 
@@ -577,12 +566,27 @@ export default function Groups() {
         ) : null}
       </div>
 
+      {fullAccess ? (
+        <GroupsFab
+          onCreate={() => {
+            setNotice(null)
+            setCreateError(null)
+            setCreateOpen(true)
+          }}
+          onJoinByCode={() => {
+            setCodeError(null)
+            setCodeTarget(null)
+            setCodeOpen(true)
+          }}
+        />
+      ) : null}
+
       <CreateGroupModal
         open={createOpen}
         submitting={createSubmitting}
         serverError={createError}
-        onSubmit={(name, description, isPrivate) =>
-          void submitCreate(name, description, isPrivate)
+        onSubmit={(name, description, isPrivate, logoFile) =>
+          void submitCreate(name, description, isPrivate, logoFile)
         }
         onClose={() => setCreateOpen(false)}
         onClearError={() => setCreateError(null)}
@@ -691,9 +695,9 @@ function DirectorySkeleton() {
       {[0, 1, 2, 3].map(index => (
         <div
           key={index}
-          className="flex items-center gap-3 rounded-3xl bg-white p-4 shadow-lg shadow-slate-200/60"
+          className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm"
         >
-          <div className="h-12 w-12 shrink-0 animate-pulse rounded-2xl bg-slate-200" />
+          <div className="h-12 w-12 shrink-0 animate-pulse rounded-full bg-slate-200" />
           <div className="flex-1">
             <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
             <div className="mt-2 h-3 w-44 animate-pulse rounded bg-slate-100" />

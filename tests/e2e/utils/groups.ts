@@ -129,7 +129,7 @@ export async function openGroupsTab(page: Page) {
   // already on /groups is a no-op route change, so force a fresh load — a test
   // that just created a group in another context needs the current listing.
   await page.reload()
-  await expect(page.getByRole("heading", { name: "Groups", exact: true })).toBeVisible()
+  await expect(page.getByPlaceholder("Search groups by name")).toBeVisible()
 }
 
 /** Accepts the consent gate if it appears within a short window; a no-op otherwise. */
@@ -150,7 +150,8 @@ export async function createGroup(
   opts: { name: string; description?: string; private?: boolean }
 ) {
   await openGroupsTab(page)
-  await page.getByRole("button", { name: "New group" }).first().click()
+  await page.getByRole("button", { name: "Group actions" }).click()
+  await page.getByRole("button", { name: "Create group" }).click()
 
   const dialog = page.getByRole("dialog", { name: "New group" })
   await expect(dialog).toBeVisible()
@@ -218,5 +219,5 @@ export async function leaveGroup(page: Page) {
   await page.getByRole("button", { name: "Leave group" }).click()
   const dialog = page.getByRole("dialog", { name: /^Leave / })
   await dialog.getByRole("button", { name: "Leave group" }).click()
-  await expect(page.getByRole("heading", { name: "Groups", exact: true })).toBeVisible()
+  await expect(page.getByPlaceholder("Search groups by name")).toBeVisible()
 }

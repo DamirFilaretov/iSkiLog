@@ -65,7 +65,8 @@ test.describe("groups", () => {
     // whitespace. Sam's first Groups action also trips the consent gate; after
     // accepting, the create retries, the name is taken, and — since Sam is not
     // a member — the client reconciles the collision to the join modal.
-    await sam.page.getByRole("button", { name: "New group" }).first().click()
+    await sam.page.getByRole("button", { name: "Group actions" }).click()
+    await sam.page.getByRole("button", { name: "Create group" }).click()
     const dialog = sam.page.getByRole("dialog", { name: "New group" })
     await dialog.getByLabel("Name").fill(`  ${name.toUpperCase()}  `)
     await dialog.getByRole("button", { name: "Create group" }).click()

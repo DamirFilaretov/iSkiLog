@@ -40,7 +40,7 @@ export default function GroupJoinModal(props: Props) {
         className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"
       >
         <div className="flex items-center gap-3">
-          <GroupAvatar name={group.name} size="lg" />
+          <GroupAvatar name={group.name} logoKey={group.logoKey} size="lg" />
           <div className="min-w-0">
             <h2 className="truncate text-lg font-semibold text-slate-900">{group.name}</h2>
             <p className="text-xs text-slate-400">

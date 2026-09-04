@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 
+import GroupAvatar from "../components/groups/GroupAvatar"
 import LeaderboardRow from "../components/groups/LeaderboardRow"
 import BoardPeriodToggle from "../components/groups/BoardPeriodToggle"
 import InviteCodeCard from "../components/groups/InviteCodeCard"
@@ -232,14 +233,23 @@ export default function GroupLeaderboard() {
 
   const groupName =
     state.status === "member" ? (state.group?.name ?? "Group") : "Group"
+  const groupLogoKey = state.status === "member" ? (state.group?.logoKey ?? null) : null
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 pt-safe pb-28">
-      <div className="flex items-center gap-3">
+      <div className="grid grid-cols-[60px_1fr_60px] items-center gap-3">
         <BackButton onClick={() => navigate("/groups", { replace: true })} />
-        <h1 className="min-w-0 flex-1 truncate text-xl font-semibold text-slate-900">
+        <h1 className="min-w-0 truncate text-center text-xl font-semibold text-slate-900">
           {groupName}
         </h1>
+        {state.status === "member" ? (
+          <GroupAvatar name={groupName} logoKey={groupLogoKey} size="xl" />
+        ) : (
+          // The name/photo aren't known yet — a neutral pulse instead of
+          // GroupAvatar's colour-and-initials fallback, so nothing that
+          // looks like real content flashes before the real photo arrives.
+          <div className="h-[60px] w-[60px] animate-pulse rounded-full bg-slate-200" />
+        )}
       </div>
 
       {state.status === "loading" ? <BoardSkeleton /> : null}
@@ -344,14 +354,14 @@ function Board({
 
   return (
     <>
-      <div className="mt-5">
+      <div className="mt-5 flex items-center justify-between gap-3">
         <BoardPeriodToggle
           period={period}
           pending={pendingPeriod}
           onChange={onChangePeriod}
         />
         {windowLabel || memberCount !== null ? (
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="text-right text-xs text-slate-500">
             {[windowLabel, memberCount === null ? null : `${memberCount} ${memberCount === 1 ? "member" : "members"}`]
               .filter(Boolean)
               .join(" · ")}
