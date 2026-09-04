@@ -17,33 +17,58 @@ type Props = {
   onOpen?: () => void
 }
 
+const MEDAL_STYLES: Record<number, string> = {
+  1: "bg-yellow-400 text-yellow-900",
+  2: "bg-slate-400 text-white",
+  3: "bg-orange-500 text-white"
+}
+
+function RankBadge({ rank }: { rank: number }) {
+  const medal = MEDAL_STYLES[rank]
+
+  if (!medal) {
+    return (
+      <span className="w-8 shrink-0 text-center text-sm font-semibold tabular-nums text-slate-400">
+        {rank}
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums ${medal}`}
+    >
+      {rank}
+    </span>
+  )
+}
+
 function Body({ row }: { row: ShapedLeaderboardRow }) {
   return (
     <>
-      <div className="flex items-baseline gap-3">
-        <span className="w-5 shrink-0 text-sm font-semibold tabular-nums text-slate-400">
-          {row.rank}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
+      <div className="flex items-center gap-3">
+        <RankBadge rank={row.rank} />
+        <span className="min-w-0 flex-1 truncate text-base font-medium text-slate-900">
           {row.memberName}
           {row.isSelf ? (
-            <span className="ml-2 rounded-full bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700">
+            <span className="ml-2 rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">
               You
             </span>
           ) : null}
         </span>
-        <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+        <span className="flex w-8 shrink-0 items-center justify-center self-stretch text-base font-semibold tabular-nums text-slate-900">
           {row.totalCount}
         </span>
       </div>
 
-      <p className="mt-0.5 pl-8 text-xs">
+      <p className="mt-0.5 pl-11 text-xs">
         {row.hasSets ? (
           row.breakdown.map((part, index) => (
             <span key={part.label}>
               {index > 0 ? <span className="mx-1.5 text-slate-300">·</span> : null}
               <span className={eventTextClass(part.event)}>
-                <span className="font-semibold">{part.label}</span> {part.count}
+                <span className="text-sm font-semibold">{part.label}</span>{" "}
+                <span className="text-sm font-semibold tabular-nums">{part.count}</span>
               </span>
             </span>
           ))
@@ -57,8 +82,10 @@ function Body({ row }: { row: ShapedLeaderboardRow }) {
 
 export default function LeaderboardRow({ row, onOpen }: Props) {
   const shell = `rounded-2xl px-4 py-3 ${
-    row.isSelf ? "bg-blue-50" : "bg-white"
-  } shadow-sm shadow-slate-200/60`
+    row.isSelf
+      ? "bg-blue-100 ring-1 ring-inset ring-blue-200 shadow-sm shadow-blue-200/60"
+      : "bg-white shadow-sm shadow-slate-200/60"
+  }`
 
   if (row.isSelf || !onOpen) {
     return (

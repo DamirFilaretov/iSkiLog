@@ -31,6 +31,23 @@ describe("shapeLeaderboardRows", () => {
     ])
   })
 
+  it("gives tied totals the same rank and skips ahead by the number tied", () => {
+    const shaped = shapeLeaderboardRows([
+      row({ membershipId: "a", totalCount: 14 }),
+      row({ membershipId: "b", totalCount: 11 }),
+      row({ membershipId: "c", totalCount: 11 }),
+      row({ membershipId: "d", totalCount: 11 }),
+      row({ membershipId: "e", totalCount: 5 })
+    ])
+    expect(shaped.map(r => [r.membershipId, r.rank])).toEqual([
+      ["a", 1],
+      ["b", 2],
+      ["c", 2],
+      ["d", 2],
+      ["e", 5]
+    ])
+  })
+
   it("omits zero disciplines and keeps SL·TR·JP·OT order, each tagged with its event", () => {
     const [shaped] = shapeLeaderboardRows([
       row({ totalCount: 14, slalomCount: 8, tricksCount: 0, jumpCount: 2, otherCount: 4 })

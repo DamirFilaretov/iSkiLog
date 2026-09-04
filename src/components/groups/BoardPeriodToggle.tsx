@@ -40,10 +40,10 @@ export default function BoardPeriodToggle({ period, pending, onChange }: Props) 
             onClick={() => onChange(value)}
             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-default ${
               active
-                ? "bg-white text-slate-900 shadow-sm"
+                ? "bg-blue-600 text-white shadow-sm shadow-blue-300/60"
                 : isPending
-                  ? "text-slate-400"
-                  : "text-slate-500"
+                  ? "bg-white text-slate-400"
+                  : "bg-white text-slate-600"
             }`}
           >
             {groupPeriodLabel(value)}

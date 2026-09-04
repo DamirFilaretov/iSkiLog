@@ -239,7 +239,7 @@ export default function GroupLeaderboard() {
     <div className="min-h-screen bg-slate-50 px-4 pt-safe pb-28">
       <div className="grid grid-cols-[60px_1fr_60px] items-center gap-3">
         <BackButton onClick={() => navigate("/groups", { replace: true })} />
-        <h1 className="min-w-0 truncate text-center text-xl font-semibold text-slate-900">
+        <h1 className="min-w-0 truncate text-center text-xl font-semibold text-slate-900 [font-family:'Open_Sans',sans-serif]">
           {groupName}
         </h1>
         {state.status === "member" ? (
@@ -361,7 +361,7 @@ function Board({
           onChange={onChangePeriod}
         />
         {windowLabel || memberCount !== null ? (
-          <p className="text-right text-xs text-slate-500">
+          <p className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
             {[windowLabel, memberCount === null ? null : `${memberCount} ${memberCount === 1 ? "member" : "members"}`]
               .filter(Boolean)
               .join(" · ")}
