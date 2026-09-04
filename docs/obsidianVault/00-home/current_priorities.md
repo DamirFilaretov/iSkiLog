@@ -106,8 +106,18 @@ status: active
 
 ## Watch list / known gaps
 
-> [!warning] Groups schema is deployed and dormant; the feature is not live
-> All Groups migrations are on the hosted project (through `20260903195701`) with `groups_enabled = 'false'`. Rollout stages remaining: **client shipped** (web + both native builds, still seeing `disabled`) → **flip the flag** (one row). Part 6 owns the two-user E2E and the native sync before that. Moderation is an ongoing commitment (`docs/groups-moderation-runbook.md`), not a build task.
+> [!warning] Groups schema is live; flag is ON; client is NOT shipped
+> All Groups migrations are on the hosted project (through `20260903195701`).
+> **`groups_enabled` flipped to `'true'` 2026-09-04** at the maintainer's request
+> ("on for now"). The RPCs are reachable, but the deployed app (web + native,
+> built from `main`) has **no Groups client code** — it's on the unmerged
+> `feature/groups-workflow` branch — so nothing is user-visible yet. This is
+> ahead of the designed rollout order (flag flips *after* the client and the
+> updated `policy.html` deploy). Reverse with
+> `update app_settings set value = 'false' where key = 'groups_enabled'`.
+> Still to do: `git push` + merge the branch; `npx cap sync` both platforms;
+> native builds + store submissions. Moderation is an ongoing commitment
+> (`docs/groups-moderation-runbook.md`), not a build task.
 
 > [!warning] Carry-over risks from the handoff
 > - Report export is client-generated and can produce **large bundles**; large-chunk build warnings are expected. See [[recharts-and-jspdf-power-charts-and-exports]].
