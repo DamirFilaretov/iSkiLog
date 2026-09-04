@@ -25,7 +25,8 @@ E2E_BASE_URL=http://127.0.0.1:4173
 npx supabase start
 ```
 
-2. Prepare isolated test schema and clear prior test users/rows:
+2. Rebuild the test database from `supabase/migrations/` and clear prior test
+   users/rows (runs `supabase db reset` — the local stack from step 1 must be up):
 
 ```powershell
 npm run e2e:db:prepare
@@ -52,12 +53,18 @@ npm run e2e:db:cleanup
 
 ## CI (GitHub Actions) Outline
 
-- Start Supabase with Docker
-- Run `npm run e2e:db:prepare`
+- Start Supabase with Docker (`supabase start`)
+- Run `npm run e2e:db:prepare` (applies `supabase/migrations/`)
 - Run `npm run e2e`
 - Upload `playwright-report` and `test-results/playwright`
+
+The DB security-boundary suite is separate: `supabase db reset` once, then
+`npm run test:db`.
 
 ## Notes
 
 - Tests create users under `E2E_TEST_EMAIL_DOMAIN` and only clean up that domain.
+- `e2e:db:prepare` and `test:db` reset with `--no-seed`. A plain
+  `npx supabase db reset` additionally loads `supabase/seed.sql` (dev accounts +
+  a group + leaderboard data) for manual poking at the app.
 - Production app logic is untouched; all changes are test-only.

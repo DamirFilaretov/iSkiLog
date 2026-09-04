@@ -9,7 +9,7 @@ tags:
 
 # The database is Postgres with RLS and subtype tables
 
-Schema source of truth: [`tests/e2e/db/schema.sql`](../../../tests/e2e/db/schema.sql). Trust it over any prose.
+Schema source of truth: [`supabase/migrations/`](../../../supabase/migrations/) — Supabase CLI migrations, baseline dumped from the hosted project (2026-09-03). Trust it over any prose. See [[the-database-is-managed-by-supabase-migrations]].
 
 ## Shape: one base table + per-event subtype tables
 

@@ -364,7 +364,6 @@ export default function TricksLibrary() {
       </div>
 
       <div className="px-4">
-        <label className="text-xs text-slate-500">Search trick code</label>
         <div className="mt-2 flex items-center gap-2">
           <div className="flex flex-1 items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-sm">
             <Search className="h-4 w-4 text-slate-400" />
