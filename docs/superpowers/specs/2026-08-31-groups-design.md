@@ -68,7 +68,7 @@ dates, notes, scores and `auth.users` identifiers never cross the boundary.
 | # | Decision | Value |
 |---|---|---|
 | D1 | Who creates groups | Any authenticated user, subject to quota (D19) |
-| D2 | Directory visibility | **Public groups:** every user sees every public group. **Private groups (D26):** absent from the directory and from name search; joined by code |
+| D2 | Directory visibility | Every signed-in user sees every group in the directory and search. **Private groups (D26):** shown flagged `is_private` (never with `join_code`); the client renders a lock and joining needs the code. *(v3 hid them entirely; reversed to "discoverable" in v4.)* |
 | D3 | Group names | Globally unique, case- and whitespace-insensitive |
 | D4 | Ownership / roles | **None.** Everyone has "Leave"; no owner, no admins |
 | D5 | Group lifecycle | When the last member leaves, the group is deleted |
@@ -92,8 +92,8 @@ dates, notes, scores and `auth.users` identifiers never cross the boundary.
 | D23 | Function privilege | `security invoker` by default; `definer` only where cross-user reads require it |
 | D24 | Rollout | Ships behind a server-side feature flag that doubles as a kill switch |
 | D25 | Client reachability | **Zero** Groups tables are client-reachable, without exception |
-| D26 | Private groups | Creator opts in at creation. A **6-digit numeric** join code is generated server-side, unique, and **fixed for the group's life**. The group is absent from `list_groups` / `search_groups`; the only ways in are `join_group_by_code` or an existing membership |
-| D27 | The code is not access control | `join_group_by_code` is **not rate-limited** (deliberate). "Private" means *undiscoverable*, not *unreachable*: the ~1M code space is enumerable by a determined script. Accepted — private is a discovery boundary, and Part 5's policy copy says so rather than overclaiming |
+| D26 | Private groups | Creator opts in at creation. A **6-digit numeric** join code is generated server-side, unique, and **fixed for the group's life**. **(v4)** The group still appears in `list_groups` / `search_groups` flagged `is_private` — never with `join_code` — and the client shows a lock; the only ways in are `join_group_by_code` or an existing membership (`join_group` on a private id → `groups.code_required`) |
+| D27 | The code is not access control | `join_group_by_code` is **not rate-limited** (deliberate). "Private" means *needs an invite*, not *sealed*: the ~1M code space is enumerable by a determined script. Accepted — private is a discovery boundary, and Part 5's policy copy says so rather than overclaiming |
 | D28 | Who holds the code | **Any member** sees it, on the group's board, so anyone can invite. No creator role (D4 preserved). Not regenerable — a badly-leaked code is fixed by leave-and-recreate |
 
 **D8** — the client sends the period and its IANA timezone, never dates. Accepting
@@ -284,7 +284,7 @@ create or replace function public.normalise_profile_name()
 returns trigger language plpgsql security definer set search_path = '' as $fn$
 begin
   NEW.full_name := left(btrim(regexp_replace(
-    regexp_replace(coalesce(NEW.full_name, ''), '[ -]', '', 'g'),
+    regexp_replace(coalesce(NEW.full_name, ''), '[-]', '', 'g'),
     '\s+', ' ', 'g')), 60);
 
   if exists (select 1 from public.moderation_terms t

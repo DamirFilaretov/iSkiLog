@@ -95,7 +95,7 @@ export default function CreateGroupModal(props: Props) {
         <h2 className="text-lg font-semibold text-slate-900">New group</h2>
         <p className="mt-1 text-sm text-slate-500">
           {isPrivate
-            ? "Hidden from the directory. People join with a code you share."
+            ? "Shown in the directory with a lock. People join with a code you share."
             : "Anyone can find and join a group. Names are unique."}
         </p>
 
@@ -149,8 +149,8 @@ export default function CreateGroupModal(props: Props) {
           <span className="text-sm">
             <span className="font-medium text-slate-800">Make this group private</span>
             <span className="mt-0.5 block text-xs text-slate-500">
-              It won't appear in the directory. Anyone with the code can still join — the
-              code keeps people from stumbling in, not from getting in.
+              It still shows in the directory with a lock, but joining needs a 6-digit code
+              you share — the code keeps people from wandering in, not from getting in.
             </span>
           </span>
         </label>

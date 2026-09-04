@@ -4,7 +4,7 @@
 **Reviews:** `docs/groups_findings.md` (round 1), second-round findings folded into the spec; Part 3 and Part 4 review findings folded into the code.
 **Date:** 2026-08-31 · **last revised:** 2026-09-03 (spec v5 — Part 5 scope reset: report + block back in, hardening migration added)
 
-**Goal:** A directory of user-created training groups, each with a leaderboard ranking members by sets logged in the last 7 or 30 days, broken down by discipline. Groups are public (in the directory) by default; a creator may make one **private** — hidden from the directory, joined with a 6-digit code (Part 4.5).
+**Goal:** A directory of user-created training groups, each with a leaderboard ranking members by sets logged in the last 7 or 30 days, broken down by discipline. Groups are open to join by default; a creator may make one **private** — it still shows in the directory with a lock, but joining requires a 6-digit code a member shares (Part 4.5, revised v4 — a discovery boundary, not access control).
 
 **Approach:** Six parts plus an inserted Part 4.5, built in order. Each is written test-first — the tests describe the behaviour before the thing exists — and ends at a milestone you can check yourself without reading code. Nothing user-visible ships until Part 3; Parts 1 and 2 are verified by running commands. **Parts 1–4.5 are done; Part 5 is next.**
 
@@ -139,12 +139,19 @@ check and its data query — Part 4 review P1).
 "discoverable with a lock" — migration `20260903175342`). Spec: design v3–v4,
 D26–D28, §6.2–6.4, EC-34–EC-40.
 
-A creator may opt a group out of the directory. It is then hidden from
-`list_groups` / `search_groups` and joined with a **6-digit numeric code**
-instead. The code is **not access control** (D27): `join_group_by_code` is not
-rate-limited, "private" means unlisted not sealed, and the policy copy says so.
-The code is shown to **every** member (D28, no owner role) and is fixed for the
-group's life.
+A creator may mark a group **private**. It still appears in `list_groups` /
+`search_groups` — flagged `is_private`, **never with `join_code`** — and the
+client shows a lock; joining it requires a **6-digit numeric code** a member
+shares (`join_group` refuses a private id with `groups.code_required`;
+`join_group_by_code` is the only way in). The code is **not access control**
+(D27): `join_group_by_code` is not rate-limited, "private" means *needs an
+invite*, not *sealed*, and the policy copy says so. The code is shown to
+**every** member (D28, no owner role) and is fixed for the group's life.
+
+> The build notes below describe the **original v3** "hidden from the directory"
+> approach. It was reversed the same day (v4, migration `20260903175342`):
+> `list_groups` / `search_groups` now return private rows flagged `is_private`
+> (without `join_code`). Everything else stands.
 
 **Build — schema first, written as real SQL and reviewed before the client:**
 

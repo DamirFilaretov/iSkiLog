@@ -114,6 +114,34 @@ describe("private groups are discoverable but still code-gated", () => {
     })
   })
 
+  it("an unrelated member can discover it but not join by id", async () => {
+    await withFeatureEnabled(async () => {
+      const owner = await ready()
+      const marker = `Nm${Date.now()}`
+      const group = await createPrivate(owner, `${marker} Outsider Test`)
+
+      // A second authenticated user with no relationship to the group.
+      const outsider = await ready()
+
+      for (const source of [
+        () => outsider.client.rpc("list_groups"),
+        () => outsider.client.rpc("search_groups", { p_query: marker })
+      ]) {
+        const res = await source()
+        expect(res.error).toBeNull()
+        const row = res.data.find((r: any) => r.group_id === group.id)
+        expect(row, "private group must be discoverable by a non-member").toBeDefined()
+        expect(row.is_private).toBe(true)
+        expect(row.is_member).toBe(false)
+        expect(row).not.toHaveProperty("join_code")
+      }
+
+      // Discovery is not access: joining by id is refused, code is the only way.
+      const byId = await outsider.client.rpc("join_group", { p_group_id: group.id })
+      expect(byId.error?.hint).toBe("groups.code_required")
+    })
+  })
+
   it("is found by search_groups by name, flagged private", async () => {
     await withFeatureEnabled(async () => {
       const owner = await ready()

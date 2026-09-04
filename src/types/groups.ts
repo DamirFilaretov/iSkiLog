@@ -22,7 +22,7 @@ export type Group = {
   memberCount: number
   /** Counts every member, including anyone blocked in either direction (EC-12). */
   isMember: boolean
-  /** Private groups are hidden from the directory; joined by code (D26). */
+  /** Private groups show in the directory with a lock but are joined by code (D26, v4). */
   isPrivate: boolean
   /**
    * The 6-digit join code, for a private group the caller is a member of.

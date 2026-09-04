@@ -41,7 +41,8 @@ export default function InviteCodeCard({ code }: Props) {
         </button>
       </div>
       <p className="mt-2 text-xs text-slate-500">
-        Share this code so people can join. This group isn't listed in the directory.
+        Share this code so people can join. The group shows in the directory with a lock, but
+        joining needs this code.
       </p>
     </div>
   )
