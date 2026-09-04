@@ -56,7 +56,8 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[browse-is-not-a-membership-list]]
 - [[the-kill-switch-stops-spread-not-escape]]
 - [[the-client-mirrors-the-servers-whitespace-rules-exactly]]
-- [[blocking-and-reporting-are-deferred]]
+- [[blocking-and-reporting-are-deferred]] (superseded)
+- [[groups-ships-with-report-and-block]]
 - [[a-gated-read-rpc-must-be-stable]]
 - [[a-private-group-is-hidden-not-sealed]]
 
@@ -81,6 +82,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ## Logs & loose ends
 
+- [[2026-09-03-groups-part5-moderation]] — Groups Part 5: denylist fix + seed, hardening migration, report/block/unblock wired, policy copy, runbook — **pushed to prod, dormant**. Blocking + reporting un-deferred ([[groups-ships-with-report-and-block]])
 - [[2026-09-03-private-groups]] — Groups Part 4.5: private groups joined by a 6-digit code (revised same day — discoverable with a lock, still code-gated: [[a-private-group-is-hidden-not-sealed]])
 - [[2026-09-02-groups-leaderboard]] — Groups Part 4: the leaderboard, the 7/30-day toggle, Leave; blocking cut from the plan
 - [[2026-09-01-groups-directory-and-joining]] — Groups Part 3: the tab, the directory, create and join, consent

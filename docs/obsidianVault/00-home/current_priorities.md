@@ -54,12 +54,18 @@ status: active
 - [x] **Groups foundation pushed to production** (`20260903160619` + `20260903164850`, `supabase db push` 2026-09-03). All 8 tables live, sealed (RLS on, no grants), `groups_enabled = 'false'` — dormant. `profiles` gained the normalise trigger + `≤60` constraint (0 rows affected). Post-push `get_advisors`: clean.
   - Dashboard: enable Auth leaked-password protection.
 
-> [!warning] Production migration state (verified `supabase migration list --linked` 2026-09-03)
-> Remote is at **`20260903164850`**. **Not pushed:** `20260903175342` (private groups discoverable — Part 4.5), `20260903194544` (Part 5 denylist), `20260903195701` (Part 5 hardening). Private groups / the code-join flow are therefore **NOT live on prod yet** — only in the client and local DB. A future `db push` applies all three, and 175342 has not been push-reviewed either.
+> [!success] Production migration state (`supabase db push` 2026-09-03, verified)
+> Remote is at **`20260903195701`** — all Groups migrations are now live and dormant. `db push` applied `175342` (private groups discoverable), `194544` (Part 5 denylist + 6-term seed), `195701` (Part 5 hardening) together. Post-push checks: `groups_enabled = 'false'`, 6 `moderation_terms`, 0 production profiles match the denylist, `anon` revoked on `create/update_set_with_subtype` (`authenticated` retained), `search_path` pinned on both, `list_*` STABLE, `create_group` uses the CSPRNG code helper.
+>
+> `get_advisors` (security) after the push — **no new actionable findings**:
+> - `rls_enabled_no_policy` (INFO) on the Groups tables — the reviewed RPC-only design (D25), RLS is defence-in-depth with no grants.
+> - `authenticated_security_definer_function_executable` (WARN) on every Groups RPC + the two set RPCs — a new lint (0029) that flags the deliberate SECURITY DEFINER RPC architecture; each function carries its own `auth.uid()` + authorization guard.
+> - `function_search_path_mutable` (WARN) on `set_updated_at`, `fetch_sets_hydrated`, `set_active_season_atomic` — pre-existing, all **invoker** (lower risk). Part 5 pinned the two *definer* set functions; these three are a follow-up.
+> - `auth_leaked_password_protection` (WARN) — pre-existing dashboard toggle (see below).
 
 ## In flight
 
-- [ ] Branch `feature/groups-workflow` — **Part 5 implemented** (commits `a200641`, `581fcac`, `c7bc395`, + review-fix commit): denylist fix + seed, hardening migration, report/block/unblock wired, blocked-members list, policy copy, runbook. **Blocking + reporting are IN** now (store requirement — [[groups-ships-with-report-and-block]]). Not yet: `db push`, Part 6 (two-user E2E, `cap sync`, staged release).
+- [ ] Branch `feature/groups-workflow` — **Part 5 done + pushed** (`a200641`, `581fcac`, `c7bc395`, `4bfb685`, `856e181`): denylist fix + 6-term seed, hardening migration, report/block/unblock wired, blocked-members list, policy copy, runbook. Migrations live on prod, dormant. **Blocking + reporting are IN** (store requirement — [[groups-ships-with-report-and-block]]). Remaining: `git push` the branch (not done — user's call), Part 6 (two-user E2E for report/block/unblock, `npx cap sync`, staged flag flip). ([[2026-09-03-groups-part5-moderation]])
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
 
 ## Part 5 — DONE (implementation), pending push + Part 6
@@ -85,8 +91,10 @@ status: active
 - [ ] `App.tsx` Welcome / policy gates read stale `previousMeta`; use `supabase.auth.getUser()` before each `updateUser` to stop the two writes clobbering each other
 - [ ] Playwright E2E for the tutorial, fresh-account path past step 3
 - [x] ~~Spec §11 EC-33 wrong~~ — already corrected in spec v3 (the follow-up note lagged); confirmed 2026-09-03 during Part 5 ([[the-kill-switch-stops-spread-not-escape]])
-- [ ] `list_groups`, `search_groups`, `list_my_groups`, `list_blocks` are still `VOLATILE`. Harmless (each runs one data query after an unchanging `auth.uid()` check) but `STABLE` is the honest label — tidy at Part 5 or 6 ([[a-gated-read-rpc-must-be-stable]])
-- [ ] Private-group `join_code` is generated with `random()`, not a CSPRNG (`groups_foundation.sql`, `create_group`). It is a discovery boundary not access control ([[a-private-group-is-hidden-not-sealed]]) and rate-limiting was declined by choice, but swap to `extensions.gen_random_bytes` in the Part 5 hardening migration — cheap, and settles it alongside the denylist fixes. Flagged by automated security review 2026-09-03.
+- [x] ~~`list_groups` / `search_groups` / `list_my_groups` VOLATILE~~ — marked `STABLE` in `20260903195701` (Part 5 hardening). `list_blocks` left VOLATILE (harmless, one query). ([[a-gated-read-rpc-must-be-stable]])
+- [x] ~~Private-group `join_code` from `random()`~~ — swapped to `extensions.gen_random_bytes` via `public.groups_new_join_code()` in `20260903195701`. ([[a-private-group-is-hidden-not-sealed]])
+- [ ] `set_updated_at`, `fetch_sets_hydrated`, `set_active_season_atomic` still have a role-mutable `search_path` (advisor WARN, 2026-09-03 post-push). All **invoker** so lower risk than the two definer set RPCs Part 5 pinned. Pin them in a small migration at Part 6 or the cleanup branch.
+- [ ] **Dashboard: enable Auth leaked-password protection** (HaveIBeenPwned check) — advisor WARN, pre-existing, one toggle.
 - [ ] `playwright.config.ts` serves the app from `.env.local` (hosted project), not `.env.test` (local Docker) — the DB helpers and the browser point at different databases. Blocks Part 6 ([[e2e-serves-the-app-from-the-wrong-supabase]])
 - [ ] E2E specs need `iskilog:tutorial:completed` seeded, and any flag-flipping spec needs `describe.configure({ mode: "serial" })` — Playwright runs 2 workers locally
 - [ ] `npx cap sync` regenerates native config to add the Apple Sign In plugin to the **Android** build and reorder `Package.swift`. Pre-existing drift, unrelated to Groups; settle it at Part 6's release sync
@@ -97,8 +105,8 @@ status: active
 
 ## Watch list / known gaps
 
-> [!warning] Groups is not deployed
-> Everything from Part 1 exists on the **local Docker Supabase only**. The hosted project is untouched until the staged release in Parts 5–6: schema with the flag off → policy and moderation live → client shipped → flip one row. Moderation is an ongoing commitment, not a build task.
+> [!warning] Groups schema is deployed and dormant; the feature is not live
+> All Groups migrations are on the hosted project (through `20260903195701`) with `groups_enabled = 'false'`. Rollout stages remaining: **client shipped** (web + both native builds, still seeing `disabled`) → **flip the flag** (one row). Part 6 owns the two-user E2E and the native sync before that. Moderation is an ongoing commitment (`docs/groups-moderation-runbook.md`), not a build task.
 
 > [!warning] Carry-over risks from the handoff
 > - Report export is client-generated and can produce **large bundles**; large-chunk build warnings are expected. See [[recharts-and-jspdf-power-charts-and-exports]].
