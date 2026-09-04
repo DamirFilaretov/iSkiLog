@@ -19,32 +19,37 @@ the response process.
 Supabase dashboard → SQL editor:
 
 ```sql
-select id, created_at, target_type, snapshot_name, snapshot_description, reason
+select id, created_at, target_type,
+       target_group_id, target_user_id,
+       snapshot_name, snapshot_description, reason
 from abuse_reports
 order by created_at desc
 limit 50;
 ```
 
-`target_group_id` / `target_user_id` may be null if the target was already
-deleted — the `snapshot_*` columns are the retained evidence and do not
-disappear when a group or account is removed.
+`target_group_id` (for a `group` report) and `target_user_id` (for a `profile`
+report) are the identifiers the actioning steps below need. Either can be
+**null** if the group or account was already deleted — in that case there is
+nothing left to remove, and the `snapshot_*` columns are the retained evidence.
+If a `target_user_id` is not null but you don't know their current display name,
+`select full_name from profiles where user_id = '<target_user_id>'`.
 
 ## Actioning a report
 
-**Abusive group name or description**
+**Abusive group name or description** (use the report's `target_group_id`)
 
 ```sql
 -- inspect
 select id, name, description, is_private, created_by, created_at
-from groups where id = '<group id>';
+from groups where id = '<target_group_id>';
 
 -- remove (memberships cascade; the report survives with its snapshot)
-delete from groups where id = '<group id>';
+delete from groups where id = '<target_group_id>';
 ```
 
 For a borderline case, edit the row instead of deleting it.
 
-**Abusive profile display name**
+**Abusive profile display name** (use the report's `target_user_id`)
 
 ```sql
 -- 1. add the offending term(s) to the blocklist (lowercase, literal substring)
@@ -52,7 +57,7 @@ insert into moderation_terms (term) values ('<lowercased term>')
 on conflict (term) do nothing;
 
 -- 2. blank the current value — the leaderboard then shows "Skier"
-update profiles set full_name = '' where user_id = '<user id>';
+update profiles set full_name = '' where user_id = '<target_user_id>';
 ```
 
 The trigger (`normalise_profile_name`) blocks the user from re-entering any

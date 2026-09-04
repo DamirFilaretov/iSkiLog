@@ -248,7 +248,9 @@ describe("join_group_by_code", () => {
     const owner = await ready()
     const groupId = await withAdmin(async c => {
       const r = await c.query(
-        "insert into public.groups (name, created_by, is_private, join_code) values ($1, $2, true, '424242') returning id",
+        // A literal code that is NOT the one seed.sql plants ('424242'), so this
+        // passes on a seeded DB too (groups_join_code_unique is a partial index).
+        "insert into public.groups (name, created_by, is_private, join_code) values ($1, $2, true, '314159') returning id",
         [unique("Flagged Private"), owner.userId]
       )
       await c.query(
@@ -260,7 +262,7 @@ describe("join_group_by_code", () => {
 
     await withFeatureDisabled(async () => {
       const joiner = await ready()
-      const { error } = await joiner.client.rpc("join_group_by_code", { p_code: "424242" })
+      const { error } = await joiner.client.rpc("join_group_by_code", { p_code: "314159" })
       expect(error?.hint).toBe("groups.disabled")
     })
 

@@ -3,6 +3,8 @@ import { useState } from "react"
 import { acceptGroupsPolicy } from "../../data/groupsApi"
 import { toGroupError } from "../../features/groups/groupErrors"
 import { captureHandledException } from "../../lib/sentryHandled"
+import { isNativeRuntime } from "../../lib/nativeOAuth"
+import PolicyModal from "../auth/PolicyModal"
 
 /**
  * Consent is taken at the point of actual sharing — the first create or join —
@@ -26,6 +28,7 @@ type Props = {
 export default function GroupsConsentGate({ open, onAccepted, onCancel }: Props) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [policyOpen, setPolicyOpen] = useState(false)
 
   if (!open) return null
 
@@ -95,15 +98,34 @@ export default function GroupsConsentGate({ open, onAccepted, onCancel }: Props)
           </p>
         </div>
 
+        <p className="mt-4 text-xs leading-relaxed text-slate-500">
+          By continuing you agree to the{" "}
+          <a
+            href="/policy.html"
+            target="_blank"
+            rel="noreferrer"
+            onClick={event => {
+              if (!isNativeRuntime()) return
+              event.preventDefault()
+              setPolicyOpen(true)
+            }}
+            className="font-semibold text-blue-600 underline"
+          >
+            Terms of Service
+          </a>
+          , including that you will not create hateful, harassing or explicit names,
+          descriptions or display names, or harass other members.
+        </p>
+
         {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
 
         <button
           type="button"
           onClick={handleAccept}
           disabled={saving}
-          className="mt-5 w-full rounded-full bg-blue-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="mt-4 w-full rounded-full bg-blue-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {saving ? "Saving..." : "I understand — continue"}
+          {saving ? "Saving..." : "Agree and continue"}
         </button>
 
         <button
@@ -115,6 +137,8 @@ export default function GroupsConsentGate({ open, onAccepted, onCancel }: Props)
           Not now
         </button>
       </div>
+
+      <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
     </div>
   )
 }

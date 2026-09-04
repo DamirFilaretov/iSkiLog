@@ -51,27 +51,30 @@ status: active
 - [x] **Groups — Part 4.5: private groups**. A creator can make a group private. Spec v3 (D26–D28), commits `2202aae` + `7fac2d6`. **Revised same day** (`20260903175342_private_groups_discoverable`): private groups are now *discoverable* — shown in browse and search with a lock icon, tapping opens a code prompt. The code stays member-shared (`list_groups`/`search_groups` return `is_private` but never `join_code`); `join_group_by_code` is still not rate-limited, by deliberate choice ([[2026-09-03-private-groups]], [[a-private-group-is-hidden-not-sealed]])
 - [x] **Database moved to Supabase migrations**. `tests/e2e/db/schema.sql` had drifted from the hosted project; replaced with a baseline dumped from production plus `groups_foundation` as its own migration. Test harness runs `supabase db reset`. `test:db` 153/153, `test:run` 180/180 ([[the-database-is-managed-by-supabase-migrations]])
 - [x] **`update_set_with_subtype` IDOR fixed and DEPLOYED** (`20260903164850`). The drift surfaced it: production's SECURITY DEFINER function lost the `if not found then raise` guard that `schema.sql` always carried (via `20260414134719`), so any authenticated caller could overwrite another user's `set_notes` / subtype rows for any set id they knew. Regression test `tests/db/setOwnership.test.ts` proven against the vulnerable body.
-- [x] **Groups schema pushed to production** (`20260903160619` + `20260903164850`, `supabase db push` 2026-09-03). All 8 tables live, sealed (RLS on, no grants), `groups_enabled = 'false'` — dormant. `profiles` gained the normalise trigger + `≤60` constraint (0 rows affected). Migration history synced. Post-push `get_advisors`: no new findings — all pre-existing or the reviewed RPC-only design.
-  - Part 5 hardening migration should also: `set search_path = ''` on the 5 set/season SECURITY DEFINER functions (qualify the `::event_type` cast); `revoke execute ... from anon` on `create/update_set_with_subtype`.
+- [x] **Groups foundation pushed to production** (`20260903160619` + `20260903164850`, `supabase db push` 2026-09-03). All 8 tables live, sealed (RLS on, no grants), `groups_enabled = 'false'` — dormant. `profiles` gained the normalise trigger + `≤60` constraint (0 rows affected). Post-push `get_advisors`: clean.
   - Dashboard: enable Auth leaked-password protection.
+
+> [!warning] Production migration state (verified `supabase migration list --linked` 2026-09-03)
+> Remote is at **`20260903164850`**. **Not pushed:** `20260903175342` (private groups discoverable — Part 4.5), `20260903194544` (Part 5 denylist), `20260903195701` (Part 5 hardening). Private groups / the code-join flow are therefore **NOT live on prod yet** — only in the client and local DB. A future `db push` applies all three, and 175342 has not been push-reviewed either.
 
 ## In flight
 
-- [ ] Branch `feature/groups-workflow` — **Part 5 next**: moderation of names and groups only (no blocking). Denylist seeded and enforced, `report_group` / `report_profile` wiring + copy, policy text in three places (add a "private = invite-only, not sealed" line), contact address, runbook. Part 6 follows: two-user E2E and staged release
+- [ ] Branch `feature/groups-workflow` — **Part 5 implemented** (commits `a200641`, `581fcac`, `c7bc395`, + review-fix commit): denylist fix + seed, hardening migration, report/block/unblock wired, blocked-members list, policy copy, runbook. **Blocking + reporting are IN** now (store requirement — [[groups-ships-with-report-and-block]]). Not yet: `db push`, Part 6 (two-user E2E, `cap sync`, staged release).
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
 
-## Blockers before Groups Part 5
+## Part 5 — DONE (implementation), pending push + Part 6
 
-> [!warning] Both live in `supabase/migrations/20260903160619_groups_foundation.sql` (grep the symbols) and must be fixed in the Part 5 moderation migration before `moderation_terms` is seeded
-> - `normalise_profile_name` (the `profiles` trigger) matches with `lower(NEW.full_name) like '%' || t.term || '%'`: it never lowercases `t.term`, and `%` or `_` inside a term act as wildcards. The group path was hardened into `contains_denylisted_term`; this one was left behind, so the two surfaces disagree on the same denylist. Fix: call `contains_denylisted_term` here too.
-> - The `profiles` full-name backfill `update` runs *after* the trigger is created, so re-applying the foundation migration against a populated denylist aborts mid-migration, taking `profiles_full_name_length` with it. `applyFeatureMigrations()` in `test:db` re-runs it — the Part 5 migration must make the backfill trigger-safe (disable the trigger around it, or seed terms after).
-
-## Part 5 starts here
-
-> [!todo] Scope, revised 2026-09-02
-> Moderation of **names and groups only** — blocking is out ([[blocking-and-reporting-are-deferred]]). Seed `moderation_terms` and enforce it on both write surfaces; wire `report_group` (join modal) and `report_profile` (a member-level Report on the board) with their copy; publish the policy text in `public/policy.html`, `PrivacySecurity.tsx` and the consent gate, naming the discipline breakdown explicitly; add the contact address to About; write the runbook (daily dashboard check, 24-hour target).
->
-> **First, unblock the denylist** — the two `groups_foundation.sql` issues below must land before `moderation_terms` is seeded.
+> [!done] Scope, final (spec v5, 2026-09-03)
+> Moderation of names and groups **plus** in-app report + mutual block + a
+> blocked-members screen — the store-review requirement, not deferred. Denylist
+> matcher fixed and seeded (both write surfaces); `report_group` (join modal),
+> `report_profile` + `block_group_member` (leaderboard member sheet),
+> `list_blocks` / `unblock` (Privacy & Security); policy copy in
+> `public/policy.html`, `PrivacySecurity.tsx`, `GroupsConsentGate.tsx` naming the
+> discipline breakdown and the private-group code line; About "Report abuse"
+> contact; `docs/groups-moderation-runbook.md` (daily check, one-business-day
+> target). Hardening migration: set-RPC `search_path` pins + anon revokes,
+> CSPRNG `join_code`, `STABLE` on the list RPCs.
 
 - [x] ~~`fetch_group_leaderboard` window dates~~ — shipped in Part 4 ([[2026-09-02-groups-leaderboard]])
 - [x] ~~There is no `list_my_groups`~~ — added in Part 3 ([[browse-is-not-a-membership-list]])

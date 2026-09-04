@@ -1,7 +1,14 @@
+import fs from "node:fs"
+import path from "node:path"
 import { describe, it, expect } from "vitest"
 import { withAdmin } from "./helpers/admin"
 import { createTestUser } from "./helpers/users"
 import { applyFeatureMigrations } from "./helpers/schema"
+
+const DENYLIST_MIGRATION = fs.readFileSync(
+  path.resolve(process.cwd(), "supabase/migrations/20260903194544_groups_part5_denylist.sql"),
+  "utf8"
+)
 
 async function nameOf(userId: string): Promise<string> {
   return withAdmin(async c => {
@@ -120,6 +127,30 @@ describe("profile name filtering", () => {
       .upsert({ user_id: user.userId, full_name: "  Ordinary   Person " })
     expect(error).toBeNull()
     expect(await nameOf(user.userId)).toBe("Ordinary Person")
+  })
+})
+
+describe("denylist migration cleans existing names on first application", () => {
+  it("blanks a profile whose name matches a seeded term", async () => {
+    // Production first-run: the abusive name was set before the terms existed
+    // and before the fixed trigger was active. The migration seeds the terms
+    // and then backfills, so this one run must blank it — not only a re-run.
+    const user = await createTestUser()
+    await withAdmin(async c => {
+      await c.query("alter table public.profiles disable trigger profiles_normalise_name")
+      await c.query(
+        `insert into public.profiles (user_id, full_name) values ($1, $2)
+         on conflict (user_id) do update set full_name = excluded.full_name`,
+        [user.userId, "  proud   faggot   crew  "] // matches the seeded term 'faggot'
+      )
+      await c.query("alter table public.profiles enable trigger profiles_normalise_name")
+    })
+
+    // Run the real migration file (not applyFeatureMigrations, which also
+    // re-runs the immutable foundation backfill). It is idempotent.
+    await withAdmin(c => c.query(DENYLIST_MIGRATION))
+
+    expect(await nameOf(user.userId)).toBe("")
   })
 })
 

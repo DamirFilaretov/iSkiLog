@@ -40,8 +40,9 @@ superseded "hidden" behaviour.
    "lands in `schema.sql`" reference below now means "lands in a timestamped
    migration under `supabase/migrations/`". Parts 1–4.5 are
    `20260903160619_groups_foundation.sql` +
-   `20260903175342_private_groups_discoverable.sql`, both pushed to production
-   with `groups_enabled = false`.
+   `20260903175342_private_groups_discoverable.sql`. **Only `160619` +
+   `164850` are on production** (verified 2026-09-03); `175342` and the two
+   Part 5 migrations are committed but unpushed.
 3. **Part 5 adds a hardening migration** alongside the moderation work — see §6.7.
 
 ---
@@ -1015,10 +1016,13 @@ moderation path exist — and on native that window is days, not minutes.
 
 1. **Schema, disabled.** Tables, helpers, triggers, RPCs, the
    `profiles.full_name` clean-then-constrain, and `groups_enabled = false`.
-   Every mutating RPC refuses. Nothing is reachable. **Done** — pushed
-   2026-09-03 (`20260903160619` + `20260903164850` + `20260903175342`).
+   Every mutating RPC refuses. Nothing is reachable. **Partly done** —
+   `20260903160619` + `20260903164850` pushed 2026-09-03. Still to push:
+   `20260903175342` (private groups) and the two Part 5 migrations, together,
+   after review.
 2. **Policy and moderation live** — copy published, contact address up, runbook
-   written, denylist seeded (Part 5 migrations), hardening migration applied.
+   written, denylist seeded + hardening applied (`20260903194544` +
+   `20260903195701`). Migrations written and green locally; push pending.
 3. **Client shipped**, web and both native builds, still seeing `disabled`
    and hiding its entry points.
 4. **Flip the flag.** One row in `app_settings`, reversible in seconds.

@@ -28,25 +28,18 @@
 
 Stored lowercase; matched as a **literal, case-insensitive substring** by `contains_denylisted_term` (`strpos(lower(text), lower(term)) > 0`). Substring matching means a term that is also a substring of an innocent word will over-block (the "Scunthorpe problem") — the list below is chosen to minimise that, and the maintainer refines it in the Supabase dashboard afterwards.
 
-Starter set (Task 1 inserts exactly this; the maintainer edits the list in this file before it is approved):
+Starter set (as seeded in `20260903194544_groups_part5_denylist.sql`; the maintainer edits the migration file before it is approved for push):
 
 ```
 nigger
 nigga
 faggot
-retard
-kike
-spic
-chink
 wetback
-tranny
-coon
-rapist
 pedophile
 paedophile
 ```
 
-Rationale: unambiguous slurs and two abuse-accusation terms, none a common substring of ordinary names or ski vocabulary. Not included on purpose: profanity that is not targeted hate (`shit`, `damn`, …) — it is not what store review looks for and it inflates false positives; leetspeak / spacing evasions — substring matching cannot chase those and pretending it can is worse than not claiming it.
+Rationale: six unambiguous terms with **no plausible English substring collision** in ski-club names or ordinary display names. A code review of the first draft caught `spic` → "Spice", `coon` → "Raccoon", `rapist` → "Therapist", `kike` → the name "Kike", `chink` → "a chink in", `retard` → "retardant" — all removed. Also excluded: profanity that is not targeted hate (`shit`, `damn`) — not what store review looks for, inflates false positives; leetspeak / spacing evasions — substring matching cannot chase those. The maintainer expands the list in the Supabase dashboard (runbook has the SQL).
 
 ---
 
