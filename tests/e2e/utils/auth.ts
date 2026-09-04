@@ -9,6 +9,9 @@ export function uniqueEmail(emailDomain: string) {
 export async function skipWelcome(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("iskilog:welcome-complete", "true")
+    // The 10-step tutorial auto-starts once per fresh account and navigates to
+    // "/", detaching any modal a spec is mid-way through. Mark it done up front.
+    window.localStorage.setItem("iskilog:tutorial:completed", "true")
   })
 }
 
@@ -56,11 +59,14 @@ export async function loginUser(page: Page, args: { email: string; password: str
   await expectHomeLoaded(page)
 }
 
-export async function signUpThenLogin(page: Page, args: { emailDomain: string; password?: string }) {
+export async function signUpThenLogin(
+  page: Page,
+  args: { emailDomain: string; password?: string; firstName?: string; lastName?: string }
+) {
   const email = uniqueEmail(args.emailDomain)
   const password = args.password ?? "Qaauto123"
 
-  await signUpUser(page, { email, password })
+  await signUpUser(page, { email, password, firstName: args.firstName, lastName: args.lastName })
 
   const onAuthScreen = await page
     .getByText("Welcome back")
@@ -96,7 +102,9 @@ export async function expectHomeLoaded(page: Page) {
 
 export async function logoutUser(page: Page) {
   await page.getByRole("button", { name: "Settings" }).click()
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible()
-  await page.getByRole("button", { name: /^Log Out$/ }).click()
+  // Settings.tsx has no page heading — wait for its Log Out button instead.
+  const logout = page.getByRole("button", { name: /^Log Out$/ })
+  await expect(logout).toBeVisible()
+  await logout.click()
   await expect(page.getByText("Welcome back")).toBeVisible()
 }

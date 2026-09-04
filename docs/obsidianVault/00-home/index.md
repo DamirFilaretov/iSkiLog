@@ -82,6 +82,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ## Logs & loose ends
 
+- [[2026-09-04-groups-part6-e2e]] — Groups Part 6: two-user Playwright suite (8 flows, `mobile` 360×800), harness fixes (`--mode test`, `logoutUser`), release checklist. Build parts done; release is the maintainer's.
 - [[2026-09-03-groups-part5-moderation]] — Groups Part 5: denylist fix + seed, hardening migration, report/block/unblock wired, policy copy, runbook — **pushed to prod, dormant**. Blocking + reporting un-deferred ([[groups-ships-with-report-and-block]])
 - [[2026-09-03-private-groups]] — Groups Part 4.5: private groups joined by a 6-digit code (revised same day — discoverable with a lock, still code-gated: [[a-private-group-is-hidden-not-sealed]])
 - [[2026-09-02-groups-leaderboard]] — Groups Part 4: the leaderboard, the 7/30-day toggle, Leave; blocking cut from the plan

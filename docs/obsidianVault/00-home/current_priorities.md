@@ -65,7 +65,7 @@ status: active
 
 ## In flight
 
-- [ ] Branch `feature/groups-workflow` — **Part 5 done + pushed** (`a200641`, `581fcac`, `c7bc395`, `4bfb685`, `856e181`): denylist fix + 6-term seed, hardening migration, report/block/unblock wired, blocked-members list, policy copy, runbook. Migrations live on prod, dormant. **Blocking + reporting are IN** (store requirement — [[groups-ships-with-report-and-block]]). Remaining: `git push` the branch (not done — user's call), Part 6 (two-user E2E for report/block/unblock, `npx cap sync`, staged flag flip). ([[2026-09-03-groups-part5-moderation]])
+- [ ] Branch `feature/groups-workflow` — **Parts 5 + 6 done**. Part 5 (`a200641`…`856e181`): denylist fix + 6-term seed, hardening migration, report/block/unblock wired, policy copy, runbook — migrations live on prod, dormant. Part 6 (2026-09-04): `tests/e2e/specs/groups.spec.ts` — 8 two-user flows on a `mobile` 360×800 project, all green; harness fixes (`--mode test`, `logoutUser`, tutorial seed); `docs/groups-release-checklist.md`. Remaining: `git push` the branch (not done — user's call), then **release stages 3–4** (merge, `npx cap sync` both platforms, native builds, store submissions with the UGC declarations, flip `groups_enabled` to `'true'`). ([[2026-09-03-groups-part5-moderation]], [[2026-09-04-groups-part6-e2e]])
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
 
 ## Part 5 — DONE (implementation), pending push + Part 6
@@ -95,11 +95,12 @@ status: active
 - [x] ~~Private-group `join_code` from `random()`~~ — swapped to `extensions.gen_random_bytes` via `public.groups_new_join_code()` in `20260903195701`. ([[a-private-group-is-hidden-not-sealed]])
 - [ ] `set_updated_at`, `fetch_sets_hydrated`, `set_active_season_atomic` still have a role-mutable `search_path` (advisor WARN, 2026-09-03 post-push). All **invoker** so lower risk than the two definer set RPCs Part 5 pinned. Pin them in a small migration at Part 6 or the cleanup branch.
 - [ ] **Dashboard: enable Auth leaked-password protection** (HaveIBeenPwned check) — advisor WARN, pre-existing, one toggle.
-- [ ] `playwright.config.ts` serves the app from `.env.local` (hosted project), not `.env.test` (local Docker) — the DB helpers and the browser point at different databases. Blocks Part 6 ([[e2e-serves-the-app-from-the-wrong-supabase]])
-- [ ] E2E specs need `iskilog:tutorial:completed` seeded, and any flag-flipping spec needs `describe.configure({ mode: "serial" })` — Playwright runs 2 workers locally
-- [ ] `npx cap sync` regenerates native config to add the Apple Sign In plugin to the **Android** build and reorder `Package.swift`. Pre-existing drift, unrelated to Groups; settle it at Part 6's release sync
-- [ ] `auth.spec.ts` "flow 2" fails on `main` too — `logoutUser` waits for a Settings heading `Settings.tsx` does not have. Blocks Groups Part 6
-- [ ] No component-test harness (no jsdom / testing-library); Playwright runs only desktop 1280×900 while the Groups row layout is driven by a 360px constraint. Needed before Groups Part 6. Parts 3–4 worked around it by keeping logic in pure modules (`groupDirectory.ts`, `groupsAccess.ts`, `leaderboardWindow.ts`, `leaderboardRows.ts`)
+- [x] ~~`playwright.config.ts` serves from `.env.local`~~ — fixed in Part 6: `webServer` runs `--mode test` ([[e2e-serves-the-app-from-the-wrong-supabase]])
+- [x] ~~E2E tutorial seed / serial flag-flip specs~~ — `skipWelcome` seeds `iskilog:tutorial:completed`; `groups.spec.ts` is `describe.configure({ mode: "serial" })`
+- [x] ~~`auth.spec` "flow 2" `logoutUser` heading~~ — fixed in Part 6; auth.spec 3/3 green
+- [ ] `npx cap sync` regenerates native config to add the Apple Sign In plugin to the **Android** build and reorder `Package.swift`. Pre-existing drift; settle it at the Groups release sync (checklist stage 3)
+- [ ] **Non-Groups E2E specs are broken** (`sets-crud`, `structured-notes`, `reports`, `tasks` flow 19) — surfaced once the suite hit local Docker for the first time. `sets.ts` waits for a `heading "Add Set"` dropped in `a01e2c9`; History filters by a notes field the summary no longer shows. Cleanup-branch work.
+- [ ] Groups row layout has coverage now (`mobile` project, 360×800) but the `mobile` project runs *only* `groups.spec.ts`; the other specs stay desktop-only
 - [ ] `tests/e2e/scripts/_db.mjs:65` deletes zero-member groups without scoping to the test email domain — the only unscoped statement in cleanup
 - [ ] Inline `'\s+'` in a query sent through the `pg` driver does not collapse whitespace, while the same text inside a deployed function does. Unresolved; avoid regexes in inline SQL in `tests/db`
 

@@ -281,6 +281,20 @@ describes what actually happens. `npm run test:db` and `npm run test:run` green;
 
 ## Part 6 — End-to-end tests and release
 
+**E2E suite done 2026-09-04.** `tests/e2e/specs/groups.spec.ts` — 8 serial
+two-user flows on a new `mobile` project (360×800), all green. Harness fixes:
+`playwright.config.ts` `webServer` now `--mode test` (was serving the hosted
+project — the documented blocker); `logoutUser()` no longer waits for a
+non-existent Settings heading (`auth.spec` "flow 2" now passes); `skipWelcome()`
+seeds `iskilog:tutorial:completed`; `signUpThenLogin()` takes name args so two
+users have distinct leaderboard names. Two-user contexts via `browser.newContext`,
+sets seeded straight into `public.sets` via `pg`, contexts pinned to UTC.
+Checklist: `docs/groups-release-checklist.md`. The non-Groups specs
+(`sets-crud`, `structured-notes`, `reports`) surface as broken now that the suite
+finally hits local Docker — pre-existing drift, left for the cleanup pass.
+**Release stages 3–4 (native sync, store submission, flag flip) are the
+maintainer's.**
+
 **Build:** the two-user end-to-end suite, a 360×800 mobile browser project, then the release.
 
 **Test first.** This part *is* the tests. Every existing spec drives one user, so the harness needs a second user in a second browser context — genuinely new ground, likely slower than it sounds. Playwright currently runs one desktop project at 1280×900, which means the 360px constraint driving the whole row layout has no automated coverage; add the mobile project before writing the specs. Scenarios are Parts 3–5's milestones plus Part 4.5's (create a private group, absent from the other user's directory, joined by code, wrong code rejected), automated.

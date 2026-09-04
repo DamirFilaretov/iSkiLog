@@ -6,10 +6,18 @@ tags:
   - testing
   - supabase
   - vite
-status: open
+status: solved
 ---
 
 # E2E serves the app from the wrong Supabase
+
+> [!success] Fixed 2026-09-04 (Groups Part 6)
+> `playwright.config.ts` `webServer.command` is now
+> `npm run dev -- --mode test --host 127.0.0.1 --port 4173`. Vite in `test` mode
+> loads `.env.test` and **ignores `.env.local`**, so the browser and the DB
+> helpers finally point at the same local Docker stack. The two other traps
+> below were also handled: `skipWelcome()` seeds `iskilog:tutorial:completed`,
+> and `groups.spec.ts` is `describe.configure({ mode: "serial" })`.
 
 > [!bug] Symptom
 > `npm run e2e` prepares, seeds and cleans the **local Docker** database, but the browser it drives talks to the **hosted** project. Tests can pass against data the cleanup never touches, and a Groups spec would fail outright, since the Groups schema exists only locally.
