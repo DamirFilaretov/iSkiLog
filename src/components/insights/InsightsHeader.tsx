@@ -24,7 +24,7 @@ export default function InsightsHeader({
         <select
           value={selectedEvent}
           onChange={e => onEventChange(e.target.value as EventKey | "all")}
-          className="min-w-0 basis-[65%] rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 shadow-lg shadow-slate-200/60"
+          className="min-w-0 flex-1 rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 shadow-lg shadow-slate-200/60"
         >
           <option value="all">All Events</option>
           <option value="slalom">Slalom</option>
@@ -34,16 +34,14 @@ export default function InsightsHeader({
         </select>
 
         {seasons.length > 0 ? (
-          <div className="relative min-w-0 basis-[35%]">
+          <div className="relative shrink-0">
             <select
               value={selectedSeasonId ?? ""}
               onChange={e => onSeasonChange(e.target.value)}
               disabled={disableDropdown}
               className={[
-                "w-full appearance-none bg-white text-slate-900 font-medium text-sm pl-4 pr-10 py-3 rounded-2xl shadow-lg shadow-slate-200/60 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow",
-                disableDropdown
-                  ? "cursor-default opacity-70"
-                  : "cursor-pointer hover:shadow-md"
+                "w-full appearance-none bg-white text-slate-900 font-medium text-sm text-center py-3 rounded-2xl shadow-lg shadow-slate-200/60 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow",
+                disableDropdown ? "px-4 cursor-default opacity-70" : "pl-6 pr-9 cursor-pointer hover:shadow-md"
               ].join(" ")}
             >
               {seasons.map(season => (

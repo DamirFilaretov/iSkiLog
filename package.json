@@ -10,6 +10,7 @@
     "test": "vitest src",
     "test:ui": "vitest --ui src",
     "test:run": "vitest run src",
+    "test:db": "vitest run --config vitest.db.config.ts",
     "e2e": "playwright test",
     "e2e:flow1": "playwright test -g \"flow 1:\"",
     "e2e:rest": "playwright test --grep-invert \"flow 1:\"",
@@ -17,6 +18,9 @@
     "e2e:headed": "playwright test --headed",
     "e2e:db:prepare": "node tests/e2e/scripts/db-prepare.mjs",
     "e2e:db:cleanup": "node tests/e2e/scripts/db-cleanup.mjs",
+    "groups:on": "node tests/e2e/scripts/set-groups-flag.mjs true",
+    "groups:off": "node tests/e2e/scripts/set-groups-flag.mjs false",
+    "groups:logo": "node tests/e2e/scripts/seed-group-logo.mjs",
     "postinstall": "patch-package"
   },
   "devDependencies": {

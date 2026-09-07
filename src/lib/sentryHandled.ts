@@ -29,7 +29,7 @@ function normalizeError(error: unknown): unknown {
 }
 
 type HandledErrorContext = {
-  area: "sets" | "tasks" | "history" | "insights" | "reports"
+  area: "sets" | "tasks" | "history" | "insights" | "reports" | "groups"
   action: string
   screen: string
   identifiers?: Record<string, IdentifierValue>

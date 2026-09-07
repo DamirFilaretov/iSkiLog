@@ -1,18 +1,26 @@
 import { useLocation, useNavigate } from "react-router-dom"
 
+import { useGroupsStatus } from "../../features/groups/GroupsStatusProvider"
+
 /**
  * Bottom tab bar for primary navigation.
- * Shows only three tabs: Home, Insights, Settings.
+ * Home, Insights, Groups and Settings. Groups appears while the server says
+ * the feature is on, and also for someone already in a group after the kill
+ * switch is flipped - the database keeps their board and Leave working, so the
+ * tab has to keep the route reachable. The rollout stages that ship the client
+ * ahead of the flag still show three tabs, exactly as before (D24).
  * Active tab is highlighted in blue, inactive tabs are gray.
  */
 export default function BottomTabBar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { showGroupsTab } = useGroupsStatus()
 
   const path = location.pathname
 
   const isHome = path === "/"
   const isInsights = path.startsWith("/insights")
+  const isGroups = path.startsWith("/groups")
   const isSettings = path.startsWith("/settings")
 
   function go(to: string) {
@@ -23,7 +31,7 @@ export default function BottomTabBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <div className="mx-auto max-w-md rounded-3xl bg-white shadow-lg border border-gray-100">
-        <div className="flex items-center justify-around py-3">
+        <div className="flex items-center justify-between px-2 py-3">
           <TabButton
             label="Home"
             active={isHome}
@@ -42,6 +50,17 @@ export default function BottomTabBar() {
               <InsightsIcon active={isInsights} />
             }
           />
+
+          {showGroupsTab ? (
+            <TabButton
+              label="Groups"
+              active={isGroups}
+              onClick={() => go("/groups")}
+              icon={
+                <GroupsIcon active={isGroups} />
+              }
+            />
+          ) : null}
 
           <TabButton
             label="Settings"
@@ -72,7 +91,7 @@ function TabButton({ label, active, onClick, icon, tutorialTarget }: TabButtonPr
     <button
       type="button"
       onClick={onClick}
-      className="flex w-24 flex-col items-center justify-center gap-1"
+      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1"
       aria-label={label}
       data-tutorial={tutorialTarget}
     >
@@ -120,6 +139,32 @@ function InsightsIcon({ active }: { active: boolean }) {
       />
       <path
         d="M19 19v-7"
+        stroke={stroke}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function GroupsIcon({ active }: { active: boolean }) {
+  const stroke = active ? "#2563eb" : "#9ca3af"
+
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+        stroke={stroke}
+        strokeWidth="2"
+      />
+      <path
+        d="M2.5 20a6.5 6.5 0 0 1 13 0"
+        stroke={stroke}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16 4.5a3.5 3.5 0 0 1 0 6.9M17 14.2a6.5 6.5 0 0 1 4.5 5.8"
         stroke={stroke}
         strokeWidth="2"
         strokeLinecap="round"

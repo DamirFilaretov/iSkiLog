@@ -17,7 +17,7 @@ import {
 export default function History() {
   const navigate = useNavigate()
   const { sets, getActiveSeason, setsHydrated } = useSetsStore()
-  const [range, setRange] = useState<RangeKey>("day")
+  const [range, setRange] = useState<RangeKey>("week")
   const [eventFilter, setEventFilter] = useState<EventKey | "all">("all")
   const [customStart, setCustomStart] = useState(daysAgoLocalIsoDate(30))
   const [customEnd, setCustomEnd] = useState(todayLocalIsoDate())

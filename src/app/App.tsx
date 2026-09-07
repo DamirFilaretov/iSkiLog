@@ -15,13 +15,17 @@ import Settings from "../pages/Settings"
 import ProfileSettings from "../pages/ProfileSettings"
 import SeasonSettings from "../pages/SeasonSettings"
 import Insights from "../pages/Insights"
+import Groups from "../pages/Groups"
+import GroupLeaderboard from "../pages/GroupLeaderboard"
 import TricksLibrary from "../pages/TricksLibrary"
 import About from "../pages/About"
 import PrivacySecurity from "../pages/PrivacySecurity"
 import Welcome from "../pages/Welcome"
 
 import BottomTabBar from "../components/nav/BottomTabBar"
+import GroupsRoute from "../components/groups/GroupsRoute"
 import { TutorialProvider } from "../features/tutorial/TutorialProvider"
+import { GroupsStatusProvider } from "../features/groups/GroupsStatusProvider"
 
 import { SetsProvider } from "../store/setsStore"
 import { AuthProvider, useAuth } from "../auth/AuthProvider"
@@ -111,6 +115,7 @@ function TabLayout() {
   const showTabs =
     location.pathname === "/" ||
     location.pathname.startsWith("/insights") ||
+    location.pathname.startsWith("/groups") ||
     location.pathname.startsWith("/settings")
 
   return (
@@ -334,12 +339,29 @@ function AppContent() {
 
   return (
     <BrowserRouter>
+      <GroupsStatusProvider>
       <TutorialProvider>
       <SentryRoutes>
         <Route element={<TabLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/insights/tricks-library" element={<TricksLibrary />} />
+          <Route
+            path="/groups"
+            element={
+              <GroupsRoute>
+                <Groups />
+              </GroupsRoute>
+            }
+          />
+          <Route
+            path="/groups/:id"
+            element={
+              <GroupsRoute>
+                <GroupLeaderboard />
+              </GroupsRoute>
+            }
+          />
           <Route path="/settings" element={<Settings />} />
         </Route>
 
@@ -356,6 +378,7 @@ function AppContent() {
         <Route path="*" element={<Navigate to="/" />} />
       </SentryRoutes>
       </TutorialProvider>
+      </GroupsStatusProvider>
     </BrowserRouter>
   )
 }

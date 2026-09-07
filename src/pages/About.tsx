@@ -95,7 +95,10 @@ export default function About() {
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
           <h3 className="text-slate-900 mb-3">Contact & Info</h3>
           <div className="space-y-2">
-            <button className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
+            <a
+              href="mailto:iskilog@gmail.com"
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
+            >
               <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
                 <Mail className="w-4 h-4 text-blue-600" strokeWidth={2} />
               </div>
@@ -103,7 +106,19 @@ export default function About() {
                 <p className="text-slate-900 text-sm">Contact Support</p>
                 <p className="text-slate-500 text-xs">iskilog@gmail.com</p>
               </div>
-            </button>
+            </a>
+            <a
+              href="mailto:iskilog@gmail.com?subject=Report%20abuse"
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                <Mail className="w-4 h-4 text-blue-600" strokeWidth={2} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-slate-900 text-sm">Report abuse</p>
+                <p className="text-slate-500 text-xs">iskilog@gmail.com</p>
+              </div>
+            </a>
           </div>
         </div>
 

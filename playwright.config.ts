@@ -24,7 +24,10 @@ export default defineConfig({
     viewport: { width: 1280, height: 900 }
   },
   webServer: {
-    command: "npm run dev -- --host 127.0.0.1 --port 4173",
+    // `--mode test` makes Vite load `.env.test` (local Docker Supabase) and
+    // ignore `.env.local` (the hosted project). Without it the browser drives
+    // the app against production while every DB helper points at Docker.
+    command: "npm run dev -- --mode test --host 127.0.0.1 --port 4173",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000
@@ -34,7 +37,15 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: /groups\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] }
+    },
+    {
+      // The Groups leaderboard row layout is driven by a 360px constraint and
+      // browser zoom is disabled app-wide — so the Groups spec runs only here.
+      name: "mobile",
+      testMatch: /groups\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], viewport: { width: 360, height: 800 } }
     }
   ],
   outputDir: "test-results/playwright"

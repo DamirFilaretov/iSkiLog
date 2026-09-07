@@ -77,29 +77,13 @@ export default function Welcome({ onComplete }: Props) {
     }
   }
 
-  const handleSkip = () => {
-    onComplete()
-  }
-
   const currentSlideData = slides[currentSlide]
   const Icon = currentSlideData.icon
   const iconShadow = gradientShadow[currentSlideData.gradient]
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
-      {currentSlide < slides.length - 1 && (
-        <div className="px-5 pt-safe pb-2">
-          <div className="h-4" />
-          <div className="flex justify-end">
-            <button
-              onClick={handleSkip}
-              className="text-slate-500 hover:text-slate-700 transition-colors"
-            >
-              Skip
-            </button>
-          </div>
-        </div>
-      )}
+      <div className="pt-safe" />
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-20">
         <div

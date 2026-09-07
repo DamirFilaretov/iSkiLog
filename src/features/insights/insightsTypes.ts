@@ -8,6 +8,7 @@ export type WeeklyStats = {
   avgPerTrainingDay: number
   deltaPercent: number | null
   totalThisWeek: number
+  totalLastWeek: number
   dailyCounts: {
     label: string
     count: number

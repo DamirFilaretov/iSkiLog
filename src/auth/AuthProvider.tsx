@@ -8,7 +8,8 @@ import { fetchSeasons, createSeason, setActiveSeason, updateSeasonDates } from "
 import { useSetsStore } from "../store/setsStore"
 import type { Season } from "../types/sets"
 import { clearAppLocalCaches } from "../lib/localCache"
-import { captureHandledException } from "../lib/sentryHandled"
+import { captureHandledException, captureHandledWarning } from "../lib/sentryHandled"
+import { isDenylistedNameError } from "../features/groups/profileNameFallback"
 
 type HydrationStatus = "idle" | "loading" | "success" | "error"
 
@@ -76,7 +77,27 @@ async function ensureProfileName(user: User) {
     user_id: user.id,
     full_name: candidate
   })
-  if (upsertError) throw upsertError
+  if (!upsertError) return
+
+  // The denylist trigger guards a column that is public once Groups ships, and
+  // it fires here, on the first write of an OAuth provider's display name.
+  // Treating that as fatal would strand the user on the hydration retry screen
+  // with no route to the settings screen that could fix it, so the name is
+  // dropped instead and renders as "Skier" until they choose one.
+  if (!isDenylistedNameError(upsertError)) throw upsertError
+
+  captureHandledWarning("Provider display name rejected by the denylist", {
+    area: "groups",
+    action: "ensure_profile_name",
+    screen: "hydration",
+    identifiers: { user_id: user.id }
+  })
+
+  const { error: fallbackError } = await supabase.from("profiles").upsert({
+    user_id: user.id,
+    full_name: ""
+  })
+  if (fallbackError) throw fallbackError
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
