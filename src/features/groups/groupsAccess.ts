@@ -48,6 +48,29 @@ export function showsGroupsTab(access: GroupsAccess): boolean {
   return access === "full" || access === "wind_down"
 }
 
+/**
+ * Whether the tab bar shows Groups *right now*, including while the real
+ * `groups_status()` check is still in flight.
+ *
+ * While loading it is optimistic: it shows the tab unless the last resolved
+ * answer we persisted was a definite `"unavailable"`. A fresh install or a new
+ * login (sign-out clears the cache) has no cached answer, and rendering three
+ * tabs then popping in a fourth half a second later is worse than the bounded,
+ * server-enforced cost of the opposite mistake — the tab briefly showing for a
+ * user Groups turns out to be off for. `create_group` / `join_group` still
+ * check `groups_enabled()` server-side, so the flash is cosmetic.
+ *
+ * Once the real answer lands, `access` is no longer `"loading"` and this is
+ * exactly `showsGroupsTab(access)`.
+ */
+export function showsGroupsTabNow(
+  access: GroupsAccess,
+  cachedAccess: GroupsAccess | null
+): boolean {
+  if (access === "loading") return cachedAccess !== "unavailable"
+  return showsGroupsTab(access)
+}
+
 /** Only `unavailable` sends a visitor away; every other state renders something. */
 export function redirectsAwayFromGroups(access: GroupsAccess): boolean {
   return access === "unavailable"

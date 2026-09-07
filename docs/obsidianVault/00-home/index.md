@@ -60,6 +60,10 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 - [[groups-ships-with-report-and-block]]
 - [[a-gated-read-rpc-must-be-stable]]
 - [[a-private-group-is-hidden-not-sealed]]
+- [[groups-have-no-owner-or-admin-role]]
+- [[groups-ship-with-real-photos]]
+- [[the-directory-shows-a-stale-snapshot-before-revalidating]]
+- [[the-tab-bar-guesses-from-last-launch-while-access-waits]]
 
 ### Patterns
 - [[a-set-is-a-discriminated-union-narrow-by-event]]
@@ -82,6 +86,7 @@ Code is the source of truth. When this vault and the code disagree, **trust the 
 
 ## Logs & loose ends
 
+- [[2026-09-04-groups-photos-and-directory-polish]] — Group photos shipped (D10 superseded), a directory/create-modal redesign pass, two perf fixes (directory skeleton flash, tab-bar pop-in), plus a second concurrently-authored body of work (leaderboard polish, policy rewrite, blocked-members modal, seed data) reviewed and committed on request. Branch pushed to `origin`.
 - [[2026-09-04-groups-part6-e2e]] — Groups Part 6: two-user Playwright suite (8 flows, `mobile` 360×800), harness fixes (`--mode test`, `logoutUser`), release checklist. Build parts done; release is the maintainer's.
 - [[2026-09-03-groups-part5-moderation]] — Groups Part 5: denylist fix + seed, hardening migration, report/block/unblock wired, policy copy, runbook — **pushed to prod, dormant**. Blocking + reporting un-deferred ([[groups-ships-with-report-and-block]])
 - [[2026-09-03-private-groups]] — Groups Part 4.5: private groups joined by a 6-digit code (revised same day — discoverable with a lock, still code-gated: [[a-private-group-is-hidden-not-sealed]])

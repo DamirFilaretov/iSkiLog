@@ -64,4 +64,5 @@ This is the user's explicit choice, made with the brute-force risk on the table.
 - [[groups-tables-are-unreachable-and-rpcs-are-the-only-path]]
 - [[browse-is-not-a-membership-list]]
 - [[the-kill-switch-stops-spread-not-escape]]
+- [[groups-have-no-owner-or-admin-role]]
 - [[2026-09-03-private-groups]]

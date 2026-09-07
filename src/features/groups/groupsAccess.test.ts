@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { groupsAccess, showsGroupsTab } from "./groupsAccess"
+import { groupsAccess, showsGroupsTab, showsGroupsTabNow } from "./groupsAccess"
 
 describe("groupsAccess", () => {
   it("waits while the server has not answered", () => {
@@ -60,5 +60,29 @@ describe("showsGroupsTab", () => {
 
   it("hides the tab when status is unknown, leaving recovery to the direct route", () => {
     expect(showsGroupsTab("unknown")).toBe(false)
+  })
+})
+
+describe("showsGroupsTabNow", () => {
+  it("shows the tab on a first launch, before the status check has answered", () => {
+    // No cached answer (fresh install, or a new login after sign-out cleared it).
+    // The tab must not render three-then-four.
+    expect(showsGroupsTabNow("loading", null)).toBe(true)
+  })
+
+  it("keeps showing the tab while re-checking if it was reachable last launch", () => {
+    expect(showsGroupsTabNow("loading", "full")).toBe(true)
+    expect(showsGroupsTabNow("loading", "wind_down")).toBe(true)
+  })
+
+  it("stays hidden while loading only when we know the feature is unavailable", () => {
+    expect(showsGroupsTabNow("loading", "unavailable")).toBe(false)
+  })
+
+  it("defers to the exact rule once the real answer lands", () => {
+    expect(showsGroupsTabNow("full", null)).toBe(true)
+    expect(showsGroupsTabNow("wind_down", null)).toBe(true)
+    expect(showsGroupsTabNow("unavailable", "full")).toBe(false)
+    expect(showsGroupsTabNow("unknown", "full")).toBe(false)
   })
 })

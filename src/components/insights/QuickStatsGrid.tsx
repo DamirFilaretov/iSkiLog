@@ -2,8 +2,9 @@ import { TrendingUp, Calendar, Target, Zap } from "lucide-react"
 import StatCard from "./StatCard"
 
 type Props = {
-  avgPerDay: string
-  avgDeltaText: string
+  setsThisWeek: string
+  setsDeltaText: string
+  setsDeltaColor: string
 
   trainingDaysThisMonth: string
 
@@ -14,8 +15,9 @@ type Props = {
 }
 
 export default function QuickStatsGrid({
-  avgPerDay,
-  avgDeltaText,
+  setsThisWeek,
+  setsDeltaText,
+  setsDeltaColor,
   trainingDaysThisMonth,
   mostPracticedLabel,
   mostPracticedSubtext,
@@ -26,10 +28,10 @@ export default function QuickStatsGrid({
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           icon={<TrendingUp className="w-5 h-5 text-emerald-600" strokeWidth={2} />}
-          label="Avg per Day"
-          value={avgPerDay}
-          subtext={avgDeltaText}
-          subtextColor="text-emerald-600"
+          label="Sets This Week"
+          value={setsThisWeek}
+          subtext={setsDeltaText}
+          subtextColor={setsDeltaColor}
         />
 
         <StatCard

@@ -16,11 +16,11 @@ describe("groupPeriod", () => {
   })
 
   it("labels the seven day period", () => {
-    expect(groupPeriodLabel("7d")).toBe("Last 7 days")
+    expect(groupPeriodLabel("7d")).toBe("7 days")
   })
 
   it("labels the thirty day period", () => {
-    expect(groupPeriodLabel("30d")).toBe("Last 30 days")
+    expect(groupPeriodLabel("30d")).toBe("30 days")
   })
 
   it("accepts the two server periods as periods", () => {

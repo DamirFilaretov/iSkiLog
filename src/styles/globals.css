@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans:
+    "Open Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 /*
  * Top spacing that clears the status bar / notch on native without stacking.
  *

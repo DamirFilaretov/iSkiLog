@@ -25,7 +25,7 @@ export default function BoardPeriodToggle({ period, pending, onChange }: Props) 
     <div
       role="group"
       aria-label="Time range"
-      className="inline-flex rounded-full bg-slate-100 p-0.5"
+      className="inline-flex gap-1 rounded-full bg-slate-100 p-1"
     >
       {GROUP_PERIODS.map(value => {
         const active = value === period
@@ -42,8 +42,8 @@ export default function BoardPeriodToggle({ period, pending, onChange }: Props) 
               active
                 ? "bg-blue-600 text-white shadow-sm shadow-blue-300/60"
                 : isPending
-                  ? "bg-white text-slate-400"
-                  : "bg-white text-slate-600"
+                  ? "bg-transparent text-slate-400"
+                  : "bg-transparent text-slate-600 hover:bg-white/60"
             }`}
           >
             {groupPeriodLabel(value)}

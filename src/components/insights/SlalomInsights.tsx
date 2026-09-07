@@ -1,9 +1,9 @@
-import { useMemo } from "react"
-import { Trophy, TrendingUp } from "lucide-react"
+import { useMemo, useState } from "react"
+import { Trophy, TrendingUp, ChevronDown } from "lucide-react"
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   type TooltipContentProps,
@@ -14,7 +14,7 @@ import type { SkiSet } from "../../types/sets"
 import { usePreferences } from "../../lib/preferences"
 import DateFieldNativeOverlay from "../date/DateFieldNativeOverlay"
 import {
-  getSlalomSeries,
+  getSlalomLastNSets,
   getSlalomStats,
   type SlalomSeriesPoint
 } from "../../features/insights/insightsSelectors"
@@ -29,6 +29,7 @@ type RangeKey = InsightRangeKey
 
 type Props = {
   sets: SkiSet[]
+  allSets: SkiSet[]
   range: RangeKey
   customStart: string
   customEnd: string
@@ -36,6 +37,9 @@ type Props = {
   onCustomStartChange: (date: string) => void
   onCustomEndChange: (date: string) => void
 }
+
+const CHART_SET_COUNTS = [7, 14, 30] as const
+type ChartSetCount = (typeof CHART_SET_COUNTS)[number]
 
 const SCORE_PASS_SIZE = 6
 const SCORE_EPSILON = 1e-9
@@ -151,6 +155,7 @@ function formatChartRopeLabel(score: number, ropeUnit: "meters" | "feet") {
 }
 
 type ChartPoint = {
+  idx: number
   label: string
   value: number
   bestSet: SlalomSeriesPoint["bestSet"]
@@ -175,7 +180,8 @@ function SeriesChart({
     )
   }
 
-  const data: ChartPoint[] = points.map(point => ({
+  const data: ChartPoint[] = points.map((point, idx) => ({
+    idx,
     label: point.label,
     value: point.value,
     bestSet: point.bestSet,
@@ -183,14 +189,14 @@ function SeriesChart({
     endDate: point.endDate
   }))
 
-  const renderTooltip = ({ active, payload, label }: TooltipContentProps<number, string>) => {
+  const renderTooltip = ({ active, payload }: TooltipContentProps<number, string>) => {
     if (!active || !payload || payload.length === 0) return null
     const item = payload[0]?.payload as ChartPoint | undefined
     const best = item?.bestSet ?? null
     const result = formatBestSet(best, speedUnit, ropeUnit)
     return (
       <div className="rounded-xl bg-white px-3 py-2 text-xs shadow-lg shadow-slate-200/70">
-        <p className="text-slate-500">{label}</p>
+        <p className="text-slate-500">{item?.label ?? ""}</p>
         <p className="mt-1 text-sm font-semibold text-slate-900">{result}</p>
       </div>
     )
@@ -200,9 +206,16 @@ function SeriesChart({
     <div className="mt-3">
       <div className="h-40 min-h-[10rem] w-full min-w-0 rounded-2xl bg-slate-50 p-3">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={120}>
-          <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+          <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
             <CartesianGrid stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="idx"
+              type="category"
+              tickFormatter={value => data[Number(value)]?.label ?? ""}
+              tick={{ fontSize: 11, fill: "#94a3b8" }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis
               tickFormatter={value => formatChartRopeLabel(Number(value), ropeUnit)}
               ticks={CHART_ROPE_SCORE_TICKS}
@@ -212,16 +225,15 @@ function SeriesChart({
               tickLine={false}
               width={34}
             />
-            <Tooltip content={renderTooltip} cursor={{ stroke: "rgba(37, 99, 235, 0.15)", strokeWidth: 2 }} />
-            <Line
-              type="monotone"
+            <Tooltip content={renderTooltip} cursor={{ fill: "rgba(37, 99, 235, 0.08)" }} />
+            <Bar
               dataKey="value"
-              stroke="#2563eb"
-              strokeWidth={2.5}
-              dot={{ r: 3, fill: "#2563eb" }}
-              activeDot={{ r: 4 }}
+              fill="#2563eb"
+              radius={[4, 4, 0, 0]}
+              maxBarSize={28}
+              minPointSize={3}
             />
-          </LineChart>
+          </BarChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-2 flex justify-between text-[11px] text-slate-400">
@@ -232,8 +244,9 @@ function SeriesChart({
   )
 }
 
-export default function SlalomInsights({ sets, range, customStart, customEnd, onRangeChange, onCustomStartChange, onCustomEndChange }: Props) {
+export default function SlalomInsights({ sets, allSets, range, customStart, customEnd, onRangeChange, onCustomStartChange, onCustomEndChange }: Props) {
   const { preferences } = usePreferences()
+  const [chartSetCount, setChartSetCount] = useState<ChartSetCount>(14)
 
   const filteredSets = useMemo(
     () =>
@@ -250,8 +263,8 @@ export default function SlalomInsights({ sets, range, customStart, customEnd, on
     [filteredSets]
   )
   const series = useMemo(
-    () => getSlalomSeries(filteredSets, range, customStart, customEnd),
-    [filteredSets, range, customStart, customEnd]
+    () => getSlalomLastNSets(allSets, chartSetCount),
+    [allSets, chartSetCount]
   )
 
   const hasSlalomSets = stats.totalSets > 0
@@ -362,17 +375,31 @@ export default function SlalomInsights({ sets, range, customStart, customEnd, on
 
       <div className="px-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm shadow-slate-200/70">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-slate-900">Results Over Time</p>
-            <span className="text-xs text-emerald-600">{trendText}</span>
+            <div className="relative shrink-0">
+              <select
+                value={chartSetCount}
+                onChange={e => setChartSetCount(Number(e.target.value) as ChartSetCount)}
+                aria-label="How many recent slalom sets to chart"
+                className="appearance-none rounded-full bg-slate-100 py-1.5 pl-3 pr-8 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {CHART_SET_COUNTS.map(count => (
+                  <option key={count} value={count}>
+                    Last {count} sets
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+            </div>
           </div>
           <SeriesChart
             points={series}
             speedUnit={preferences.speedUnit}
             ropeUnit={preferences.ropeUnit}
           />
-          <div className="mt-2 flex justify-between text-[11px] text-slate-400">
-            <span>Season progress tracking</span>
+          <div className="mt-2 flex justify-end text-[11px] text-slate-400">
+            <span className="text-emerald-600">{trendText}</span>
           </div>
         </div>
       </div>

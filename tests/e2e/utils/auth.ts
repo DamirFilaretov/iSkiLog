@@ -77,17 +77,23 @@ export async function signUpThenLogin(
     await loginUser(page, { email, password })
   }
 
-  // New users always see the Welcome gate. Wait for it then dismiss via Skip.
-  // We wait for either the Skip button (welcome gate) or home content to appear.
-  const skipButton = page.getByRole("button", { name: /^Skip$/ })
+  // New users always see the Welcome gate (a 4-slide intro, no Skip button).
+  // Wait for it, then click through "Next" to the final "Get Started".
+  const nextButton = page.getByRole("button", { name: /^Next$/ })
+  const getStarted = page.getByRole("button", { name: /^Get Started$/ })
   const homeContent = page.getByText(/No sets logged yet|Season Total:|total training sets/i)
   const found = await Promise.race([
-    skipButton.waitFor({ state: "visible", timeout: 10_000 }).then(() => "skip" as const),
+    nextButton.waitFor({ state: "visible", timeout: 10_000 }).then(() => "welcome" as const),
+    getStarted.waitFor({ state: "visible", timeout: 10_000 }).then(() => "welcome" as const),
     homeContent.waitFor({ state: "visible", timeout: 10_000 }).then(() => "home" as const),
   ]).catch(() => "timeout" as const)
 
-  if (found === "skip") {
-    await skipButton.click()
+  if (found === "welcome") {
+    for (let guard = 0; guard < 10; guard++) {
+      if (!(await nextButton.isVisible().catch(() => false))) break
+      await nextButton.click()
+    }
+    await getStarted.click()
   }
 
   await expectHomeLoaded(page)

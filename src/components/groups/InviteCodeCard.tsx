@@ -25,10 +25,10 @@ export default function InviteCodeCard({ code }: Props) {
   }
 
   return (
-    <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-      <p className="text-xs font-medium text-blue-700">Invite code</p>
-      <div className="mt-1 flex items-center justify-between gap-3">
-        <span className="text-xl font-semibold tracking-[0.3em] text-blue-900 tabular-nums">
+    <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+      <p className="shrink-0 text-lg font-medium text-blue-700">Invite code:</p>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="truncate text-lg font-semibold tracking-[0.25em] text-blue-900 tabular-nums">
           {code}
         </span>
         <button
@@ -40,10 +40,6 @@ export default function InviteCodeCard({ code }: Props) {
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <p className="mt-2 text-xs text-blue-700/80">
-        Share this code so people can join. The group shows in the directory with a lock, but
-        joining needs this code.
-      </p>
     </div>
   )
 }

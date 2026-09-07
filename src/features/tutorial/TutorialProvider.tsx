@@ -8,6 +8,19 @@ import { tutorialSteps, type TutorialStep } from './tutorialSteps'
 
 const TUTORIAL_KEY = 'iskilog:tutorial:completed'
 const TARGET_WAIT_TIMEOUT_MS = 8_000
+// How long the target's geometry must hold still before we hand a step to
+// Joyride when the target is already in view — kept short so ordinary step
+// transitions stay snappy. Time-based rather than frame-based so it behaves the
+// same on 60Hz and 120Hz displays.
+const TARGET_QUICK_SETTLE_MS = 60
+// When the target is BELOW the fold, Joyride has to scroll a long way to it and
+// it only scrolls once (afterwards it just keeps the tooltip glued, never
+// re-scrolls). The Insights → Tricks view keeps growing for a few hundred ms
+// after mount as the learned / in-progress lists arrive from the network, so a
+// scroll fired too early leaves that deep target stranded below the fold. For
+// an off-screen target, wait for its document position and the page height to
+// both hold still for this long instead.
+const TARGET_SETTLE_MS = 350
 
 function getTargetElement(target: TutorialStep['target']) {
   if (typeof target === 'string') return document.querySelector(target)
@@ -20,30 +33,60 @@ function waitForTarget(target: TutorialStep['target'], timeout = TARGET_WAIT_TIM
   return new Promise<boolean>(resolve => {
     const startedAt = performance.now()
     let frame = 0
-    let previousRect = ''
-    let stableFrames = 0
+    let signature = ''
+    let steadySince = 0
+    let everSeen = false
 
     const check = () => {
       const element = getTargetElement(target)
 
-      if (element) {
+      if (element instanceof Element) {
         const rect = element.getBoundingClientRect()
-        const nextRect = `${rect.top}:${rect.left}:${rect.width}:${rect.height}`
-        stableFrames = nextRect === previousRect && rect.width > 0 && rect.height > 0
-          ? stableFrames + 1
-          : 0
-        previousRect = nextRect
+        const hasBox = rect.width > 0 && rect.height > 0
+        if (hasBox) everSeen = true
 
-        // Wait for two settled animation frames so async page content cannot move
-        // the target immediately after Joyride measures it.
-        if (stableFrames >= 2) {
-          resolve(true)
-          return
+        // Is the top of the target already on screen? (`body`, used for the
+        // centred steps, reports top 0 and counts.) The tour resets scroll to
+        // the top before each step, so this is a stable read.
+        const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+        const topVisible = rect.top >= 0 && rect.top < viewportHeight
+
+        // Track the target's position in the *document* (scroll-independent) and
+        // the total page height. Async content growing above the target — the
+        // thing that strands it after Joyride's one-shot scroll — shows up as a
+        // change in either. Round to whole pixels: mobile WebViews report
+        // sub-pixel jitter during animations that never truly "settles".
+        const next = [
+          rect.top + window.scrollY,
+          rect.width,
+          rect.height,
+          document.documentElement.scrollHeight,
+        ]
+          .map(Math.round)
+          .join(':')
+
+        if (hasBox && next === signature) {
+          if (steadySince === 0) steadySince = performance.now()
+
+          const heldFor = performance.now() - steadySince
+          const settled = topVisible
+            ? heldFor >= TARGET_QUICK_SETTLE_MS
+            : heldFor >= TARGET_SETTLE_MS
+          if (settled) {
+            resolve(true)
+            return
+          }
+        } else {
+          steadySince = 0
+          signature = next
         }
       }
 
       if (performance.now() - startedAt >= timeout) {
-        resolve(false)
+        // Present but never settled → let the tour proceed; Joyride still scrolls
+        // and keeps the tooltip glued. Only report "not found" if the element
+        // never rendered at all.
+        resolve(everSeen)
         return
       }
 
@@ -313,22 +356,15 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         styles={{
           tooltip: {
             borderRadius: 20,
-            fontFamily: "'Open Sans', sans-serif",
           },
           tooltipTitle: {
-            fontFamily: "'Open Sans', sans-serif",
             fontWeight: 600,
           },
           buttonPrimary: {
             borderRadius: 999,
-            fontFamily: "'Open Sans', sans-serif",
           },
           buttonBack: {
             borderRadius: 999,
-            fontFamily: "'Open Sans', sans-serif",
-          },
-          buttonSkip: {
-            fontFamily: "'Open Sans', sans-serif",
           },
         }}
         options={{

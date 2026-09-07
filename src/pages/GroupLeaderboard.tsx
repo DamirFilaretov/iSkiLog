@@ -239,7 +239,7 @@ export default function GroupLeaderboard() {
     <div className="min-h-screen bg-slate-50 px-4 pt-safe pb-28">
       <div className="grid grid-cols-[60px_1fr_60px] items-center gap-3">
         <BackButton onClick={() => navigate("/groups", { replace: true })} />
-        <h1 className="min-w-0 truncate text-center text-xl font-semibold text-slate-900 [font-family:'Open_Sans',sans-serif]">
+        <h1 className="min-w-0 truncate text-center text-xl font-semibold text-slate-900">
           {groupName}
         </h1>
         {state.status === "member" ? (

@@ -4,7 +4,7 @@ import type { ReactNode } from "react"
 import { fetchGroupsStatus, listMyGroups } from "../../data/groupsApi"
 import { captureHandledException } from "../../lib/sentryHandled"
 import type { GroupsStatus } from "../../types/groups"
-import { groupsAccess, showsGroupsTab, type GroupsAccess } from "./groupsAccess"
+import { groupsAccess, showsGroupsTabNow, type GroupsAccess } from "./groupsAccess"
 import { readCachedGroupsAccess, writeCachedGroupsAccess } from "./groupsAccessCache"
 
 /**
@@ -34,9 +34,10 @@ type GroupsStatusValue = {
   /**
    * Whether the tab bar should show Groups right now. Same rule as
    * `showsGroupsTab(access)` once the real check has answered; while it's
-   * still in flight, falls back to last launch's answer (see
-   * `groupsAccessCache.ts`) instead of hiding the tab and popping it in a
-   * moment later. `access` itself never takes this shortcut — only the tab.
+   * still in flight it is optimistic — it shows the tab unless the last
+   * resolved answer (see `groupsAccessCache.ts`) was a definite
+   * `"unavailable"` — so a fresh install or a new login never renders three
+   * tabs and pops in a fourth. `access` itself never takes this shortcut.
    */
   showGroupsTab: boolean
 }
@@ -163,10 +164,7 @@ export function GroupsStatusProvider({ children }: { children: ReactNode }) {
   // Only the tab bar gets the optimistic guess, and only until the real
   // answer lands — `access` above stays exactly as it was, for the route
   // guard and the directory page, which need certainty, not a guess.
-  const showGroupsTab =
-    loading && cachedAccess !== null
-      ? cachedAccess === "full" || cachedAccess === "wind_down"
-      : showsGroupsTab(access)
+  const showGroupsTab = showsGroupsTabNow(access, cachedAccess)
 
   return (
     <GroupsStatusContext.Provider value={{ status, access, loading, refresh, showGroupsTab }}>

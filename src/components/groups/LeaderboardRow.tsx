@@ -45,10 +45,11 @@ function RankBadge({ rank }: { rank: number }) {
 
 function Body({ row }: { row: ShapedLeaderboardRow }) {
   return (
-    <>
-      <div className="flex items-center gap-3">
-        <RankBadge rank={row.rank} />
-        <span className="min-w-0 flex-1 truncate text-base font-medium text-slate-900">
+    <div className="flex items-center gap-3">
+      <RankBadge rank={row.rank} />
+
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-base font-medium text-slate-900">
           {row.memberName}
           {row.isSelf ? (
             <span className="ml-2 rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">
@@ -56,27 +57,28 @@ function Body({ row }: { row: ShapedLeaderboardRow }) {
             </span>
           ) : null}
         </span>
-        <span className="flex w-8 shrink-0 items-center justify-center self-stretch text-base font-semibold tabular-nums text-slate-900">
-          {row.totalCount}
-        </span>
+
+        <p className="mt-0.5 text-xs">
+          {row.hasSets ? (
+            row.breakdown.map((part, index) => (
+              <span key={part.label}>
+                {index > 0 ? <span className="mx-1.5 text-slate-300">·</span> : null}
+                <span className={eventTextClass(part.event)}>
+                  <span className="text-sm font-semibold">{part.label}</span>{" "}
+                  <span className="text-sm font-semibold tabular-nums">{part.count}</span>
+                </span>
+              </span>
+            ))
+          ) : (
+            <span className="text-slate-400">no sets this period</span>
+          )}
+        </p>
       </div>
 
-      <p className="mt-0.5 pl-11 text-xs">
-        {row.hasSets ? (
-          row.breakdown.map((part, index) => (
-            <span key={part.label}>
-              {index > 0 ? <span className="mx-1.5 text-slate-300">·</span> : null}
-              <span className={eventTextClass(part.event)}>
-                <span className="text-sm font-semibold">{part.label}</span>{" "}
-                <span className="text-sm font-semibold tabular-nums">{part.count}</span>
-              </span>
-            </span>
-          ))
-        ) : (
-          <span className="text-slate-400">no sets this period</span>
-        )}
-      </p>
-    </>
+      <span className="shrink-0 text-base font-semibold tabular-nums text-slate-900">
+        {row.totalCount}
+      </span>
+    </div>
   )
 }
 

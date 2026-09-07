@@ -118,7 +118,7 @@ test.describe("groups", () => {
     await expect(sam.page.getByText("no sets this period")).toBeVisible()
 
     // 30-day toggle refetches without error and keeps Alex's two sets in view.
-    await switchPeriod(sam.page, "Last 30 days")
+    await switchPeriod(sam.page, "30 days")
     await expect.poll(() => rowTotal(sam.page, alex.name)).toBe(2)
   })
 

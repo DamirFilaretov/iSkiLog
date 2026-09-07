@@ -207,7 +207,7 @@ export async function rowBreakdown(page: Page, memberName: string): Promise<stri
   return (await otherMemberRow(page, memberName).locator("> p").innerText()).trim()
 }
 
-export async function switchPeriod(page: Page, label: "Last 7 days" | "Last 30 days") {
+export async function switchPeriod(page: Page, label: "7 days" | "30 days") {
   await page.getByRole("group", { name: "Time range" }).getByRole("button", { name: label }).click()
   // The active pill is disabled once the switch resolves.
   await expect(

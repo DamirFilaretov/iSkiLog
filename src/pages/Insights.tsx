@@ -260,6 +260,22 @@ export default function Insights() {
   const showOtherInsights = selectedEvent === "other"
   const showAllEventOverview = selectedEvent === "all"
 
+  const setsWeekOverWeek = weeklyStats.totalThisWeek - weeklyStats.totalLastWeek
+  const setsDeltaText =
+    weeklyStats.totalThisWeek === 0
+      ? "No sets this week"
+      : setsWeekOverWeek > 0
+        ? `+${setsWeekOverWeek} vs last week`
+        : setsWeekOverWeek < 0
+          ? `${setsWeekOverWeek} vs last week`
+          : "Same as last week"
+  const setsDeltaColor =
+    setsWeekOverWeek > 0
+      ? "text-emerald-600"
+      : setsWeekOverWeek < 0
+        ? "text-rose-500"
+        : "text-gray-400"
+
   function resolveExportRange(): ResolvedRange {
     if (!activeSeason) {
       return {
@@ -632,6 +648,7 @@ export default function Insights() {
         {showSlalomInsights ? (
           <SlalomInsights
             sets={filteredSeasonSets}
+            allSets={sets}
             range={range}
             customStart={insightCustomStart}
             customEnd={insightCustomEnd}
@@ -680,14 +697,9 @@ export default function Insights() {
         {showAllEventOverview ? (
           <>
             <QuickStatsGrid
-              avgPerDay={weeklyStats.avgPerTrainingDay.toFixed(2)}
-              avgDeltaText={
-                weeklyStats.deltaPercent === null
-                  ? "--"
-                  : `${weeklyStats.deltaPercent > 0 ? "Up" : "Down"} ${Math.abs(
-                      Math.round(weeklyStats.deltaPercent)
-                    )}% vs last week`
-              }
+              setsThisWeek={String(weeklyStats.totalThisWeek)}
+              setsDeltaText={setsDeltaText}
+              setsDeltaColor={setsDeltaColor}
               trainingDaysThisMonth={String(trainingDaysThisMonth)}
               mostPracticedLabel={mostPracticed.event}
               mostPracticedSubtext={`${mostPracticed.count} sets`}

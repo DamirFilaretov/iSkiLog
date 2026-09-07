@@ -63,79 +63,81 @@ export default function GroupsConsentGate({ open, onAccepted, onCancel }: Props)
         role="dialog"
         aria-modal="true"
         aria-label="Before you join a group"
-        className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"
+        className="relative z-10 flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-xl"
       >
-        <h2 className="text-lg font-semibold text-slate-900">Before you join a group</h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Groups are shared. Here is exactly what other members of a group you join can see.
-        </p>
-
-        <div className="mt-4 space-y-3 text-sm">
-          <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="font-medium text-slate-800">They can see</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
-              <li>Your profile name.</li>
-              <li>
-                How many sets you logged in the last 7 or 30 days, broken down by event
-                type — slalom, tricks, jump and other.
-              </li>
-              <li>Sets you logged before you joined, if they fall in that window.</li>
-            </ul>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="font-medium text-slate-800">They cannot see</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
-              <li>What is in a set — scores, buoys, distances or technique.</li>
-              <li>Your notes.</li>
-              <li>The dates of individual sets, only the totals for the window.</li>
-            </ul>
-          </div>
-
-          <p className="text-slate-600">
-            Leaving a group stops the sharing immediately. Group names and descriptions are
-            filtered, and you can report or block another member at any time.
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-6">
+          <h2 className="text-lg font-semibold text-slate-900">Before you join a group</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Groups share part of your training with the other members.
           </p>
+
+          <div className="mt-4 space-y-3 text-sm">
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="font-medium text-slate-800">Members see</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
+                <li>Your profile name.</li>
+                <li>
+                  Your set counts for the last 7 or 30 days by event type, including
+                  sets logged before you joined.
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="font-medium text-slate-800">Members don't see</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
+                <li>Anything inside a set — scores, buoys, distances, technique.</li>
+                <li>Your notes.</li>
+                <li>Individual set dates.</li>
+              </ul>
+            </div>
+
+            <p className="text-slate-600">
+              Leaving a group stops the sharing at once. You can report or block a member
+              anytime.
+            </p>
+          </div>
         </div>
 
-        <p className="mt-4 text-xs leading-relaxed text-slate-500">
-          By continuing you agree to the{" "}
-          <a
-            href="/policy.html"
-            target="_blank"
-            rel="noreferrer"
-            onClick={event => {
-              if (!isNativeRuntime()) return
-              event.preventDefault()
-              setPolicyOpen(true)
-            }}
-            className="font-semibold text-blue-600 underline"
+        <div className="border-t border-slate-100 px-6 pb-6 pt-4">
+          <p className="text-xs leading-relaxed text-slate-500">
+            By continuing you agree to the{" "}
+            <a
+              href="/policy.html"
+              target="_blank"
+              rel="noreferrer"
+              onClick={event => {
+                if (!isNativeRuntime()) return
+                event.preventDefault()
+                setPolicyOpen(true)
+              }}
+              className="font-semibold text-blue-600 underline"
+            >
+              Terms of Service
+            </a>
+            , including not using hateful or harassing names or harassing other members.
+          </p>
+
+          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+
+          <button
+            type="button"
+            onClick={handleAccept}
+            disabled={saving}
+            className="mt-3 w-full rounded-full bg-blue-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
           >
-            Terms of Service
-          </a>
-          , including that you will not create hateful, harassing or explicit names,
-          descriptions or display names, or harass other members.
-        </p>
+            {saving ? "Saving..." : "Agree and continue"}
+          </button>
 
-        {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-
-        <button
-          type="button"
-          onClick={handleAccept}
-          disabled={saving}
-          className="mt-4 w-full rounded-full bg-blue-600 py-3 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          {saving ? "Saving..." : "Agree and continue"}
-        </button>
-
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={saving}
-          className="mt-2 w-full rounded-full py-3 text-sm font-medium text-slate-600 disabled:opacity-60"
-        >
-          Not now
-        </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="mt-2 w-full rounded-full py-3 text-sm font-medium text-slate-600 disabled:opacity-60"
+          >
+            Not now
+          </button>
+        </div>
       </div>
 
       <PolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />

@@ -65,7 +65,7 @@ status: active
 
 ## In flight
 
-- [ ] Branch `feature/groups-workflow` — **Parts 5 + 6 done**. Part 5 (`a200641`…`856e181`): denylist fix + 6-term seed, hardening migration, report/block/unblock wired, policy copy, runbook — migrations live on prod, dormant. Part 6 (2026-09-04): `tests/e2e/specs/groups.spec.ts` — 8 two-user flows on a `mobile` 360×800 project, all green; harness fixes (`--mode test`, `logoutUser`, tutorial seed); `docs/groups-release-checklist.md`. Remaining: `git push` the branch (not done — user's call), then **release stages 3–4** (merge, `npx cap sync` both platforms, native builds, store submissions with the UGC declarations, flip `groups_enabled` to `'true'`). ([[2026-09-03-groups-part5-moderation]], [[2026-09-04-groups-part6-e2e]])
+- [ ] Branch `feature/groups-workflow` — **Parts 5 + 6 done, plus a 2026-09-04 photos-and-polish pass, now pushed to `origin`** (`dc059f1..04d9731`). Part 5 (`a200641`…`856e181`): denylist fix + 6-term seed, hardening migration, report/block/unblock wired, policy copy, runbook — migrations live on prod, dormant. Part 6 (2026-09-04): `tests/e2e/specs/groups.spec.ts` — 8 two-user flows on a `mobile` 360×800 project, all green; harness fixes (`--mode test`, `logoutUser`, tutorial seed); `docs/groups-release-checklist.md`. Photos-and-polish (2026-09-04, [[2026-09-04-groups-photos-and-directory-polish]]): group photos shipped (D10 superseded, [[groups-ship-with-real-photos]]) via `20260904172428_group_logo_storage.sql`, **pushed to the hosted Supabase project same day** — `supabase migration list` confirms local/remote match, post-push advisor check clean (no new findings beyond the already-documented set); a full directory/create-modal redesign pass; two perf fixes ([[the-directory-shows-a-stale-snapshot-before-revalidating]], [[the-tab-bar-guesses-from-last-launch-while-access-waits]]); plus a second, concurrently-authored body of work (leaderboard visual polish, a privacy-policy rewrite, blocked-members-as-a-modal, expanded seed data) reviewed and committed on request. Remaining: **release stages 3–4** (merge, `npx cap sync` both platforms, native builds, store submissions with the UGC declarations, flip `groups_enabled` to `'true'`).
 - [ ] Branch `chore/cleanup-dedup-dead-code` — cleanup / dedup pass
 
 ## Part 5 — DONE (implementation), pending push + Part 6
@@ -115,9 +115,12 @@ status: active
 > ahead of the designed rollout order (flag flips *after* the client and the
 > updated `policy.html` deploy). Reverse with
 > `update app_settings set value = 'false' where key = 'groups_enabled'`.
-> Still to do: `git push` + merge the branch; `npx cap sync` both platforms;
-> native builds + store submissions. Moderation is an ongoing commitment
-> (`docs/groups-moderation-runbook.md`), not a build task.
+> Branch is now **pushed to `origin`** (2026-09-04), and the 2026-09-04
+> photos migration (`20260904172428_group_logo_storage.sql`, `group-logos`
+> bucket + `create_group`'s new `p_logo_key`) is **also on the hosted
+> project** as of the same day. Still to do: merge the branch; `npx cap
+> sync` both platforms; native builds + store submissions. Moderation is an
+> ongoing commitment (`docs/groups-moderation-runbook.md`), not a build task.
 
 > [!warning] Carry-over risks from the handoff
 > - Report export is client-generated and can produce **large bundles**; large-chunk build warnings are expected. See [[recharts-and-jspdf-power-charts-and-exports]].

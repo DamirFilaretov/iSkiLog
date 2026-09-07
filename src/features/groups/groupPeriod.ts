@@ -12,8 +12,8 @@ export const GROUP_PERIODS: readonly GroupPeriod[] = ["7d", "30d"]
 export const DEFAULT_GROUP_PERIOD: GroupPeriod = "7d"
 
 const LABELS: Record<GroupPeriod, string> = {
-  "7d": "Last 7 days",
-  "30d": "Last 30 days"
+  "7d": "7 days",
+  "30d": "30 days"
 }
 
 export function groupPeriodLabel(period: GroupPeriod): string {
