@@ -204,7 +204,7 @@ export async function rowTotal(page: Page, memberName: string): Promise<number> 
 
 /** The `SL n · TR n · …` breakdown text for another member's row. */
 export async function rowBreakdown(page: Page, memberName: string): Promise<string> {
-  return (await otherMemberRow(page, memberName).locator("> p").innerText()).trim()
+  return (await otherMemberRow(page, memberName).locator("p").innerText()).trim()
 }
 
 export async function switchPeriod(page: Page, label: "7 days" | "30 days") {
