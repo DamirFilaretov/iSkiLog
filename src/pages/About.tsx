@@ -4,7 +4,7 @@ import BackButton from "../components/nav/BackButton"
 
 export default function About() {
   const navigate = useNavigate()
-  const version = import.meta.env.VITE_APP_VERSION ?? "1.0.0"
+  const version = import.meta.env.VITE_APP_VERSION ?? "1.1.0"
   const year = new Date().getFullYear()
 
   return (
