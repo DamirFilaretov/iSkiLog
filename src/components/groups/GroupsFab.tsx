@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { KeyRound, Plus } from "lucide-react"
 
+import { useViewportBottomInset } from "../../lib/useViewportBottomInset"
+
 /**
  * Floating entry point for the two group-entry actions (create / join by
  * code). Hidden on scroll-down, shown on scroll-up or near the top — a
@@ -20,6 +22,7 @@ export default function GroupsFab({ onCreate, onJoinByCode }: Props) {
   const [visible, setVisible] = useState(true)
   const [expanded, setExpanded] = useState(false)
   const lastY = useRef(0)
+  const bottomInset = useViewportBottomInset()
 
   useEffect(() => {
     lastY.current = window.scrollY
@@ -52,9 +55,10 @@ export default function GroupsFab({ onCreate, onJoinByCode }: Props) {
       ) : null}
 
       <div
-        className={`fixed inset-x-0 bottom-24 z-40 flex justify-center px-4 transition-all duration-200 ${
+        className={`fixed inset-x-0 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4 transition-all duration-200 ${
           visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
         }`}
+        style={bottomInset ? { bottom: `calc(6rem + env(safe-area-inset-bottom) + ${bottomInset}px)` } : undefined}
       >
         {expanded ? (
           <div className="flex items-center gap-1 rounded-full bg-white p-1.5 shadow-xl shadow-slate-900/15">

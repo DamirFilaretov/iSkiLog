@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom"
 
 import { useGroupsStatus } from "../../features/groups/GroupsStatusProvider"
+import { useViewportBottomInset } from "../../lib/useViewportBottomInset"
 
 /**
  * Bottom tab bar for primary navigation.
@@ -15,6 +16,7 @@ export default function BottomTabBar() {
   const navigate = useNavigate()
   const location = useLocation()
   const { showGroupsTab } = useGroupsStatus()
+  const bottomInset = useViewportBottomInset()
 
   const path = location.pathname
 
@@ -29,7 +31,10 @@ export default function BottomTabBar() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+      style={bottomInset ? { bottom: bottomInset } : undefined}
+    >
       <div className="mx-auto max-w-md rounded-3xl bg-white shadow-lg border border-gray-100">
         <div className="flex items-center justify-between px-2 py-3">
           <TabButton
