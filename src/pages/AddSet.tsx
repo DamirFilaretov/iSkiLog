@@ -4,6 +4,7 @@ import { Star } from "lucide-react"
 import { createSet } from "../data/setsWriteApi"
 import { updateSetInDb } from "../data/setsUpdateDeleteApi"
 import { createSeason, setActiveSeason } from "../data/seasonsApi"
+import { withTimeoutRetry } from "../data/withTimeoutRetry"
 import { captureHandledException } from "../lib/sentryHandled"
 
 import AddSetHeader from "../components/addSet/AddSetHeader"
@@ -362,18 +363,29 @@ export default function AddSet() {
     const endDate = `${year}-12-31`
     const currentYear = new Date().getFullYear()
 
-    const created = await createSeason({
-      name: `${year} Season`,
-      startDate,
-      endDate,
-      isActive: year === currentYear
-    })
+    // Bounded by the same 8s watchdog as the set save itself, so a stalled
+    // connection here can't hang the Save button indefinitely. retries: 0
+    // because `seasons` has no unique constraint on (user_id, year) — an
+    // auto-retry after an ambiguous failure could create a duplicate season.
+    const created = await withTimeoutRetry(
+      signal =>
+        createSeason(
+          {
+            name: `${year} Season`,
+            startDate,
+            endDate,
+            isActive: year === currentYear
+          },
+          signal
+        ),
+      { retries: 0 }
+    )
 
     upsertSeason(created)
 
     if (year === currentYear) {
       setActiveSeasonId(created.id)
-      await setActiveSeason(created.id)
+      await withTimeoutRetry(signal => setActiveSeason(created.id, signal), { retries: 0 })
     }
 
     return created.id

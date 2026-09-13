@@ -12,10 +12,12 @@ export async function updateSetInDb(args: { set: SkiSet; previousEvent: EventKey
   const payload = buildUpdateSetSubtypeRpcPayload(set, previousEvent)
 
   await withTimeoutRetry(async signal => {
-    const { error } = await supabase
+    const { error, status } = await supabase
       .rpc("update_set_with_subtype", payload)
       .abortSignal(signal)
-    if (error) throw error
+    // See setsWriteApi.ts: status lets isRetryableError distinguish a real
+    // server response from a request that never got one.
+    if (error) throw Object.assign(error, { status })
   })
 }
 
