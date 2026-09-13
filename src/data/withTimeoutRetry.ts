@@ -26,8 +26,22 @@ export class RequestTimeoutError extends Error {
  *
  * We retry only failures where the request almost certainly never completed
  * server-side: our own timeouts, aborts, and transport/network errors. We do
- * NOT retry server responses (validation errors, constraint violations, etc.)
- * to avoid re-issuing an operation the server already processed.
+ * NOT retry server responses (validation errors, constraint violations, a
+ * 502/503/504 gateway error, etc.) to avoid re-issuing an operation the
+ * server may have already processed.
+ *
+ * Previously this matched on `error.message` substrings like "timeout" and
+ * "connection" as a proxy for "never reached the server". That backfires for
+ * a real HTTP 504: PostgREST/Cloudflare's own error body is literally
+ * `{"message":"Gateway Timeout"}`, so the substring match retried it — even
+ * though a 504 means a server DID respond and the write may already have
+ * gone through. `status === 0` is the precise signal instead: it's how
+ * supabase-js/postgrest-js mark "fetch() itself never got a response at all"
+ * (offline, DNS failure, connection reset, or our own AbortSignal firing
+ * before any response arrived). Any other status means some server
+ * responded, so it's never auto-retried here. Callers that want this check
+ * to apply must attach `status` onto the thrown error themselves (see
+ * setsWriteApi.ts / setsUpdateDeleteApi.ts / seasonsApi.ts).
  */
 export function isRetryableError(err: unknown): boolean {
   if (err instanceof RequestTimeoutError) return true
@@ -35,18 +49,15 @@ export function isRetryableError(err: unknown): boolean {
   const name = (err as { name?: string } | null)?.name
   if (name === "AbortError") return true
 
-  const message = (err as { message?: string } | null)?.message
-  if (typeof message === "string") {
-    const m = message.toLowerCase()
-    if (
-      m.includes("fetch") ||
-      m.includes("network") ||
-      m.includes("timeout") ||
-      m.includes("connection")
-    ) {
-      return true
-    }
-  }
+  const status = (err as { status?: number } | null)?.status
+  if (status === 0) return true
+
+  // fetch() itself throws a TypeError (not a parsed response) when the
+  // request never reached the network layer at all — offline, DNS failure,
+  // CORS. This is a real JS error subclass, not a message string, so it
+  // can't accidentally match a legitimate parsed server error body the way
+  // substring matching on `message` used to.
+  if (err instanceof TypeError) return true
 
   return false
 }
